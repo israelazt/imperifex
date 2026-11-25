@@ -587,7 +587,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - 2026-11-25: workspace creado con el generador de la casa; repo en GitHub con la CI en verde; primera medida a mano de memoria y CPU (arriba); plan maestro escrito.
 - [x] 0.1 (2026-11-25; además, la guarda de `unsafe` admite `imperifex-bench-platform` y `main.rs` del banco puede imprimir su salida) · [x] 0.2 (2026-11-25) · [x] 0.3 (2026-11-25)
 - [x] 1.1 (2026-11-25: 143,8 presentaciones/s moviendo el ratón; copia p95 1,38 ms) · [x] 1.2 (2026-11-25: `pid_<n>_luid_…_engtype_3D`; recolectar y leer, ~0,6 ms en p50) · [x] 1.3 (2026-11-25: la ventana la abre el Warp ya abierto; cierra sin diálogo; su shell vive ~1 min más) · [x] 1.4 (2026-11-25: basta `SetForegroundWindow`; la tecla llega a la ventana propia; Warp sugiere al escribir)
-- [x] 2.1 (2026-11-25) · [x] 2.2 (2026-11-25) · [x] 2.3 (2026-11-25) · [x] 2.4 (2026-11-25) · [ ] 2.5 · [ ] 2.6
+- [x] 2.1 (2026-11-25) · [x] 2.2 (2026-11-25) · [x] 2.3 (2026-11-25) · [x] 2.4 (2026-11-25) · [x] 2.5 (2026-11-25) · [ ] 2.6
 - [ ] 3.1 · [ ] 3.2 · [ ] 3.3 · [ ] 3.4 · [ ] 3.5
 - [ ] 4.1 · [ ] 4.2 · [ ] 4.3 · [ ] 4.4
 - [ ] 5.1 · [ ] 5.2 · [ ] 5.3 · [ ] 5.4 · [ ] 5.5
