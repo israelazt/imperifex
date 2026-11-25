@@ -27,17 +27,7 @@ fn main() -> Result<(), String> {
             process.pid, process.parent
         );
     }
-    let mut opened = match warp::open_window(warp::Launch::Program, OPENING) {
-        Err(warp::NotOpened::Nothing) => {
-            println!("lanzando el programa no salió ninguna ventana; se prueba warp://");
-            warp::open_window(warp::Launch::Uri, OPENING)
-        }
-        other => other,
-    }
-    .map_err(|why| match why {
-        warp::NotOpened::Nothing => "tampoco salió ninguna ventana con warp://".to_string(),
-        warp::NotOpened::Stop(reason) => reason,
-    })?;
+    let mut opened = warp::open_new_window(OPENING)?;
     println!(
         "la ventana nueva es {:#x}, del pid {} ({}x{})",
         opened.window.hwnd, opened.window.pid, opened.window.width, opened.window.height

@@ -19,7 +19,7 @@ const EVERY: Duration = Duration::from_millis(50);
 
 /// How a new window is asked for.
 #[derive(Debug, Clone, Copy)]
-pub enum Launch {
+enum Launch {
     Program,
     Uri,
 }
@@ -163,7 +163,7 @@ pub struct Opened {
 }
 
 /// Why there is no window to work with.
-pub enum NotOpened {
+enum NotOpened {
     /// Not a single new window of Warp showed up: another way of asking may be tried.
     Nothing,
     /// Something showed up or failed: stop, so that nothing else gets opened.
@@ -172,7 +172,7 @@ pub enum NotOpened {
 
 /// Launches and watches for `time`. It answers only if exactly one window can
 /// be the new one; otherwise nothing is touched.
-pub fn open_window(launch: Launch, time: Duration) -> Result<Opened, NotOpened> {
+fn open_window(launch: Launch, time: Duration) -> Result<Opened, NotOpened> {
     let photo = Photo::take().map_err(NotOpened::Stop)?;
     start(launch).map_err(NotOpened::Stop)?;
     let mut seen = Seen::default();
@@ -201,6 +201,22 @@ fn any_of_warp(seen: &Seen) -> Result<bool, String> {
             .chain(seen.processes.values())
             .any(|p| p.pid == window.pid && p.is(IMAGE))
     }))
+}
+
+/// Opens a window with the program and, only if that showed nothing at all,
+/// with the `warp://` address.
+pub fn open_new_window(time: Duration) -> Result<Opened, String> {
+    let first = match open_window(Launch::Program, time) {
+        Err(NotOpened::Nothing) => {
+            println!("lanzando el programa no salió ninguna ventana; se prueba warp://");
+            open_window(Launch::Uri, time)
+        }
+        other => other,
+    };
+    first.map_err(|why| match why {
+        NotOpened::Nothing => "tampoco salió ninguna ventana con warp://".to_string(),
+        NotOpened::Stop(reason) => reason,
+    })
 }
 
 /// Asks the opened window to close and reports what happens for `time`.

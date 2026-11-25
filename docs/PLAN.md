@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **en curso: bloque 1**. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **en curso: bloque 1 hecho; en la PAUSA** (el planificador revisa los bloques 5 y 6). Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -564,11 +564,29 @@ _(Los escribe cada sonda del bloque 1, con fecha y números.)_
 - Cerrar la única ventana (arranque en frío) no se probó.
 - `new_tab_keys` sigue sin confirmar: ninguna sonda del bloque lo prueba; lo hará la 6.6.
 
+### 1.4 Foco y teclas (2026-11-25, `probe_focus`, una ejecución desde la sesión de Claude Code en Warp)
+
+Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A y B, y pasa el foco de B a A.
+
+- Cada ventana nueva **tomó el primer plano sola**. Se vieron en la primera lectura (56 y 57 ms; en la 1.3, 121 ms).
+- **`SetForegroundWindow` solo bastó** para volver de B a A. Por eso `AttachThreadInput` y `Alt` **no se probaron**. Tampoco se probó con una ventana de otro programa en primer plano.
+- **La tecla llegó:** tres fotos de A (antes, con «a» y tras Retroceso) muestran la letra y luego el campo vacío. Cada envío comprobó antes que A estaba en primer plano (S3). Las fotos no se suben al repo.
+- Al cerrar las dos, el foco volvió a la ventana que lo tenía al empezar. Sus procesos terminaron solos (comprobado menos de dos minutos después).
+- **Warp muestra una sugerencia al escribir:** tras la «a» apareció el texto atenuado `sdasd` y un botón al lado. Es el riesgo previsto en la tabla de riesgos.
+- **La entrada la dibuja el editor propio de Warp**, en la parte baja de la ventana, no el prompt de la shell.
+- La ventana nueva abrió en la carpeta de este repo, con avisos de carpeta, rama y cambios de Git, y un panel «New terminal session».
+
+**Para los bloques 5 y 6 (lo revisa el planificador en la PAUSA):**
+- 5.4 `focus`: `SetForegroundWindow` y comprobar `GetForegroundWindow`; si falla, error. No implementar `AttachThreadInput` ni `Alt` mientras no hagan falta.
+- 6.4: el primer cambio tras la «a» puede incluir la sugerencia; no se sabe si llega en el mismo frame que la letra. La muestra mide el **primer** cambio, así que hay que comprobar que ese primer cambio ya contiene la letra. La base se toma después de que la pantalla se asiente.
+- 6.4: esta latencia es la del editor de Warp, que presumiblemente dibuja sin esperar a la shell. Una terminal que manda cada tecla a la shell recorre además ConPTY y PSReadLine. **Para comparar lo mismo, medir también la tecla dentro de un programa en marcha** (una orden del banco que repita lo que recibe), y decidir cuál es la vara.
+- 5.5, 6 y 7: la ventana nueva depende de la carpeta y del estado de Git de la pestaña activa. Fijar desde dónde se lanza el banco (una carpeta sin repo) para que las tandas sean comparables.
+
 ## Estado
 
 - 2026-11-25: workspace creado con el generador de la casa; repo en GitHub con la CI en verde; primera medida a mano de memoria y CPU (arriba); plan maestro escrito.
 - [x] 0.1 (2026-11-25; además, la guarda de `unsafe` admite `imperifex-bench-platform` y `main.rs` del banco puede imprimir su salida) · [x] 0.2 (2026-11-25) · [x] 0.3 (2026-11-25)
-- [x] 1.1 (2026-11-25: 143,8 presentaciones/s moviendo el ratón; copia p95 1,38 ms) · [x] 1.2 (2026-11-25: `pid_<n>_luid_…_engtype_3D`; recolectar y leer, ~0,6 ms en p50) · [x] 1.3 (2026-11-25: la ventana la abre el Warp ya abierto; cierra sin diálogo; su shell vive ~1 min más) · [ ] 1.4
+- [x] 1.1 (2026-11-25: 143,8 presentaciones/s moviendo el ratón; copia p95 1,38 ms) · [x] 1.2 (2026-11-25: `pid_<n>_luid_…_engtype_3D`; recolectar y leer, ~0,6 ms en p50) · [x] 1.3 (2026-11-25: la ventana la abre el Warp ya abierto; cierra sin diálogo; su shell vive ~1 min más) · [x] 1.4 (2026-11-25: basta `SetForegroundWindow`; la tecla llega a la ventana propia; Warp sugiere al escribir)
 - [ ] 2.1 · [ ] 2.2 · [ ] 2.3 · [ ] 2.4 · [ ] 2.5 · [ ] 2.6
 - [ ] 3.1 · [ ] 3.2 · [ ] 3.3 · [ ] 3.4 · [ ] 3.5
 - [ ] 4.1 · [ ] 4.2 · [ ] 4.3 · [ ] 4.4
