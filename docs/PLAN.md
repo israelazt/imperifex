@@ -478,6 +478,8 @@ Features: `Win32_UI_WindowsAndMessaging`, `Win32_Graphics_Dwm`, `Win32_UI_HiDpi`
 
 ## Fase T · La terminal (resumen; se detalla al cerrar la línea base)
 
+> El plan de la terminal está en `docs/TERMINAL_PLAN.md` (2026-11-25) y sustituye a este resumen.
+
 Bloques previstos, en este orden. Cada uno se planifica en detalle **antes** de empezarlo, con los números de la línea base delante.
 
 | Bloque | Qué | Decisión abierta (con recomendación) |
