@@ -589,7 +589,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - [x] 1.1 (2026-11-25: 143,8 presentaciones/s moviendo el ratón; copia p95 1,38 ms) · [x] 1.2 (2026-11-25: `pid_<n>_luid_…_engtype_3D`; recolectar y leer, ~0,6 ms en p50) · [x] 1.3 (2026-11-25: la ventana la abre el Warp ya abierto; cierra sin diálogo; su shell vive ~1 min más) · [x] 1.4 (2026-11-25: basta `SetForegroundWindow`; la tecla llega a la ventana propia; Warp sugiere al escribir)
 - [x] 2.1 (2026-11-25) · [x] 2.2 (2026-11-25) · [x] 2.3 (2026-11-25) · [x] 2.4 (2026-11-25) · [x] 2.5 (2026-11-25) · [x] 2.6 (2026-11-25)
 - [x] 3.1 (2026-11-25) · [x] 3.2 (2026-11-25) · [x] 3.3 (2026-11-25) · [x] 3.4 (2026-11-25) · [x] 3.5 (2026-11-25: Warp consume `ascii` a **19,1 MB/s**, 100 MiB en 5,23 s; una sola muestra, ver abajo)
-- [x] 4.1 (2026-11-25) · [ ] 4.2 · [ ] 4.3 · [ ] 4.4
+- [x] 4.1 (2026-11-25) · [x] 4.2 (2026-11-25) · [ ] 4.3 · [ ] 4.4
 - [ ] 5.1 · [ ] 5.2 · [ ] 5.3 · [ ] 5.4 · [ ] 5.5
 - [ ] 6.1 · [ ] 6.2 · [ ] 6.3 · [ ] 6.4 · [ ] 6.5 · [ ] 6.6 · [ ] 6.7
 - [ ] 7.1 · [ ] 7.2 · [ ] 7.3

@@ -5,8 +5,10 @@
 
 pub mod command;
 pub mod emit;
+pub mod footprint;
 #[cfg(test)]
 mod testing;
 
 pub use command::{Command, Output};
 pub use emit::EmitService;
+pub use footprint::FootprintService;
