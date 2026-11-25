@@ -71,6 +71,27 @@ impl Report {
         serde_json::to_string_pretty(self).unwrap_or_else(|_| "{}".into())
     }
 
+    /// What the reader gets on the screen: a line for each measurement.
+    pub fn to_text(&self) -> String {
+        let mut text = format!(
+            "{} {} · {} · {}",
+            self.terminal.name, self.terminal.version, self.date, self.machine.os
+        );
+        for measurement in &self.measurements {
+            let unit = measurement.metric.unit().symbol();
+            let s = &measurement.summary;
+            text.push_str(&format!(
+                "\n{}: p50 {:.1} {unit} · p95 {:.1} {unit} · máx {:.1} {unit} (n = {})",
+                measurement.metric.label(),
+                s.p50,
+                s.p95,
+                s.max,
+                s.count
+            ));
+        }
+        text
+    }
+
     pub fn from_json(json: &str) -> Result<Self, String> {
         serde_json::from_str(json).map_err(|error| format!("el informe no se puede leer: {error}"))
     }
@@ -141,6 +162,18 @@ mod tests {
             value["measurements"][1]["metric"]["output_seen"],
             "long_lines"
         );
+    }
+
+    #[test]
+    fn the_text_has_a_line_for_each_measurement() {
+        let text = report().to_text();
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines[0], "warp 1 · 2026-11-25 · os");
+        assert_eq!(
+            lines[1],
+            "Latencia de tecla: p50 10.0 ms · p95 12.0 ms · máx 12.0 ms (n = 2)"
+        );
+        assert_eq!(lines.len(), 3);
     }
 
     #[test]

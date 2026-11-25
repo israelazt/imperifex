@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **en curso: bloques 1, 2 y 3 hechos; en la PAUSA del 3**. Pendiente: que el planificador revise los bloques 5 y 6 con lo que dijeron las sondas. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **en curso: bloques 1 a 4 hechos; en la PAUSA del 4**. Pendiente: que el planificador revise los bloques 5 y 6 con lo que dijeron las sondas. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -108,6 +108,7 @@ Pequeños, por lo que el servicio necesita. Todos devuelven `Result<_, String>`.
 | `Desktop` | `launch(exe, args) -> pid`, `windows() -> Vec<WindowEntry>`, `place(hwnd, rect)`, `focus(hwnd)`, `foreground() -> Option<u64>`, `close(hwnd)` | 5.1 |
 | `ScreenWatch` | `watch(region) -> Box<dyn Watch>`; `Watch::next(timeout) -> Option<ScreenFrame>` | 6.1 |
 | `Keyboard` | `type_text(hwnd, text)`, `press(hwnd, Key)` | 6.1 |
+| `MachineProbe` | `machine()`, `product_version(exe)`, `today()`, `env_var(name)` (no estaba prevista; la pide el informe) | 4.4 |
 
 Cada puerto tiene su falso en `imperifex-bench-app/src/testing/`, que **anota lo que le pidieron** y responde lo que la prueba programa.
 
@@ -589,7 +590,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - [x] 1.1 (2026-11-25: 143,8 presentaciones/s moviendo el ratón; copia p95 1,38 ms) · [x] 1.2 (2026-11-25: `pid_<n>_luid_…_engtype_3D`; recolectar y leer, ~0,6 ms en p50) · [x] 1.3 (2026-11-25: la ventana la abre el Warp ya abierto; cierra sin diálogo; su shell vive ~1 min más) · [x] 1.4 (2026-11-25: basta `SetForegroundWindow`; la tecla llega a la ventana propia; Warp sugiere al escribir)
 - [x] 2.1 (2026-11-25) · [x] 2.2 (2026-11-25) · [x] 2.3 (2026-11-25) · [x] 2.4 (2026-11-25) · [x] 2.5 (2026-11-25) · [x] 2.6 (2026-11-25)
 - [x] 3.1 (2026-11-25) · [x] 3.2 (2026-11-25) · [x] 3.3 (2026-11-25) · [x] 3.4 (2026-11-25) · [x] 3.5 (2026-11-25: Warp consume `ascii` a **19,1 MB/s**, 100 MiB en 5,23 s; una sola muestra, ver abajo)
-- [x] 4.1 (2026-11-25) · [x] 4.2 (2026-11-25) · [x] 4.3 (2026-11-25) · [ ] 4.4
+- [x] 4.1 (2026-11-25) · [x] 4.2 (2026-11-25) · [x] 4.3 (2026-11-25) · [x] 4.4 (2026-11-25: Warp en reposo, **689 MB privados, 462 MB de trabajo, CPU 1,1 % de un núcleo de media, GPU 0 %**; ver abajo)
 - [ ] 5.1 · [ ] 5.2 · [ ] 5.3 · [ ] 5.4 · [ ] 5.5
 - [ ] 6.1 · [ ] 6.2 · [ ] 6.3 · [ ] 6.4 · [ ] 6.5 · [ ] 6.6 · [ ] 6.7
 - [ ] 7.1 · [ ] 7.2 · [ ] 7.3
@@ -597,3 +598,25 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 **Primera medida de salida (M3, consumida), 2026-11-25:** el autor corrió `emit ascii` (release, 100 MiB, semilla 1) en una pestaña de Warp: 5,229 s, 19,1 MB/s (1 MB = 1 048 576 bytes). Es **una sola muestra**, no es la línea base: no se anotó el tamaño de la ventana ni qué más hacía el PC (había una sesión de Claude Code en el mismo Warp). «Consumida» es el tiempo hasta que la consola aceptó los bytes, no hasta que se vieron (eso lo medirá la 6.5). Sin comprobar: en qué trozos entrega la biblioteca estándar de Rust esos bytes a la consola y cuánto cuesta; es igual para todas las terminales que se midan con esta herramienta.
 
 **Coste de una muestra de huella (4.3), 2026-11-25:** prueba `measure_a_whole_footprint_sample` en release, 10 muestras separadas 1 s, con 269 procesos en el sistema: en total entre 8,6 y 12,6 ms; listar los procesos 7,0 a 10,7 ms, leer 15 procesos 0,4 a 1,3 ms, GPU 0,6 a 1,1 ms. La prueba toma todos los `conhost.exe` del sistema (no solo los de Warp) y uno de 16 no se dejó leer. Con una muestra por segundo es cerca del 1 % de un núcleo, gastado por el banco y no por la terminal medida.
+
+
+### Primera huella de Warp (4.4), 2026-11-25
+
+`footprint warp`, 60 muestras de 1 s, en release, con el autor lejos del PC. La lanzó la sesión de Claude Code en segundo plano, con 90 s de espera antes de la primera tanda y 30 s entre tandas. Warp v0.2026.11.11.08.17.stable_01.
+
+| | Tanda 1 (alterada) | Tanda 2 |
+|---|---|---|
+| Memoria privada, p50 / máx (MB) | 688,8 / 757,9 | 688,8 / 740,7 |
+| Memoria de trabajo, p50 / máx (MB) | 464,3 / 494,6 | 462,2 / 484,7 |
+| CPU, media / p50 / p95 / máx (% de un núcleo) | 2,7 / 1,5 / 10,8 / 15,5 | 1,1 / 0,0 / 4,6 / 15,5 |
+| GPU, media / p95 / máx (%) | 0,46 / 3,0 / 4,0 | 0,00 / 0,0 / 0,1 |
+| Procesos contados | 12 a 16 | 12 a 15 |
+
+- **La tanda 1 no es reposo:** el autor escribió en la sesión mientras corría y Claude respondió; la GPU solo subió en ese tramo (muestras 25 a 35 aprox.). **La medida es la tanda 2.**
+- **No es un Warp limpio:** tenía la sesión de Claude Code abierta, con su historial. Poco antes se vieron 7 `OpenConsole.exe` bajo Warp (parecen 7 sesiones; no se comprobó), 2 `warp.exe` (el principal con unos 663 MB privados) y 3 `conhost.exe` de programas lanzados por Claude Code, unos 4 MB, que la regla de 4.1 cuenta. No se controló si la ventana estaba visible.
+- La memoria de trabajo bajó respecto a una prueba de 3 s con Claude trabajando (516 MB); la privada casi no cambió (689 MB).
+
+**Para la línea base (lo revisa el planificador):**
+- Fijar el estado en que se mide Warp (cuántas pestañas, con qué dentro, ventana visible o no): Imperifex tendrá que medirse igual.
+- La CPU de cada muestra sale en escalones de ~1,55 % (probablemente la resolución del reloj de CPU de Windows; sin comprobar). En reposo el p50 puede dar 0: **la media dice más**, y la tabla de la 2.4 no la muestra.
+- Nada impide por sí solo que alguien use el PC durante una tanda: la alteración de la tanda 1 solo se vio mirando las muestras.

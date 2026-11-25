@@ -6,9 +6,10 @@
 pub mod command;
 pub mod emit;
 pub mod footprint;
+pub mod footprint_report;
 #[cfg(test)]
 mod testing;
 
-pub use command::{Command, Output};
+pub use command::{Adapters, Command, Output};
 pub use emit::EmitService;
 pub use footprint::FootprintService;

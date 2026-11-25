@@ -5,6 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::process::{ProcessEntry, ProcessUsage};
+use crate::report::Machine;
 
 /// The output of the program, which the terminal being measured takes in.
 pub trait Output {
@@ -33,6 +34,19 @@ pub trait ProcessProbe {
     /// What one of the processes of the last list is using. It is an error if it
     /// is gone, or if the system does not let it be read.
     fn usage(&self, pid: u32) -> Result<ProcessUsage, String>;
+}
+
+/// What a report says about where and when it was taken.
+pub trait MachineProbe {
+    /// The processor, the graphics card of the primary monitor, the system and
+    /// the monitors.
+    fn machine(&self) -> Result<Machine, String>;
+    /// The version a program's file declares as its product's.
+    fn product_version(&self, exe: &Path) -> Result<String, String>;
+    /// Today, local time, as `YYYY-MM-DD`.
+    fn today(&self) -> String;
+    /// An environment variable, to expand the paths of the profiles.
+    fn env_var(&self, name: &str) -> Option<String>;
 }
 
 /// How much the graphics card is working for some processes.

@@ -4,10 +4,12 @@
 #![forbid(unsafe_code)]
 
 #[cfg(windows)]
+mod adapters;
+
+#[cfg(windows)]
 fn main() {
-    use imperifex_bench_app::{Command, EmitService};
-    use imperifex_bench_platform::{ConsoleOut, DiskFiles};
-    use imperifex_platform::{install_stderr_log, SystemClock};
+    use imperifex_bench_app::Command;
+    use imperifex_platform::install_stderr_log;
 
     install_stderr_log();
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -18,8 +20,7 @@ fn main() {
             std::process::exit(2);
         }
     };
-    let emit = EmitService::new(SystemClock::new());
-    let output = command.run(&emit, &DiskFiles, ConsoleOut::new);
+    let output = command.run(&adapters::RealAdapters::default());
     println!("{}", output.text);
     std::process::exit(if output.ok { 0 } else { 1 });
 }

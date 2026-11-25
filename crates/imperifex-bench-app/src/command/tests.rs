@@ -1,9 +1,11 @@
 use std::path::Path;
 
 use imperifex_bench_domain::emit::EmitResult;
+use imperifex_bench_domain::report::Report;
 
 use super::*;
-use crate::testing::{Events, FakeClock, FakeFiles, FakeOutput};
+use crate::testing::adapters::FakeAdapters;
+use crate::testing::FakeFiles;
 
 fn parse(line: &str) -> Result<Command, String> {
     Command::parse(&line.split_whitespace().collect::<Vec<_>>())
@@ -16,14 +18,10 @@ fn emit_order(line: &str) -> EmitOrder {
     }
 }
 
-fn run(command: Command, files: &FakeFiles, output: Result<(), &str>) -> Output {
-    let events = Events::default();
-    let service = EmitService::new(FakeClock::ticking(100, &events));
-    command.run(&service, files, || {
-        output
-            .map(|()| FakeOutput::new(&events))
-            .map_err(str::to_string)
-    })
+/// Runs on fakes and gives back what they were left with.
+fn run_on(command: Command, adapters: FakeAdapters) -> (Output, FakeAdapters) {
+    let out = command.run(&adapters);
+    (out, adapters)
 }
 
 #[test]
@@ -31,7 +29,7 @@ fn help_is_the_default_and_goes_well_without_a_terminal() {
     let none: [&str; 0] = [];
     assert_eq!(Command::parse(&none), Ok(Command::Help));
     assert_eq!(parse("--help"), Ok(Command::Help));
-    let out = run(Command::Help, &FakeFiles::default(), Err("no console"));
+    let (out, _) = run_on(Command::Help, FakeAdapters::without_console("no console"));
     assert!(out.ok && out.text.contains("imperifex-bench emit"));
 }
 
@@ -75,14 +73,11 @@ fn a_wrong_argument_is_an_error_that_shows_it() {
 
 #[test]
 fn emitting_saves_the_result_and_says_it() {
-    let files = FakeFiles::default();
-    let out = run(
-        parse("emit color --mib 1 --out r.json").unwrap(),
-        &files,
-        Ok(()),
-    );
+    let command = parse("emit color --mib 1 --out r.json").unwrap();
+    let (out, adapters) = run_on(command, FakeAdapters::default());
     assert!(out.ok, "{}", out.text);
     assert_eq!(out.text, "color: 1.0 MB en 0.100 s = 10.0 MB/s");
+    let files = &adapters.files;
     let saved = files.read(Path::new("r.json")).unwrap().unwrap();
     let result = EmitResult::from_json(&String::from_utf8(saved).unwrap()).unwrap();
     assert_eq!((result.load, result.bytes), (Load::Color, BYTES_PER_MB));
@@ -90,22 +85,77 @@ fn emitting_saves_the_result_and_says_it() {
 
 #[test]
 fn without_a_terminal_nothing_is_measured_or_saved() {
-    let files = FakeFiles::default();
     let command = parse("emit ascii --mib 1 --out r.json").unwrap();
-    let out = run(command, &files, Err("la salida no es una consola"));
+    let console = FakeAdapters::without_console("la salida no es una consola");
+    let (out, adapters) = run_on(command, console);
     assert_eq!(
         (out.ok, out.text.as_str()),
         (false, "la salida no es una consola")
     );
-    assert!(files.files.borrow().is_empty());
+    assert!(adapters.files.files.borrow().is_empty());
 }
 
 #[test]
 fn a_result_that_cannot_be_saved_is_a_failure() {
-    let files = FakeFiles {
-        failure: Some("disco lleno".into()),
+    let adapters = FakeAdapters {
+        files: FakeFiles {
+            failure: Some("disco lleno".into()),
+            ..Default::default()
+        },
         ..Default::default()
     };
     let command = parse("emit ascii --mib 1 --out r.json").unwrap();
-    assert!(!run(command, &files, Ok(())).ok);
+    assert!(!run_on(command, adapters).0.ok);
+}
+
+fn footprint_order(line: &str) -> FootprintOrder {
+    match parse(line) {
+        Ok(Command::Footprint(order)) => order,
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn footprint_takes_a_minute_unless_told_otherwise() {
+    let order = footprint_order("footprint warp");
+    assert_eq!((order.seconds, order.out), (60, None));
+    let order = footprint_order("footprint warp --out r.json --seconds 5");
+    assert_eq!((order.seconds, order.out), (5, Some("r.json".into())));
+}
+
+#[test]
+fn a_wrong_footprint_argument_is_an_error_that_shows_it() {
+    for (line, shown) in [
+        ("footprint", "terminal"),
+        ("footprint warp --seconds 0", "0"),
+        ("footprint warp --seconds long", "long"),
+        ("footprint warp --seconds 4000", "4000"),
+        ("footprint warp --runs 2", "--runs"),
+    ] {
+        let error = parse(line).unwrap_err();
+        assert!(error.contains(shown), "{line}: {error}");
+    }
+}
+
+#[test]
+fn a_footprint_without_a_file_prints_the_report() {
+    let command = parse("footprint warp --seconds 2").unwrap();
+    let (out, adapters) = run_on(command, FakeAdapters::default());
+    assert!(out.ok, "{}", out.text);
+    let report = Report::from_json(&out.text).unwrap();
+    assert_eq!(report.measurements.len(), 4);
+    assert!(adapters.files.files.borrow().is_empty());
+}
+
+#[test]
+fn a_footprint_with_a_file_saves_the_report_and_prints_its_summary() {
+    let command = parse("footprint warp --seconds 2 --out r.json").unwrap();
+    let (out, adapters) = run_on(command, FakeAdapters::default());
+    assert!(
+        out.ok && out.text.contains("Memoria privada en reposo"),
+        "{}",
+        out.text
+    );
+    let saved = adapters.files.read(Path::new("r.json")).unwrap().unwrap();
+    assert!(Report::from_json(&String::from_utf8(saved).unwrap()).is_ok());
 }

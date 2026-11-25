@@ -17,6 +17,8 @@ use windows::Win32::System::Threading::{
     GetProcessHandleCount, GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
 };
 
+use crate::decode::utf16;
+
 /// A handle that is closed once, however the function that owns it ends.
 struct Owned(HANDLE);
 
@@ -44,12 +46,6 @@ impl WindowsProcesses {
     }
 }
 
-fn image_of(entry: &PROCESSENTRY32W) -> String {
-    let name = &entry.szExeFile;
-    let end = name.iter().position(|&c| c == 0).unwrap_or(name.len());
-    String::from_utf16_lossy(&name[..end])
-}
-
 /// Every process with its threads.
 fn snapshot() -> Result<Vec<(ProcessEntry, u32)>, String> {
     // SAFETY: no pointers; the handle goes to the guard.
@@ -67,7 +63,7 @@ fn snapshot() -> Result<Vec<(ProcessEntry, u32)>, String> {
         let process = ProcessEntry {
             pid: entry.th32ProcessID,
             parent: entry.th32ParentProcessID,
-            image: image_of(&entry),
+            image: utf16(&entry.szExeFile),
         };
         found.push((process, entry.cntThreads));
         // SAFETY: the same snapshot and entry as above.

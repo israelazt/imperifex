@@ -3,11 +3,15 @@
 
 #[cfg(windows)]
 mod console_out;
+#[cfg(any(windows, test))]
+mod decode;
 mod files;
 #[cfg(windows)]
 mod gpu;
 #[cfg(any(windows, test))]
 mod gpu_instance;
+#[cfg(windows)]
+mod machine;
 #[cfg(windows)]
 mod processes;
 
@@ -16,5 +20,7 @@ pub use console_out::ConsoleOut;
 pub use files::DiskFiles;
 #[cfg(windows)]
 pub use gpu::GpuCounters;
+#[cfg(windows)]
+pub use machine::WindowsMachine;
 #[cfg(windows)]
 pub use processes::WindowsProcesses;

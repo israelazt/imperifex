@@ -1,6 +1,7 @@
 //! Fakes of the ports, for the tests of this crate. A fake records what it
 //! was asked and answers what the test scripts.
 
+pub mod adapters;
 pub mod system;
 
 use std::cell::{Cell, RefCell};

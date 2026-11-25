@@ -23,6 +23,7 @@ Antes de cada commit: `powershell -File tools/check.ps1` (formato, clippy sin av
 | Orden | Hace |
 |---|---|
 | `imperifex-bench emit <carga> --out <archivo.json> [--mib N] [--seed S]` | Manda una carga a la terminal en la que corre y mide cuánto tarda en aceptarla |
+| `imperifex-bench footprint <terminal> [--seconds N] [--out archivo.json]` | Memoria, CPU y GPU de una terminal ya abierta. Solo lee. Para medir en reposo, no la uses mientras corre |
 | `imperifex-bench help` | La ayuda |
 
 ## Arquitectura
