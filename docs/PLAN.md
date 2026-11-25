@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **en curso: bloque 0 hecho; en la PAUSA**. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **en curso: bloque 1**. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -159,7 +159,7 @@ Cada puerto tiene su falso en `imperifex-bench-app/src/testing/`, que **anota lo
 Cada sonda es un programa en `crates/imperifex-bench-platform/examples/` que imprime lo que encuentra. **No** forma parte del producto. Su resultado se escribe en «Hechos medidos» de este plan, con fecha y números. Si un resultado contradice lo previsto en los bloques 5 y 6, **para y avisa** (regla 4): el planificador ajusta el plan antes de seguir.
 
 ### 1.1 Sonda de pantalla: `probe_duplication`
-Features: `Win32_Graphics_Dxgi`, `Win32_Graphics_Dxgi_Common`, `Win32_Graphics_Direct3D`, `Win32_Graphics_Direct3D11`, `Win32_System_Performance` (para `QueryPerformanceCounter`/`Frequency`).
+Features: `Win32_Graphics_Dxgi`, `Win32_Graphics_Dxgi_Common`, `Win32_Graphics_Direct3D`, `Win32_Graphics_Direct3D11`, `Win32_System_Performance` (para `QueryPerformanceCounter`/`Frequency`) y `Win32_Graphics_Gdi` (la exige `IDXGIOutput::GetDesc`; añadida con permiso del autor, 2026-11-25).
 1. `CreateDXGIFactory1`, recorrer `EnumAdapters1` y `EnumOutputs`; elegir la salida cuyo `DesktopCoordinates` empieza en (0, 0) (el principal). Imprimir nombre, resolución y adaptador.
 2. `D3D11CreateDevice` con ese adaptador (`D3D_DRIVER_TYPE_UNKNOWN`). `IDXGIOutput` → `cast::<IDXGIOutput1>()` → `DuplicateOutput(&device)`.
 3. Durante 5 s: `AcquireNextFrame(100, …)`; por cada frame con `LastPresentTime != 0`, anotar `LastPresentTime` (unidades de QPC) y el QPC del momento de recibirlo; copiar con `CopySubresourceRegion` una región de 1000×600 a una textura `STAGING` con `CPU_ACCESS_READ`, `Map`, leer filas con `RowPitch`, `Unmap`; `ReleaseFrame`.
@@ -522,11 +522,27 @@ El camino más corto a un número útil: bloque 2 → 3 (salida) → 4 (huella).
 
 _(Los escribe cada sonda del bloque 1, con fecha y números.)_
 
+### 1.1 Pantalla (2026-11-25, `probe_duplication` en release, 5 s por tanda)
+
+`\.\DISPLAY1` 1920×1080 en la GTX 1660 Ti. La duplicación funciona.
+
+| | Ratón quieto | Ratón en movimiento |
+|---|---|---|
+| Frames recibidos con imagen | 110 (21,9/s) | 666 (133,2/s) |
+| Presentaciones acumuladas según DXGI (`AccumulatedFrames`) | 110 (21,9/s) | 719 (143,8/s) |
+| Avisos solo de puntero (`LastPresentTime = 0`) | 1 | 4492 (898,2/s) |
+| Retraso de `LastPresentTime` a recibirlo: p50 / p95 / máx (ms) | 0,062 / 0,090 / 6,25 | 0,061 / 0,106 / 2,70 |
+| Copiar y leer 1000×600: p50 / p95 / máx (ms) | 0,886 / 6,61 / 11,15 | 0,907 / 1,38 / 1,91 |
+
+- Se cumple lo previsto: ~144/s moviendo el ratón y mediana de copia por debajo de 2 ms.
+- Con el ratón quieto el p95 de la copia subió a 6,6 ms. La causa no se ha comprobado (una hipótesis: la GPU baja de reloj). No se controló qué más cambiaba en pantalla.
+- **Para el bloque 6:** (a) ignorar los avisos con `LastPresentTime = 0`, que llegan a cientos por segundo; (b) moviendo el ratón se juntaron 53 de 719 presentaciones: cuando `AccumulatedFrames > 1`, `LastPresentTime` es el de la última, así que esa muestra puede salir hasta un frame (6,9 ms) tarde. `LatencyService` debe anotar en `notes` cuántas muestras venían juntas; durante la latencia no se toca el ratón.
+
 ## Estado
 
 - 2026-11-25: workspace creado con el generador de la casa; repo en GitHub con la CI en verde; primera medida a mano de memoria y CPU (arriba); plan maestro escrito.
 - [x] 0.1 (2026-11-25; además, la guarda de `unsafe` admite `imperifex-bench-platform` y `main.rs` del banco puede imprimir su salida) · [x] 0.2 (2026-11-25) · [x] 0.3 (2026-11-25)
-- [ ] 1.1 · [ ] 1.2 · [ ] 1.3 · [ ] 1.4
+- [x] 1.1 (2026-11-25: 143,8 presentaciones/s moviendo el ratón; copia p95 1,38 ms) · [ ] 1.2 · [ ] 1.3 · [ ] 1.4
 - [ ] 2.1 · [ ] 2.2 · [ ] 2.3 · [ ] 2.4 · [ ] 2.5 · [ ] 2.6
 - [ ] 3.1 · [ ] 3.2 · [ ] 3.3 · [ ] 3.4 · [ ] 3.5
 - [ ] 4.1 · [ ] 4.2 · [ ] 4.3 · [ ] 4.4
