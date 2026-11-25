@@ -4,9 +4,11 @@
 #![forbid(unsafe_code)]
 
 pub mod change;
+pub mod emit;
 pub mod loads;
 pub mod markdown;
 pub mod metric;
+pub mod ports;
 pub mod profile;
 pub mod report;
 pub mod settle;

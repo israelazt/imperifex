@@ -4,5 +4,9 @@
 #![forbid(unsafe_code)]
 
 pub mod command;
+pub mod emit;
+#[cfg(test)]
+mod testing;
 
 pub use command::{Command, Output};
+pub use emit::EmitService;
