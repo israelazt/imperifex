@@ -5,4 +5,5 @@
 
 pub mod metric;
 pub mod profile;
+pub mod report;
 pub mod stats;
