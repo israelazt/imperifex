@@ -67,6 +67,37 @@ pub enum Metric {
     CpuDuringOutput(Load),
 }
 
+/// The tables the metrics are read in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Group {
+    Startup,
+    Key,
+    Output,
+    Memory,
+    CpuAndGpu,
+}
+
+impl Group {
+    /// In the order a reader gets them.
+    pub const ALL: [Self; 5] = [
+        Self::Startup,
+        Self::Key,
+        Self::Output,
+        Self::Memory,
+        Self::CpuAndGpu,
+    ];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Startup => "Arranque",
+            Self::Key => "Tecla",
+            Self::Output => "Salida",
+            Self::Memory => "Memoria",
+            Self::CpuAndGpu => "CPU y GPU",
+        }
+    }
+}
+
 /// The unit of the samples of a metric.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Unit {
@@ -79,35 +110,66 @@ pub enum Unit {
     Percent,
 }
 
-impl Metric {
-    /// The one table of what each metric is measured in and called.
-    fn describe(self) -> (Unit, &'static str, Option<Load>) {
-        use Unit::{MbPerS, Ms, Percent, PercentOfCore};
+impl Unit {
+    /// What is written after a number.
+    pub fn symbol(self) -> &'static str {
         match self {
-            Self::StartupCold => (Ms, "Arranque en frío", None),
-            Self::StartupWarm => (Ms, "Arranque en caliente", None),
-            Self::KeyLatency => (Ms, "Latencia de tecla", None),
-            Self::OutputConsumed(load) => (MbPerS, "Salida consumida", Some(load)),
-            Self::OutputSeen(load) => (Ms, "Salida vista", Some(load)),
-            Self::MemoryIdlePrivate => (Unit::Mb, "Memoria privada en reposo", None),
-            Self::MemoryIdleWorkingSet => (Unit::Mb, "Memoria de trabajo en reposo", None),
-            Self::MemoryScrollbackPrivate => (Unit::Mb, "Memoria del historial largo", None),
-            Self::MemoryPerTabPrivate => (Unit::Mb, "Memoria por pestaña", None),
-            Self::CpuIdle => (PercentOfCore, "CPU en reposo", None),
-            Self::GpuIdle => (Percent, "GPU en reposo", None),
-            Self::CpuDuringOutput(load) => (PercentOfCore, "CPU durante la salida", Some(load)),
+            Self::Ms => "ms",
+            Self::MbPerS => "MB/s",
+            Self::Mb => "MB",
+            Self::PercentOfCore => "% de un núcleo",
+            Self::Percent => "%",
+        }
+    }
+}
+
+impl Metric {
+    /// The one table of where each metric is read, what it is measured in and
+    /// what it is called.
+    fn describe(self) -> (Group, Unit, &'static str, Option<Load>) {
+        use Group::{CpuAndGpu, Key, Memory, Output, Startup};
+        use Unit::{MbPerS, Ms, Percent, PercentOfCore};
+        const MB: Unit = Unit::Mb;
+        let (group, unit, name) = match self {
+            Self::StartupCold => (Startup, Ms, "Arranque en frío"),
+            Self::StartupWarm => (Startup, Ms, "Arranque en caliente"),
+            Self::KeyLatency => (Key, Ms, "Latencia de tecla"),
+            Self::OutputConsumed(_) => (Output, MbPerS, "Salida consumida"),
+            Self::OutputSeen(_) => (Output, Ms, "Salida vista"),
+            Self::MemoryIdlePrivate => (Memory, MB, "Memoria privada en reposo"),
+            Self::MemoryIdleWorkingSet => (Memory, MB, "Memoria de trabajo en reposo"),
+            Self::MemoryScrollbackPrivate => (Memory, MB, "Memoria del historial largo"),
+            Self::MemoryPerTabPrivate => (Memory, MB, "Memoria por pestaña"),
+            Self::CpuIdle => (CpuAndGpu, PercentOfCore, "CPU en reposo"),
+            Self::GpuIdle => (CpuAndGpu, Percent, "GPU en reposo"),
+            Self::CpuDuringOutput(_) => (CpuAndGpu, PercentOfCore, "CPU durante la salida"),
+        };
+        (group, unit, name, self.load())
+    }
+
+    /// The load it was measured with, if it has one.
+    fn load(self) -> Option<Load> {
+        match self {
+            Self::OutputConsumed(load) | Self::OutputSeen(load) | Self::CpuDuringOutput(load) => {
+                Some(load)
+            }
+            _ => None,
         }
     }
 
-    pub fn unit(self) -> Unit {
+    pub fn group(self) -> Group {
         self.describe().0
+    }
+
+    pub fn unit(self) -> Unit {
+        self.describe().1
     }
 
     /// The name for the reader, with the load if it has one.
     pub fn label(self) -> String {
         match self.describe() {
-            (_, name, Some(load)) => format!("{name} ({})", load.name()),
-            (_, name, None) => name.to_string(),
+            (_, _, name, Some(load)) => format!("{name} ({})", load.name()),
+            (_, _, name, None) => name.to_string(),
         }
     }
 }

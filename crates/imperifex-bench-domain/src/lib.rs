@@ -3,6 +3,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod markdown;
 pub mod metric;
 pub mod profile;
 pub mod report;
