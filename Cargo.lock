@@ -19,6 +19,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "imperifex-bench"
+version = "0.1.0"
+dependencies = [
+ "imperifex-bench-app",
+ "imperifex-bench-domain",
+ "imperifex-bench-platform",
+ "imperifex-domain",
+ "imperifex-platform",
+]
+
+[[package]]
+name = "imperifex-bench-app"
+version = "0.1.0"
+dependencies = [
+ "imperifex-bench-domain",
+ "imperifex-domain",
+]
+
+[[package]]
+name = "imperifex-bench-domain"
+version = "0.1.0"
+dependencies = [
+ "imperifex-domain",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "imperifex-bench-platform"
+version = "0.1.0"
+dependencies = [
+ "imperifex-bench-domain",
+ "imperifex-domain",
+ "windows",
+]
+
+[[package]]
 name = "imperifex-domain"
 version = "0.1.0"
 dependencies = [

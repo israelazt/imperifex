@@ -62,13 +62,35 @@ fn dependencies_of(krate: &str) -> Vec<String> {
 fn each_crate_depends_only_on_what_the_layers_allow() {
     // crate -> every dependency it may have. Dependencies go only downward:
     // domain <- platform, app <- the binary. A new one is added here with a reason.
-    let allowed: [(&str, &[&str]); 4] = [
+    let allowed: [(&str, &[&str]); 8] = [
         ("imperifex-domain", &["serde", "serde_json"]),
         ("imperifex-platform", &["imperifex-domain", "windows"]),
         ("imperifex-app", &["imperifex-domain"]),
         (
             "imperifex",
             &["imperifex-domain", "imperifex-platform", "imperifex-app"],
+        ),
+        (
+            "imperifex-bench-domain",
+            &["imperifex-domain", "serde", "serde_json"],
+        ),
+        (
+            "imperifex-bench-platform",
+            &["imperifex-bench-domain", "imperifex-domain", "windows"],
+        ),
+        (
+            "imperifex-bench-app",
+            &["imperifex-bench-domain", "imperifex-domain"],
+        ),
+        (
+            "imperifex-bench",
+            &[
+                "imperifex-domain",
+                "imperifex-platform",
+                "imperifex-bench-domain",
+                "imperifex-bench-platform",
+                "imperifex-bench-app",
+            ],
         ),
     ];
     for (krate, may) in allowed {
@@ -168,9 +190,13 @@ fn no_source_file_is_too_big() {
 
 /// Where the program may print straight to the console, and why. Every other
 /// message goes through the log (`log_info!`, `log_warn!`, `log_error!`).
-const PRINT_EXCEPTIONS: [(&str, &str); 2] = [
+const PRINT_EXCEPTIONS: [(&str, &str); 3] = [
     (
         "apps/imperifex/src/main.rs",
+        "the output of an order is the program's output: it goes to the standard output",
+    ),
+    (
+        "apps/imperifex-bench/src/main.rs",
         "the output of an order is the program's output: it goes to the standard output",
     ),
     (
@@ -204,11 +230,17 @@ fn production_code_logs_instead_of_printing() {
     );
 }
 
+/// The crates that may call the system: the terminal's adapters and the bench's.
+const PLATFORM_CRATES: [&str; 2] = [
+    "crates/imperifex-platform/",
+    "crates/imperifex-bench-platform/",
+];
+
 #[test]
 fn unsafe_lives_only_in_platform() {
     let mut offenders = Vec::new();
     for (path, shown) in product_files() {
-        if shown.starts_with("crates/imperifex-platform/") {
+        if PLATFORM_CRATES.iter().any(|c| shown.starts_with(c)) {
             continue;
         }
         let text = fs::read_to_string(&path).unwrap();
@@ -223,7 +255,7 @@ fn unsafe_lives_only_in_platform() {
     }
     assert!(
         offenders.is_empty(),
-        "unsafe code belongs in imperifex-platform, behind a port:\n{}",
+        "unsafe code belongs in a platform crate, behind a port:\n{}",
         offenders.join("\n")
     );
 }

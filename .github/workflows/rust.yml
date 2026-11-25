@@ -43,10 +43,10 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: Clippy (portable layers)
-        run: cargo clippy -p imperifex-domain -p imperifex-app -p imperifex-platform --all-targets -- -D warnings
+        run: cargo clippy -p imperifex-domain -p imperifex-app -p imperifex-platform -p imperifex-bench-domain -p imperifex-bench-app -p imperifex-bench-platform --all-targets -- -D warnings
       - name: No unwrap in production code (portable layers)
-        run: cargo clippy -p imperifex-domain -p imperifex-app -p imperifex-platform --lib -- -D clippy::unwrap_used
+        run: cargo clippy -p imperifex-domain -p imperifex-app -p imperifex-platform -p imperifex-bench-domain -p imperifex-bench-app -p imperifex-bench-platform --lib -- -D clippy::unwrap_used
       - name: Tests (portable layers)
-        run: cargo test -p imperifex-domain -p imperifex-app -p imperifex-platform
+        run: cargo test -p imperifex-domain -p imperifex-app -p imperifex-platform -p imperifex-bench-domain -p imperifex-bench-app -p imperifex-bench-platform
       - name: The program builds
-        run: cargo build -p imperifex
+        run: cargo build -p imperifex -p imperifex-bench

@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **en curso: bloque 0 por empezar**. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **en curso: bloque 0**. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -522,7 +522,7 @@ _(Los escribe cada sonda del bloque 1, con fecha y números.)_
 ## Estado
 
 - 2026-11-25: workspace creado con el generador de la casa; repo en GitHub con la CI en verde; primera medida a mano de memoria y CPU (arriba); plan maestro escrito.
-- [ ] 0.1 · [ ] 0.2 · [ ] 0.3
+- [x] 0.1 (2026-11-25; además, la guarda de `unsafe` admite `imperifex-bench-platform` y `main.rs` del banco puede imprimir su salida) · [ ] 0.2 · [ ] 0.3
 - [ ] 1.1 · [ ] 1.2 · [ ] 1.3 · [ ] 1.4
 - [ ] 2.1 · [ ] 2.2 · [ ] 2.3 · [ ] 2.4 · [ ] 2.5 · [ ] 2.6
 - [ ] 3.1 · [ ] 3.2 · [ ] 3.3 · [ ] 3.4 · [ ] 3.5

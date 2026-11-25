@@ -1,0 +1,15 @@
+[package]
+name = "imperifex-bench-domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+# The rules and the data of the bench: no system, no disk, no clock. Everything
+# here is tested directly. See ARCHITECTURE.md.
+[dependencies]
+imperifex-domain = { path = "../imperifex-domain" }
+serde.workspace = true
+serde_json.workspace = true

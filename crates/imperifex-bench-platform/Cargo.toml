@@ -1,0 +1,18 @@
+[package]
+name = "imperifex-bench-platform"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+# The adapters of the bench. Windows code only in #[cfg(windows)] modules.
+[dependencies]
+imperifex-bench-domain = { path = "../imperifex-bench-domain" }
+imperifex-domain = { path = "../imperifex-domain" }
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+] }

@@ -1,6 +1,15 @@
 [workspace]
 resolver = "2"
-members = ["crates/imperifex-domain", "crates/imperifex-platform", "crates/imperifex-app", "apps/imperifex"]
+members = [
+    "crates/imperifex-domain",
+    "crates/imperifex-platform",
+    "crates/imperifex-app",
+    "apps/imperifex",
+    "crates/imperifex-bench-domain",
+    "crates/imperifex-bench-platform",
+    "crates/imperifex-bench-app",
+    "apps/imperifex-bench",
+]
 
 [workspace.package]
 version = "0.1.0"

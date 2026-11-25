@@ -1,0 +1,17 @@
+[package]
+name = "imperifex-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+# The bench program: wires the real adapters into its services and prints what
+# they return. No logic.
+[dependencies]
+imperifex-domain = { path = "../../crates/imperifex-domain" }
+imperifex-platform = { path = "../../crates/imperifex-platform" }
+imperifex-bench-domain = { path = "../../crates/imperifex-bench-domain" }
+imperifex-bench-platform = { path = "../../crates/imperifex-bench-platform" }
+imperifex-bench-app = { path = "../../crates/imperifex-bench-app" }
