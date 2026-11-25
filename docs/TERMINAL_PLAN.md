@@ -74,6 +74,18 @@ La imagen es la referencia de estilo, no una especificación.
 - Linux y macOS (la arquitectura no les cierra la puerta). WSL sí entra, como un perfil de shell.
 - Temas hechos por el usuario.
 
+## Lo que dijo el bloque 1 del banco sobre el diseño (2026-11-25)
+
+Los datos están en «Hechos medidos» de `docs/PLAN.md`. Esto es lo que toca a la terminal; ninguna decisión cambia todavía.
+
+| Observado | Qué implica |
+|---|---|
+| La entrada de Warp la dibuja su propio editor, no el prompt de la shell | Con la shell nativa, cada tecla de Imperifex va y vuelve por ConPTY y PSReadLine. Su latencia al escribir en el prompt puede no ser comparable con la de Warp. **Decidir antes de T4 cuál es la vara**: la tecla en el prompt (lo que siente el usuario), la tecla dentro de un programa (compara el dibujo), o las dos (recomiendo las dos) |
+| Warp muestra una sugerencia atenuada al escribir | En Imperifex la sugerencia la pone la shell (T-D1 no cambia; la caja propia sigue fuera). T3 comprueba que la de PSReadLine se ve bien en ambos temas |
+| Al abrir una ventana, Warp lanzó muchos procesos cortos de `powershell`, `git` y `gh` (se supone que para sus avisos de carpeta y rama; no comprobado) | T5.3: la barra de contexto no lanza procesos al abrir ni en cada prompt sin medir su coste |
+| Al cerrar una ventana, su shell siguió viva cerca de un minuto | T3.4: al cerrar una pestaña, Imperifex decide y dice qué pasa con sus procesos; el panel de agentes no muestra los de pestañas cerradas |
+| La pantalla principal presenta a 144 Hz y la duplicación entrega los frames en menos de 0,2 ms (p95) | Sirve para medir T-D6 y la latencia de Imperifex con la misma herramienta |
+
 ## Conceptos nuevos
 
 | Tipo (en `imperifex-domain`) | Qué es |

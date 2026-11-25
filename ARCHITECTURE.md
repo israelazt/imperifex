@@ -93,7 +93,7 @@ El autor trabaja **dentro** de la terminal que se mide. Estas reglas no se rompe
 
 - [x] Esqueleto, guardas, log, puerto de ejemplo (`Clock`) y orden de ejemplo (`status`).
 - [x] Bloque 0 · Cimientos del banco: sus crates, la orden `help` y el perfil de Warp.
-- [ ] Bloque 1 · Investigación
+- [x] Bloque 1 · Investigación: sondas de pantalla, GPU, ventanas y foco (hechos en `docs/PLAN.md`).
 - [ ] Bloque 2 · El motor de medidas
 - [ ] Bloque 3 · Las cargas y la orden `emit`
 - [ ] Bloque 4 · Huella: memoria, CPU y GPU
