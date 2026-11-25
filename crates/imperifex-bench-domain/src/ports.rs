@@ -4,6 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::desktop::{Rect, WindowEntry};
 use crate::process::{ProcessEntry, ProcessUsage};
 use crate::report::Machine;
 
@@ -34,6 +35,24 @@ pub trait ProcessProbe {
     /// What one of the processes of the last list is using. It is an error if it
     /// is gone, or if the system does not let it be read.
     fn usage(&self, pid: u32) -> Result<ProcessUsage, String>;
+}
+
+/// The desktop: opening a terminal and handling the windows it shows. What may
+/// be touched is not decided here: every service asks the `SafetyGuard` first.
+pub trait Desktop {
+    /// Starts a program without waiting for it, and gives its process.
+    fn launch(&self, exe: &Path, args: &[String]) -> Result<u32, String>;
+    /// Every top level window, hidden ones too.
+    fn windows(&self) -> Result<Vec<WindowEntry>, String>;
+    /// Moves and sizes a window without bringing it forward.
+    fn place(&self, hwnd: u64, rect: Rect) -> Result<(), String>;
+    /// Brings a window to the foreground; it is an error if it does not get there.
+    fn focus(&self, hwnd: u64) -> Result<(), String>;
+    /// The window in the foreground, if there is one.
+    fn foreground(&self) -> Result<Option<u64>, String>;
+    /// Asks a window to close, as its close button does. It returns at once:
+    /// the window may take a while, or stay. Nothing is ever forced (S2).
+    fn close(&self, hwnd: u64) -> Result<(), String>;
 }
 
 /// What a report says about where and when it was taken.

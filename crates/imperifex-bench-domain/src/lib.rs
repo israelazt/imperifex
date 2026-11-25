@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 
 pub mod change;
+pub mod desktop;
 pub mod emit;
 pub mod loads;
 pub mod markdown;
@@ -12,6 +13,7 @@ pub mod ports;
 pub mod process;
 pub mod profile;
 pub mod report;
+pub mod safety;
 pub mod settle;
 pub mod stats;
 pub mod tree;

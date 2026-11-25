@@ -2,6 +2,7 @@
 //! was asked and answers what the test scripts.
 
 pub mod adapters;
+pub mod desktop;
 pub mod system;
 
 use std::cell::{Cell, RefCell};

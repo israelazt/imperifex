@@ -348,6 +348,8 @@ Referencia: `dockview/crates/dockview-platform/src/perf.rs` (memoria y tiempos d
 
 ## Bloque 5 · Ventanas y arranque
 
+> 2026-11-25: la revisión del planificador tras la PAUSA del bloque 1 **no se hizo**; el autor pidió seguir. Se programan las tareas como están escritas: al contrastarlas con «Hechos medidos» no se vio nada que contradiga su diseño.
+
 > Revisado por el planificador el 2026-11-25 con los hechos de las sondas 1.3, 1.4 y la huella 4.4. Lo que cambió respecto al plan original y por qué:
 >
 > - **La ventana nueva es del `warp.exe` que ya estaba abierto** (1.3), el mismo proceso que lleva la sesión del autor. «Solo lo que el banco abrió» no puede decidirse por procesos: `SafetyGuard` **adopta ventanas concretas** (D12).
@@ -702,7 +704,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - [x] 3.1 (2026-11-25) · [x] 3.2 (2026-11-25) · [x] 3.3 (2026-11-25) · [x] 3.4 (2026-11-25) · [x] 3.5 (2026-11-25: Warp consume `ascii` a **19,1 MB/s**, 100 MiB en 5,23 s; una sola muestra, ver abajo)
 - [x] 4.1 (2026-11-25) · [x] 4.2 (2026-11-25) · [x] 4.3 (2026-11-25) · [x] 4.4 (2026-11-25: Warp en reposo, **689 MB privados, 462 MB de trabajo, CPU 1,1 % de un núcleo de media, GPU 0 %**; ver abajo)
 - 2026-11-25: el planificador revisó los bloques 5 y 6 con los hechos de 1.1-1.4 y 4.4 (decisiones D12-D18; el bloque 5 pasa a 7 tareas y el 6 a 10).
-- [ ] 5.1 · [ ] 5.2 · [ ] 5.3 · [ ] 5.4 · [ ] 5.5 · [ ] 5.6 · [ ] 5.7
+- [x] 5.1 (2026-11-25) · [ ] 5.2 · [ ] 5.3 · [ ] 5.4 · [ ] 5.5 · [ ] 5.6 · [ ] 5.7
 - [ ] 6.1 · [ ] 6.2 · [ ] 6.3 · [ ] 6.4 · [ ] 6.5 · [ ] 6.6 · [ ] 6.7 · [ ] 6.8 · [ ] 6.9 · [ ] 6.10
 - [ ] 7.1 · [ ] 7.2 · [ ] 7.3
 
