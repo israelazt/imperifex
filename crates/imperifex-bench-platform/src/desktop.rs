@@ -11,8 +11,9 @@ use windows::core::BOOL;
 use windows::Win32::Foundation::{HWND, LPARAM, RECT, WPARAM};
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
-    PostMessageW, SetForegroundWindow, SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER, WM_CLOSE,
+    EnumWindows, GetClassNameW, GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId,
+    IsWindowVisible, PostMessageW, SetForegroundWindow, SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER,
+    WM_CLOSE,
 };
 
 use crate::decode::utf16;
@@ -81,10 +82,14 @@ fn describe(window: HWND) -> WindowEntry {
     // SAFETY: the buffer's length goes with it. For a window of another process
     // this reads the stored caption, without asking the window.
     unsafe { GetWindowTextW(window, &mut title) };
+    let mut class = [0u16; 256];
+    // SAFETY: the buffer's length goes with it.
+    unsafe { GetClassNameW(window, &mut class) };
     WindowEntry {
         hwnd: number(window),
         pid,
         title: utf16(&title),
+        class: utf16(&class),
         visible,
         rect: frame(window),
     }
@@ -101,11 +106,12 @@ fn foreground_window() -> Option<u64> {
 pub struct WindowsDesktop;
 
 impl Desktop for WindowsDesktop {
-    fn launch(&self, exe: &Path, args: &[String]) -> Result<u32, String> {
+    fn launch(&self, exe: &Path, args: &[String], dir: &Path) -> Result<u32, String> {
         // With no handles in common, what is launched cannot hold the bench's
         // output open after it ends.
         Command::new(exe)
             .args(args)
+            .current_dir(dir)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())

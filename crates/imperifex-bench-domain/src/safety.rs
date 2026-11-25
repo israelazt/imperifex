@@ -1,46 +1,53 @@
-//! Safety rule S1: the bench only touches what it opened. The author works
-//! inside the terminal being measured, so closing, moving, focusing or typing
-//! into something that was already there could hurt their session.
+//! Safety rule S1: the bench only touches the windows it opened. The author
+//! works inside the terminal being measured, and its new windows belong to the
+//! very process that holds their session, so processes cannot tell them apart.
+//! A window may be touched only once it has been adopted, and nothing that was
+//! there before a launch can be adopted. There is nothing here about
+//! processes: the bench has no operation that acts on one.
 
 use std::collections::HashSet;
 
-/// What existed before a measure. None of it may ever be touched.
-///
-/// Processes are known by their number. A number Windows hands out again for a
-/// new process stays out of reach, which errs on the safe side.
+use crate::desktop::WindowEntry;
+
+/// What existed before a launch, and what has been adopted since.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SafetyGuard {
-    pids: HashSet<u32>,
-    windows: HashSet<u64>,
+    before: HashSet<u64>,
+    adopted: HashSet<u64>,
 }
 
 impl SafetyGuard {
-    /// Takes the photo: every process and every window there is, hidden ones
-    /// too, as a hidden window that shows up later is still not the bench's.
-    pub fn new(pids: impl IntoIterator<Item = u32>, hwnds: impl IntoIterator<Item = u64>) -> Self {
+    /// Takes the photo: every window there is, hidden ones too.
+    pub fn new(before: &[WindowEntry]) -> Self {
         Self {
-            pids: pids.into_iter().collect(),
-            windows: hwnds.into_iter().collect(),
+            before: before.iter().map(|w| w.hwnd).collect(),
+            adopted: HashSet::new(),
         }
     }
 
-    pub fn may_touch_window(&self, hwnd: u64) -> bool {
-        !self.windows.contains(&hwnd)
-    }
-
-    pub fn may_touch_process(&self, pid: u32) -> bool {
-        !self.pids.contains(&pid)
+    /// Takes a window as the bench's own. A handle of the photo is refused even
+    /// if its window is gone and Windows gave the number to another.
+    pub fn adopt(&mut self, hwnd: u64) -> Result<(), String> {
+        if self.before.contains(&hwnd) {
+            return Err(format!(
+                "la ventana {hwnd:#x} ya existía: no es del banco (regla S1)"
+            ));
+        }
+        self.adopted.insert(hwnd);
+        Ok(())
     }
 
     /// To be asked before touching a window. The error says why not.
     pub fn check(&self, hwnd: u64) -> Result<(), String> {
-        if self.may_touch_window(hwnd) {
-            Ok(())
-        } else {
-            Err(format!(
-                "la ventana {hwnd:#x} ya existía antes de la medida: no se toca (regla S1)"
-            ))
+        if self.adopted.contains(&hwnd) {
+            return Ok(());
         }
+        let why = if self.before.contains(&hwnd) {
+            "ya existía antes de la medida"
+        } else {
+            "el banco nunca la adoptó"
+        };
+        Err(format!("la ventana {hwnd:#x} no se toca: {why} (regla S1)"))
     }
 }
 
@@ -48,26 +55,43 @@ impl SafetyGuard {
 mod tests {
     use super::*;
 
+    const THEIRS: u64 = 0xA;
+    const MINE: u64 = 0xC;
+
     fn guard() -> SafetyGuard {
-        SafetyGuard::new([10, 11], [0xA, 0xB])
+        SafetyGuard::new(&[WindowEntry {
+            hwnd: THEIRS,
+            ..Default::default()
+        }])
     }
 
     #[test]
-    fn a_window_that_was_there_cannot_be_touched_and_the_error_says_why() {
-        assert!(!guard().may_touch_window(0xA));
-        let error = guard().check(0xA).unwrap_err();
-        assert!(error.contains("0xa") && error.contains("S1"), "{error}");
+    fn a_window_of_the_photo_is_neither_adopted_nor_touched() {
+        let mut guard = guard();
+        assert!(guard.adopt(THEIRS).unwrap_err().contains("ya existía"));
+        let error = guard.check(THEIRS).unwrap_err();
+        assert!(error.contains("0xa") && error.contains("antes"), "{error}");
     }
 
     #[test]
-    fn a_new_window_can_be_touched() {
-        assert!(guard().may_touch_window(0xC));
-        assert_eq!(guard().check(0xC), Ok(()));
+    fn a_new_window_is_not_touched_until_it_is_adopted() {
+        let error = guard().check(MINE).unwrap_err();
+        assert!(error.contains("nunca la adoptó"), "{error}");
     }
 
     #[test]
-    fn processes_that_were_there_cannot_be_touched_and_new_ones_can() {
-        assert!(!guard().may_touch_process(10));
-        assert!(guard().may_touch_process(12));
+    fn an_adopted_window_is_touched() {
+        let mut guard = guard();
+        guard.adopt(MINE).unwrap();
+        assert_eq!(guard.check(MINE), Ok(()));
+    }
+
+    #[test]
+    fn a_number_of_the_photo_that_shows_up_again_cannot_be_adopted() {
+        // The window of the photo closed and Windows reused its number: the
+        // guard cannot know, and stays on the safe side.
+        let mut guard = guard();
+        assert!(guard.adopt(THEIRS).is_err());
+        assert!(guard.check(THEIRS).is_err());
     }
 }

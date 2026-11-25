@@ -40,8 +40,8 @@ pub trait ProcessProbe {
 /// The desktop: opening a terminal and handling the windows it shows. What may
 /// be touched is not decided here: every service asks the `SafetyGuard` first.
 pub trait Desktop {
-    /// Starts a program without waiting for it, and gives its process.
-    fn launch(&self, exe: &Path, args: &[String]) -> Result<u32, String>;
+    /// Starts a program in `dir` without waiting for it, and gives its process.
+    fn launch(&self, exe: &Path, args: &[String], dir: &Path) -> Result<u32, String>;
     /// Every top level window, hidden ones too.
     fn windows(&self) -> Result<Vec<WindowEntry>, String>;
     /// Moves and sizes a window without bringing it forward.

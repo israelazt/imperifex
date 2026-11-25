@@ -6,7 +6,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use imperifex_bench_domain::desktop::{Rect, WindowEntry};
@@ -45,6 +45,8 @@ impl Default for Behaviour {
 pub struct State {
     /// Every request that changes something, in order, such as `close 0x100`.
     pub asked: Vec<String>,
+    /// The folder of each launch.
+    pub dirs: Vec<PathBuf>,
     /// The windows opened by launches that are still there.
     pub opened: Vec<WindowEntry>,
     waiting: Vec<(usize, WindowEntry)>,
@@ -93,11 +95,12 @@ impl FakeDesktop {
 }
 
 impl Desktop for FakeDesktop {
-    fn launch(&self, exe: &Path, _args: &[String]) -> Result<u32, String> {
+    fn launch(&self, exe: &Path, _args: &[String], dir: &Path) -> Result<u32, String> {
         let mut state = self.state.borrow_mut();
         let number = state.launches;
         state.launches += 1;
         state.asked.push(format!("launch {}", exe.display()));
+        state.dirs.push(dir.to_path_buf());
         let pid = FIRST_PID + number as u32;
         state.alive.push(pid);
         if let Some(looks) = self.behaviour.looks_to_show {
@@ -239,7 +242,10 @@ mod tests {
                 ..Default::default()
             },
         );
-        desktop.launch(Path::new("t.exe"), &[]).unwrap();
+        desktop
+            .launch(Path::new("t.exe"), &[], Path::new("home"))
+            .unwrap();
+        assert_eq!(desktop.state.borrow().dirs, [Path::new("home")]);
         assert!(desktop.windows().unwrap().is_empty());
         assert_eq!(desktop.windows().unwrap().len(), 1);
         assert_eq!(desktop.foreground().unwrap(), Some(FIRST_OPENED));

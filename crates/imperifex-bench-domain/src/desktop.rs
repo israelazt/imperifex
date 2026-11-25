@@ -18,6 +18,8 @@ pub struct WindowEntry {
     /// The process it belongs to.
     pub pid: u32,
     pub title: String,
+    /// The name of its window class, as its program registered it.
+    pub class: String,
     pub visible: bool,
     /// The frame the user sees; empty if the system will not say.
     pub rect: Rect,

@@ -65,15 +65,12 @@ pub struct Opener<'a, C, D, P> {
 impl<C: Clock, D: Desktop, P: ProcessProbe> Opener<'_, C, D, P> {
     /// Takes the photo, launches the terminal and waits for its one new window.
     /// The profile's `exe` must already have its variables expanded.
-    pub fn open(&self, profile: &TerminalProfile) -> Result<OwnWindow, String> {
+    pub fn open(&self, profile: &TerminalProfile, dir: &Path) -> Result<OwnWindow, String> {
         let before = self.desktop.windows()?;
-        let guard = SafetyGuard::new(
-            self.processes.processes()?.iter().map(|p| p.pid),
-            before.iter().map(|w| w.hwnd),
-        );
+        let mut guard = SafetyGuard::new(&before);
         let start = self.clock.monotonic();
         self.desktop
-            .launch(Path::new(&profile.exe), &profile.new_window_args)?;
+            .launch(Path::new(&profile.exe), &profile.new_window_args, dir)?;
         let found = wait_for(self.clock, TO_SHOW, || {
             let now = self.desktop.windows()?;
             let seen = self.clock.monotonic();
@@ -91,6 +88,7 @@ impl<C: Clock, D: Desktop, P: ProcessProbe> Opener<'_, C, D, P> {
                 TO_SHOW.as_secs()
             )
         })?;
+        guard.adopt(window.hwnd)?;
         Ok(OwnWindow {
             window,
             took: seen.saturating_sub(start),

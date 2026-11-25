@@ -66,7 +66,7 @@ Las órdenes reciben todos los adaptadores por `Adapters` (`app::command`): cada
 
 El autor trabaja **dentro** de la terminal que se mide. Estas reglas no se rompen nunca:
 
-- **S1.** La herramienta solo toca ventanas y procesos **que ella abrió**. Antes de cada medida hace una foto de los procesos y ventanas existentes y nunca cierra, mueve, enfoca ni escribe en nada de esa foto. Lo impone `SafetyGuard`, con pruebas.
+- **S1.** La herramienta solo toca las ventanas **que ella abrió**. Antes de cada medida hace una foto de todas las ventanas. Solo **adopta** una ventana nueva si es la única que apareció tras su lanzamiento, y nunca cierra, mueve, enfoca ni escribe en otra. Sobre los procesos no hace nada: solo los lee. Lo impone `SafetyGuard`, con pruebas.
 - **S2.** **Nunca** `TerminateProcess`. Se cierra con `WM_CLOSE` a la ventana propia; si no se cierra en 5 s, la herramienta lo dice y se detiene.
 - **S3.** Antes de **cada** pulsación comprueba que la ventana en primer plano es la suya. Si no lo es, aborta la medida: una tecla en la ventana equivocada escribiría en la sesión del autor.
 - **S4.** El arranque en frío exige que no haya ningún proceso de esa terminal. Si lo hay, se niega y explica por qué.

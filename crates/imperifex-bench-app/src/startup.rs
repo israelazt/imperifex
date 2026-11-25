@@ -1,5 +1,6 @@
 //! How long a terminal takes to show a window.
 
+use std::path::Path;
 use std::time::Duration;
 
 use imperifex_bench_domain::metric::Metric;
@@ -41,13 +42,14 @@ impl<C: Clock, D: Desktop, P: ProcessProbe> StartupService<C, D, P> {
         profile: &TerminalProfile,
         runs: u32,
         cold: bool,
+        dir: &Path,
     ) -> Result<Measurement, String> {
         let mut samples = Vec::new();
         for number in 0..runs {
             if number > 0 {
                 self.clock.sleep(BETWEEN_RUNS);
             }
-            samples.push(self.once(profile, cold)?.as_secs_f64() * 1000.0);
+            samples.push(self.once(profile, cold, dir)?.as_secs_f64() * 1000.0);
         }
         let metric = if cold {
             Metric::StartupCold
@@ -58,7 +60,7 @@ impl<C: Clock, D: Desktop, P: ProcessProbe> StartupService<C, D, P> {
             .ok_or_else(|| "hace falta al menos una tanda".to_string())
     }
 
-    fn once(&self, profile: &TerminalProfile, cold: bool) -> Result<Duration, String> {
+    fn once(&self, profile: &TerminalProfile, cold: bool, dir: &Path) -> Result<Duration, String> {
         if cold && !running(&self.processes, profile)?.is_empty() {
             return Err(format!(
                 "cierra {} del todo: el arranque en frío necesita que no esté abierto (regla S4)",
@@ -70,7 +72,7 @@ impl<C: Clock, D: Desktop, P: ProcessProbe> StartupService<C, D, P> {
             desktop: &self.desktop,
             processes: &self.processes,
         };
-        let own = opener.open(profile)?;
+        let own = opener.open(profile, dir)?;
         opener.close(&own)?;
         if cold {
             self.wait_until_gone(profile)?;
