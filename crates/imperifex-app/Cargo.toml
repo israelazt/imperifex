@@ -1,0 +1,12 @@
+[package]
+name = "imperifex-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+# The services of Imperifex, working only against the domain's ports.
+[dependencies]
+imperifex-domain = { path = "../imperifex-domain" }

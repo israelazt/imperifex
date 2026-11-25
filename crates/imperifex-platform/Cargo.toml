@@ -1,0 +1,18 @@
+[package]
+name = "imperifex-platform"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+# The adapters of Imperifex: they implement the domain's ports. Windows code only
+# in #[cfg(windows)] modules; decoding of what the system returns is portable.
+[dependencies]
+imperifex-domain = { path = "../imperifex-domain" }
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+] }

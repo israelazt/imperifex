@@ -1,0 +1,15 @@
+[package]
+name = "imperifex"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+# The program: wires the real adapters into the application and prints what it
+# returns. No logic. See ARCHITECTURE.md.
+[dependencies]
+imperifex-domain = { path = "../../crates/imperifex-domain" }
+imperifex-platform = { path = "../../crates/imperifex-platform" }
+imperifex-app = { path = "../../crates/imperifex-app" }

@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = ["crates/imperifex-domain", "crates/imperifex-platform", "crates/imperifex-app", "apps/imperifex"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# Every crate follows these (`[lints] workspace = true`). A function over 50 lines (see
+# clippy.toml) or too tangled is split, not silenced: design principles of the skill.
+[workspace.lints.clippy]
+too_many_lines = "warn"
+cognitive_complexity = "warn"
+redundant_clone = "warn"
+needless_pass_by_value = "warn"
+
+[workspace.dependencies]
+windows = "0.62"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
