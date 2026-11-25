@@ -69,6 +69,12 @@ pub fn window(hwnd: u64, pid: u32, title: &str) -> WindowEntry {
         pid,
         title: title.into(),
         visible: true,
+        rect: Rect {
+            x: 0,
+            y: 0,
+            w: 1280,
+            h: 800,
+        },
         ..Default::default()
     }
 }

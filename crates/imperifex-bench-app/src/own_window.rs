@@ -10,7 +10,7 @@ use imperifex_bench_domain::ports::{Desktop, ProcessProbe};
 use imperifex_bench_domain::profile::TerminalProfile;
 use imperifex_bench_domain::safety::SafetyGuard;
 use imperifex_bench_domain::tree::terminal_processes;
-use imperifex_bench_domain::windows::{candidates, new_window};
+use imperifex_bench_domain::windows::{new_window, NewWindow};
 use imperifex_domain::ports::Clock;
 
 /// How often the desktop is looked at.
@@ -47,6 +47,23 @@ pub fn wait_for<T>(
     }
 }
 
+/// The window to adopt, if there is exactly one; an error if the bench cannot
+/// tell which one is its own.
+fn only_one(found: NewWindow) -> Result<Option<WindowEntry>, String> {
+    match found {
+        NewWindow::None => Ok(None),
+        NewWindow::One(window) => Ok(Some(window)),
+        NewWindow::Many(windows) => Err(format!(
+            "aparecieron {} ventanas a la vez; no sé cuál es la mía: ciérralas a mano",
+            windows.len()
+        )),
+        NewWindow::Reshown(window) => Err(format!(
+            "la terminal mostró una ventana que ya tenía oculta («{}»); no es del banco y no se toca",
+            window.title
+        )),
+    }
+}
+
 /// The terminal's processes right now.
 pub fn running(
     processes: &impl ProcessProbe,
@@ -74,12 +91,14 @@ impl<C: Clock, D: Desktop, P: ProcessProbe> Opener<'_, C, D, P> {
         let found = wait_for(self.clock, TO_SHOW, || {
             let now = self.desktop.windows()?;
             let seen = self.clock.monotonic();
-            // Listing the processes is slow: only once something has shown up.
-            if candidates(&before, &now).next().is_none() {
+            // Listing the processes is slow: only once some window, of
+            // anyone's, could be the one.
+            let anyones: Vec<u32> = now.iter().map(|w| w.pid).collect();
+            if new_window(&before, &now, &anyones) == NewWindow::None {
                 return Ok(None);
             }
             let pids = running(self.processes, profile)?;
-            Ok(new_window(&before, &now, &pids).map(|w| (w, seen)))
+            only_one(new_window(&before, &now, &pids)).map(|w| w.map(|w| (w, seen)))
         })?;
         let (window, seen) = found.ok_or_else(|| {
             format!(
