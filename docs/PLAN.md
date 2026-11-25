@@ -168,7 +168,7 @@ Features: `Win32_Graphics_Dxgi`, `Win32_Graphics_Dxgi_Common`, `Win32_Graphics_D
 **Hecho cuando:** los cinco números están en «Hechos medidos». Se espera ~144 frames/s moviendo el ratón y el coste de copia por debajo de 2 ms; si no, avisar.
 
 ### 1.2 Sonda de GPU: `probe_gpu`
-Features: `Win32_System_Performance`.
+Features: `Win32_System_Performance` y `Win32_System_Diagnostics_ToolHelp` (para el paso 2; añadida con permiso del autor, 2026-11-25).
 1. `PdhOpenQueryW`, `PdhAddEnglishCounterW` con `\GPU Engine(*)\Utilization Percentage`, dos `PdhCollectQueryData` separados 1 s, `PdhGetFormattedCounterArrayW(PDH_FMT_DOUBLE)`.
 2. Imprimir las instancias que contienen `pid_<pid de warp>` (buscar el pid por nombre con `CreateToolhelp32Snapshot`) y su valor; y el coste de una recolección.
 
@@ -524,7 +524,7 @@ _(Los escribe cada sonda del bloque 1, con fecha y números.)_
 
 ### 1.1 Pantalla (2026-11-25, `probe_duplication` en release, 5 s por tanda)
 
-`\.\DISPLAY1` 1920×1080 en la GTX 1660 Ti. La duplicación funciona.
+`\\.\DISPLAY1` 1920×1080 en la GTX 1660 Ti. La duplicación funciona.
 
 | | Ratón quieto | Ratón en movimiento |
 |---|---|---|
@@ -538,11 +538,19 @@ _(Los escribe cada sonda del bloque 1, con fecha y números.)_
 - Con el ratón quieto el p95 de la copia subió a 6,6 ms. La causa no se ha comprobado (una hipótesis: la GPU baja de reloj). No se controló qué más cambiaba en pantalla.
 - **Para el bloque 6:** (a) ignorar los avisos con `LastPresentTime = 0`, que llegan a cientos por segundo; (b) moviendo el ratón se juntaron 53 de 719 presentaciones: cuando `AccumulatedFrames > 1`, `LastPresentTime` es el de la última, así que esa muestra puede salir hasta un frame (6,9 ms) tarde. `LatencyService` debe anotar en `notes` cuántas muestras venían juntas; durante la latencia no se toca el ratón.
 
+### 1.2 GPU (2026-11-25, `probe_gpu` en release, 10 lecturas de 1 s)
+
+- Instancia: `pid_<pid>_luid_0x00000000_0x00014AB0_phys_0_eng_<n>_engtype_<tipo>`, como se esperaba. Tipos vistos en Warp: `3D`, `Copy`, `LegacyOverlay`, `VideoDecode`, `VideoEncode`, `VR`, `Security`, `Security_1`. Hubo 331 instancias en total.
+- Hay dos `warp.exe`: el principal y un hijo suyo (el `minidump-server`). Solo el principal tenía instancias de GPU.
+- Suma `3D` de Warp con la sesión de Claude Code trabajando dentro (no es reposo): entre 3,6 % y 6,4 %.
+- Coste en dos ejecuciones: `PdhCollectQueryData` p50 0,27 y 0,32 ms (máximo 1,85 ms); leer el arreglo p50 0,31 y 0,35 ms (máximo 0,65 ms). Con 10 muestras, el p95 es el máximo.
+- **Para el bloque 4:** muestrear la GPU cada segundo cuesta del orden de 1 ms; no hace falta cambiar el plan.
+
 ## Estado
 
 - 2026-11-25: workspace creado con el generador de la casa; repo en GitHub con la CI en verde; primera medida a mano de memoria y CPU (arriba); plan maestro escrito.
 - [x] 0.1 (2026-11-25; además, la guarda de `unsafe` admite `imperifex-bench-platform` y `main.rs` del banco puede imprimir su salida) · [x] 0.2 (2026-11-25) · [x] 0.3 (2026-11-25)
-- [x] 1.1 (2026-11-25: 143,8 presentaciones/s moviendo el ratón; copia p95 1,38 ms) · [ ] 1.2 · [ ] 1.3 · [ ] 1.4
+- [x] 1.1 (2026-11-25: 143,8 presentaciones/s moviendo el ratón; copia p95 1,38 ms) · [x] 1.2 (2026-11-25: `pid_<n>_luid_…_engtype_3D`; recolectar y leer, ~0,6 ms en p50) · [ ] 1.3 · [ ] 1.4
 - [ ] 2.1 · [ ] 2.2 · [ ] 2.3 · [ ] 2.4 · [ ] 2.5 · [ ] 2.6
 - [ ] 3.1 · [ ] 3.2 · [ ] 3.3 · [ ] 3.4 · [ ] 3.5
 - [ ] 4.1 · [ ] 4.2 · [ ] 4.3 · [ ] 4.4
