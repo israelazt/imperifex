@@ -4,7 +4,17 @@
 #[cfg(windows)]
 mod console_out;
 mod files;
+#[cfg(windows)]
+mod gpu;
+#[cfg(any(windows, test))]
+mod gpu_instance;
+#[cfg(windows)]
+mod processes;
 
 #[cfg(windows)]
 pub use console_out::ConsoleOut;
 pub use files::DiskFiles;
+#[cfg(windows)]
+pub use gpu::GpuCounters;
+#[cfg(windows)]
+pub use processes::WindowsProcesses;
