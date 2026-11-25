@@ -2,3 +2,5 @@
 //! disk, no clock: everything outside is reached through ports.
 
 #![forbid(unsafe_code)]
+
+pub mod profile;

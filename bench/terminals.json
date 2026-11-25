@@ -1,0 +1,10 @@
+[
+  {
+    "name": "warp",
+    "exe": "%LOCALAPPDATA%\\Programs\\Warp\\warp.exe",
+    "new_window_args": [],
+    "own_images": ["warp.exe"],
+    "helper_images": ["OpenConsole.exe", "conhost.exe"],
+    "new_tab_keys": "Ctrl+Shift+T"
+  }
+]
