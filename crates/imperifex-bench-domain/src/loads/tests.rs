@@ -29,7 +29,7 @@ fn the_bytes_of_every_load_are_fixed() {
         ("color", 0x5FB0_563D_F7E4_9950),
         ("unicode", 0x00B2_2632_3E66_64DE),
         ("cursor", 0xE8FF_FACB_B042_07DF),
-        ("cargo", 0x13F1_BDCB_04AD_5B87),
+        ("cargo", 0x9388_303A_C7E2_3DFC),
     ];
     assert_eq!(hashes, expected, "{hashes:#x?}");
 }

@@ -33,8 +33,9 @@ pub(super) const PIECES: [(&str, usize); 16] = [
     ("n\u{303}", 1),
 ];
 
-/// Stands in for the recorded build until it is made.
-const RECORDING: &str = "   Compiling imperifex v0.1.0\r\n";
+/// A coloured `cargo build` of this workspace, recorded once and scrubbed of
+/// personal paths. `.gitattributes` keeps its bytes as they are.
+const RECORDING: &str = include_str!("../../../../bench/loads/cargo-build.ansi");
 
 /// Adds the unit number `index` of a load.
 pub(super) fn push(load: Load, index: usize, rng: &mut XorShift64, out: &mut String) {

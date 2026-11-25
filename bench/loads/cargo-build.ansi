@@ -1,0 +1,9 @@
+[1m[92m   Compiling[0m imperifex-domain v0.1.0 (C:\src\imperifex)
+[1m[92m   Compiling[0m imperifex-bench-domain v0.1.0 (C:\src\imperifex)
+[1m[92m   Compiling[0m imperifex-platform v0.1.0 (C:\src\imperifex)
+[1m[92m   Compiling[0m imperifex-app v0.1.0 (C:\src\imperifex)
+[1m[92m   Compiling[0m imperifex-bench-platform v0.1.0 (C:\src\imperifex)
+[1m[92m   Compiling[0m imperifex-bench-app v0.1.0 (C:\src\imperifex)
+[1m[92m   Compiling[0m imperifex v0.1.0 (C:\src\imperifex)
+[1m[92m   Compiling[0m imperifex-bench v0.1.0 (C:\src\imperifex)
+[1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 1.89s

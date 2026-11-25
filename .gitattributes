@@ -1,0 +1,2 @@
+# The recorded loads are measured byte for byte: Git must not touch their line ends.
+bench/loads/*.ansi -text

@@ -3,9 +3,11 @@
 //! exactly the same work.
 
 mod random;
+mod scrub;
 mod units;
 
 pub use random::{fnv1a64, XorShift64};
+pub use scrub::scrub_paths;
 
 use crate::metric::Load;
 
