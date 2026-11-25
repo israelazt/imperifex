@@ -546,11 +546,29 @@ _(Los escribe cada sonda del bloque 1, con fecha y números.)_
 - Coste en dos ejecuciones: `PdhCollectQueryData` p50 0,27 y 0,32 ms (máximo 1,85 ms); leer el arreglo p50 0,31 y 0,35 ms (máximo 0,65 ms). Con 10 muestras, el p95 es el máximo.
 - **Para el bloque 4:** muestrear la GPU cada segundo cuesta del orden de 1 ms; no hace falta cambiar el plan.
 
+### 1.3 Ventanas de Warp (2026-11-25, `probe_warp_window`, una ejecución, con Warp ya abierto)
+
+- **Abrir:** `warp.exe` sin argumentos arranca un proceso que sale en unos 121 ms; la ventana nueva es **del `warp.exe` que ya estaba abierto**. `new_window_args: []` queda confirmado. No hizo falta `warp://` (sin probar).
+- **La ventana:** clase `Window Class`, título «Warp», 1280×800, vista en la lectura de los 121 ms (las lecturas salían cada ~62 ms). «Visible» no demuestra que ya tuviera contenido dibujado: no se midió.
+- **También aparece** una ventana visible de 0×0, clase `PseudoConsoleWindow`, del `powershell.exe` de la pestaña (no es de un proceso de Warp).
+- **Procesos:** quedan con la ventana un `OpenConsole.exe` y un `powershell.exe`, los dos hijos del `warp.exe` principal. Al abrir, Warp lanza además muchos procesos de vida corta (`powershell.exe`, `git.exe`, `gh.exe` y sus `conhost.exe`); los vistos terminaron durante la observación de 10 s, y la sonda siguió viendo nacer algunos hasta los ~9,7 s.
+- **Cerrar:** con `WM_CLOSE` la ventana desapareció dentro de los 5 s observados (el `hwnd` dejó de existir), sin otra ventana de confirmación. La shell tenía solo el prompt; no se probó con un programa en marcha.
+- **El `OpenConsole.exe` y el `powershell.exe` de la ventana cerrada siguieron vivos** y terminaron solos entre 40 y 62 s después, aproximadamente (instantes calculados con la hora de creación y lecturas posteriores a mano). Hipótesis sin comprobar: Warp conserva la sesión cerrada para poder reabrirla.
+
+**Para los bloques 4 a 7 (lo revisa el planificador en la PAUSA):**
+- 5.2: «visible, con título y de un proceso del perfil» basta para esta ventana; la `PseudoConsoleWindow` queda fuera. Conviene exigir además un tamaño mínimo (la sonda usa 400×300) y la foto de **todas** las ventanas, también las ocultas.
+- 5.3: decidir si «ventana visible» es el final del arranque o si hay que esperar al primer contenido en pantalla.
+- Criterio de aceptación 3 y cualquier medida de memoria: tras cerrar una ventana quedan sus procesos cerca de un minuto. El banco debe esperarlos (máximo propuesto: 90 s) antes de medir huella o de dar por terminada una tanda `all`. No se fuerzan (S2).
+- 4.1: los `conhost.exe` de las shells de vida corta descienden de Warp y entrarían en la huella como `helper_images`.
+- 5.1: la lista de procesos puede dar como padre un pid que ya salió (aquí, el del lanzador). Como Windows reutiliza pids, `SafetyGuard` debería identificar un proceso por pid **y hora de creación**.
+- Cerrar la única ventana (arranque en frío) no se probó.
+- `new_tab_keys` sigue sin confirmar: ninguna sonda del bloque lo prueba; lo hará la 6.6.
+
 ## Estado
 
 - 2026-11-25: workspace creado con el generador de la casa; repo en GitHub con la CI en verde; primera medida a mano de memoria y CPU (arriba); plan maestro escrito.
 - [x] 0.1 (2026-11-25; además, la guarda de `unsafe` admite `imperifex-bench-platform` y `main.rs` del banco puede imprimir su salida) · [x] 0.2 (2026-11-25) · [x] 0.3 (2026-11-25)
-- [x] 1.1 (2026-11-25: 143,8 presentaciones/s moviendo el ratón; copia p95 1,38 ms) · [x] 1.2 (2026-11-25: `pid_<n>_luid_…_engtype_3D`; recolectar y leer, ~0,6 ms en p50) · [ ] 1.3 · [ ] 1.4
+- [x] 1.1 (2026-11-25: 143,8 presentaciones/s moviendo el ratón; copia p95 1,38 ms) · [x] 1.2 (2026-11-25: `pid_<n>_luid_…_engtype_3D`; recolectar y leer, ~0,6 ms en p50) · [x] 1.3 (2026-11-25: la ventana la abre el Warp ya abierto; cierra sin diálogo; su shell vive ~1 min más) · [ ] 1.4
 - [ ] 2.1 · [ ] 2.2 · [ ] 2.3 · [ ] 2.4 · [ ] 2.5 · [ ] 2.6
 - [ ] 3.1 · [ ] 3.2 · [ ] 3.3 · [ ] 3.4 · [ ] 3.5
 - [ ] 4.1 · [ ] 4.2 · [ ] 4.3 · [ ] 4.4
