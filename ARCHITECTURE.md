@@ -74,6 +74,7 @@ El autor trabaja **dentro** de la terminal que se mide. Estas reglas no se rompe
 1. Lo que toca hardware, disco, red, reloj o ventana va detrás de un puerto de `domain`, con un nombre por lo que se necesita (`Clock`), no por cómo se hace. El adaptador real vive en `platform`.
 2. Receta de una función nueva: reglas en `domain` con tests → puerto → servicio en `app` con un doble → adaptador en `platform` (medido en el PC real) → salida o vista → cableado en el binario.
 3. Guardas (`crates/imperifex-domain/tests/architecture.rs`): dependencias permitidas por crate, ninguna fuente de más de 400 líneas (1000 en `tests.rs`), nada de `println!` salvo excepciones con su motivo, y `unsafe` solo en los dos crates de plataforma (`imperifex-platform` e `imperifex-bench-platform`).
+   `unsafe` es solo para lo que la biblioteca estándar no ofrece (llamar al sistema): `domain`, `app` y los binarios lo prohíben (`#![forbid(unsafe_code)]`), y en la plataforma los lints exigen una sola operación por bloque, cada uno con su `// SAFETY:`, también dentro de una `unsafe fn`. Una dependencia que evite `unsafe` propio se decide con el autor, caso por caso.
 4. Errores: `Result<_, String>` a través de los puertos; lo que el usuario debe saber sale en la salida de la orden; lo demás, a `log_info!`/`log_warn!`/`log_error!`.
 5. Portátil: el crate `windows` solo en los crates de plataforma; fuera de Windows el binario dice que aún no tiene adaptadores.
 

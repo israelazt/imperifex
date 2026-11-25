@@ -2,6 +2,8 @@
 //! application and prints what it returns. The decisions are not here.
 //! See `ARCHITECTURE.md`.
 
+#![forbid(unsafe_code)]
+
 #[cfg(windows)]
 fn main() {
     use imperifex_app::{Command, StatusService};

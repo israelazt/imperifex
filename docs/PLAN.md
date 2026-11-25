@@ -73,6 +73,7 @@ CPU del principal: 4,5 % de un núcleo en 10 s mientras la sesión escribía; 4,
 | D8 | Sin dependencias nuevas en el banco: estadística, generador pseudoaleatorio y hash propios | Pocas líneas, deterministas y probadas |
 | D9 | Los resultados se guardan en `bench/results/<fecha>-<terminal>-<n>/report.json` y se suben al repo | Comparar versiones con el historial |
 | D10 | Percentiles por **rango más cercano**: `rango = ceil(p/100 · n)`, contado desde 1 | Simple, sin interpolar, cualquiera lo reproduce |
+| D11 | `unsafe` solo para lo que la biblioteca estándar no ofrece: una operación por bloque con su `// SAFETY:` (lo exigen los lints, también en las sondas); prohibido en `domain`, `app` y los binarios. Una dependencia que lo evite se decide con el autor | Si falla la memoria, hay pocos sitios, pequeños y explicados, donde buscar |
 
 ## Fuera de esta fase
 

@@ -1,6 +1,8 @@
 //! The bench: it creates the real adapters, hands them to its services and
 //! prints what they return. The decisions are not here. See `ARCHITECTURE.md`.
 
+#![forbid(unsafe_code)]
+
 #[cfg(windows)]
 fn main() {
     use imperifex_bench_app::Command;

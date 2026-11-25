@@ -18,7 +18,14 @@ license = "MIT"
 
 # Every crate follows these (`[lints] workspace = true`). A function over 50 lines (see
 # clippy.toml) or too tangled is split, not silenced: design principles of the skill.
+# `unsafe` is only for calling the system, and each use is small and explained:
+# one operation per block, with its `// SAFETY:` line, also inside an `unsafe fn`.
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+
 [workspace.lints.clippy]
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"
 too_many_lines = "warn"
 cognitive_complexity = "warn"
 redundant_clone = "warn"
