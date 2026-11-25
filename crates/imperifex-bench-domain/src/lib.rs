@@ -3,5 +3,6 @@
 
 #![forbid(unsafe_code)]
 
+pub mod metric;
 pub mod profile;
 pub mod stats;
