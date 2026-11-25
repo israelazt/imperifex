@@ -4,3 +4,4 @@
 #![forbid(unsafe_code)]
 
 pub mod profile;
+pub mod stats;
