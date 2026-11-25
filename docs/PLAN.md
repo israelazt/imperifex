@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **en curso: bloques 1 a 4 hechos; en la PAUSA del 4**. Pendiente: que el planificador revise los bloques 5 y 6 con lo que dijeron las sondas. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **en curso: bloques 1 a 4 hechos; bloques 5 y 6 revisados por el planificador con los hechos medidos (2026-11-25)**. Siguiente: 5.1. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -30,7 +30,7 @@ Para quien programa (Sonnet):
 
 El autor trabaja **dentro de Warp** (también la sesión de Claude Code). Por eso:
 
-- **S1.** La herramienta solo toca ventanas y procesos **que ella abrió**. Antes de cada medida hace una foto de los procesos y ventanas existentes y nunca cierra, mueve, enfoca ni escribe en nada de esa foto. Lo impone `SafetyGuard` (tarea 5.1), con pruebas.
+- **S1.** La herramienta solo toca las ventanas **que ella abrió**. Antes de cada medida hace una foto de todas las ventanas. Solo adopta una ventana nueva si es la única que apareció tras su lanzamiento, y nunca cierra, mueve, enfoca ni escribe en otra. Sobre los procesos no hace nada: solo los lee. La ventana nueva de Warp es del mismo proceso que la sesión del autor (1.3), así que no basta con mirar procesos. Lo impone `SafetyGuard` (tarea 5.1), con pruebas.
 - **S2.** **Nunca** `TerminateProcess`. Se cierra con `WM_CLOSE` a la ventana propia; si no se cierra en 5 s, la herramienta lo dice y se detiene.
 - **S3.** Antes de **cada** pulsación comprueba que la ventana en primer plano es la suya. Si no lo es, aborta la medida: una tecla en la ventana equivocada escribiría en la sesión del autor.
 - **S4.** El arranque en frío exige que no haya ningún proceso de esa terminal. Si lo hay, se niega y explica por qué.
@@ -74,6 +74,13 @@ CPU del principal: 4,5 % de un núcleo en 10 s mientras la sesión escribía; 4,
 | D9 | Los resultados se guardan en `bench/results/<fecha>-<terminal>-<n>/report.json` y se suben al repo | Comparar versiones con el historial |
 | D10 | Percentiles por **rango más cercano**: `rango = ceil(p/100 · n)`, contado desde 1 | Simple, sin interpolar, cualquiera lo reproduce |
 | D11 | `unsafe` solo para lo que la biblioteca estándar no ofrece: una operación por bloque con su `// SAFETY:` (lo exigen los lints, también en las sondas); prohibido en `domain`, `app` y los binarios. Una dependencia que lo evite se decide con el autor | Si falla la memoria, hay pocos sitios, pequeños y explicados, donde buscar |
+| D12 | `SafetyGuard` adopta ventanas concretas y el banco no actúa nunca sobre procesos | La ventana nueva de Warp es del proceso de la sesión del autor (1.3) |
+| D13 | El arranque da dos números: hasta la ventana visible y hasta la ventana dibujada (asentada) | «Visible» no prueba que haya contenido (1.3) |
+| D14 | Dos latencias de tecla: en el prompt (en Warp, su editor) y en un programa en marcha (`imperifex-bench echo`). **La vara para el motor de Imperifex es la del programa**: hace el mismo camino en cualquier terminal. La del prompt es la de la experiencia y también se compara | Warp dibuja la entrada con su editor, sin pasar por la shell (1.4) |
+| D15 | Las órdenes que abren ventanas se lanzan desde una carpeta fija sin Git (`temp/imperifex-bench/home`) y se niegan dentro de un repo | La ventana nueva copia la carpeta y el Git de la pestaña activa (1.4) |
+| D16 | Tras cerrar una ventana se esperan sus procesos hasta 90 s, sin forzarlos; en frío, hasta 120 s a que la terminal salga | Quedan entre 40 y 62 s (1.3) |
+| D17 | «Asentado» solo cuenta cambios de al menos el 0,5 % de la región | El cursor que parpadea no dejaría asentar nunca |
+| D18 | La CPU durante la salida, con el total de CPU entre el principio y el final | El reloj de CPU va en escalones de ~1,55 % por segundo (4.4) |
 
 ## Fuera de esta fase
 
@@ -102,12 +109,13 @@ Pequeños, por lo que el servicio necesita. Todos devuelven `Result<_, String>`.
 |---|---|---|
 | `Clock` | el de `imperifex-domain::ports` (se reutiliza) | — |
 | `Output` | `write_all(&mut self, bytes)`, `flush(&mut self)` | 3.3 |
-| `FileStore` | `write(path, bytes)`, `read(path) -> Option<Vec<u8>>`, `temp_dir() -> PathBuf` | 3.3 |
+| `FileStore` | `write(path, bytes)`, `read(path) -> Option<Vec<u8>>`, `temp_dir() -> PathBuf`; `exists(path) -> bool`, `make_dir(path)` | 3.3; 5.5 |
 | `ProcessProbe` | `processes() -> Vec<ProcessEntry>`, `usage(pid) -> ProcessUsage` | 4.1 |
 | `GpuProbe` | `utilization(pids) -> f64` (desde la llamada anterior) | 4.1 |
-| `Desktop` | `launch(exe, args) -> pid`, `windows() -> Vec<WindowEntry>`, `place(hwnd, rect)`, `focus(hwnd)`, `foreground() -> Option<u64>`, `close(hwnd)` | 5.1 |
+| `Desktop` | `launch(exe, args, dir) -> pid`, `windows() -> Vec<WindowEntry>` (todas, también ocultas), `place(hwnd, rect)`, `focus(hwnd)`, `foreground() -> Option<u64>`, `close(hwnd)` | 5.1 |
 | `ScreenWatch` | `watch(region) -> Box<dyn Watch>`; `Watch::next(timeout) -> Option<ScreenFrame>` | 6.1 |
-| `Keyboard` | `type_text(hwnd, text)`, `press(hwnd, Key)` | 6.1 |
+| `Keyboard` | `type_text(hwnd, text)`, `press(hwnd, Key)` (`Key` incluye combinaciones como `Ctrl+Shift+T`) | 6.1 |
+| `KeyInput` | `read(buf) -> usize`: la entrada del propio banco en crudo, para la orden `echo` | 6.6 |
 | `MachineProbe` | `machine()`, `product_version(exe)`, `today()`, `env_var(name)` (no estaba prevista; la pide el informe) | 4.4 |
 
 Cada puerto tiene su falso en `imperifex-bench-app/src/testing/`, que **anota lo que le pidieron** y responde lo que la prueba programa.
@@ -340,45 +348,89 @@ Referencia: `dockview/crates/dockview-platform/src/perf.rs` (memoria y tiempos d
 
 ## Bloque 5 · Ventanas y arranque
 
-Ajustar con lo que dijeron las sondas 1.3 y 1.4 (el planificador lo habrá revisado en la pausa del bloque 1).
+> Revisado por el planificador el 2026-11-25 con los hechos de las sondas 1.3, 1.4 y la huella 4.4. Lo que cambió respecto al plan original y por qué:
+>
+> - **La ventana nueva es del `warp.exe` que ya estaba abierto** (1.3), el mismo proceso que lleva la sesión del autor. «Solo lo que el banco abrió» no puede decidirse por procesos: `SafetyGuard` **adopta ventanas concretas** (D12).
+> - **El banco nunca actúa sobre un proceso**: solo los lee (`ProcessProbe`) y cierra ventanas con `WM_CLOSE` (S2). Por eso no hace falta identificar procesos por pid y hora de creación, como proponía 1.3: un pid reutilizado solo puede hacer que el banco espere de más, nunca que toque algo ajeno.
+> - **Si aparecen dos ventanas nuevas a la vez**, el banco no adivina cuál es la suya: para.
+> - **El arranque da dos números** (D13): ventana visible (este bloque) y ventana dibujada (6.5, cuando el banco ya ve la pantalla).
+> - **Los procesos de una ventana cerrada siguen vivos unos 40 a 62 s** (1.3): se esperan, sin forzarlos (D16).
+> - **La ventana nueva depende de la carpeta y del Git de la pestaña activa** (1.4): todo se lanza desde una carpeta fija y vacía (D15).
+> - `focus` es solo `SetForegroundWindow` y comprobar (1.4). `AttachThreadInput` y `Alt` no se programan.
 
 ### 5.1 Puerto `Desktop` y `SafetyGuard`
-1. `ports.rs`: `Desktop` (tabla de puertos). `WindowEntry { hwnd: u64, pid, title, visible, rect: Rect }`, `Rect { x, y, w, h }` en píxeles físicos.
-2. `domain/safety.rs`: `SafetyGuard::new(pids, hwnds)` con la foto previa; `may_touch_window(hwnd) -> bool`, `may_touch_process(pid) -> bool`; `check(hwnd) -> Result<(), String>` con un mensaje que dice por qué no.
-3. Todo servicio que use `Desktop` o `Keyboard` pasa por `SafetyGuard`. El falso de `Desktop` **hace fallar la prueba** si se le pide tocar algo de la foto previa.
-4. Pruebas: una ventana previa no se puede tocar, una nueva sí.
+1. `ports.rs`: `Desktop` (tabla de puertos). `WindowEntry { hwnd: u64, pid: u32, title: String, class: String, visible: bool, rect: Rect }`, `Rect { x, y, w, h }` (`i32`, píxeles físicos). `windows()` devuelve **todas** las ventanas de primer nivel, también las ocultas.
+2. `domain/safety.rs`: `SafetyGuard::new(before: &[WindowEntry])` guarda los `hwnd` de la foto.
+   - `adopt(&mut self, hwnd) -> Result<(), String>`: error si el `hwnd` estaba en la foto («la ventana … ya existía: no es del banco»).
+   - `check(&self, hwnd) -> Result<(), String>`: `Ok` solo para una ventana adoptada; el error dice si era de la foto o si nunca se adoptó.
+   - No hay nada para procesos: el banco no tiene ninguna operación que actúe sobre uno.
+3. Todo servicio que use `place`, `focus`, `close` o `Keyboard` llama antes a `check`. El falso de `Desktop` recibe la foto programada y **hace fallar la prueba** (`panic!` con el `hwnd`) si se le pide `place`, `focus` o `close` sobre una ventana de la foto.
+4. Pruebas: una ventana de la foto no se adopta ni se toca; una nueva sin adoptar no se toca; una adoptada sí; un `hwnd` de la foto que reaparece (Windows reutiliza números) no se puede adoptar.
 
-**Commit:** `feat(bench): the bench only touches what it opened`
+**Commit:** `feat(bench): the bench only touches the windows it adopted`
 
 ### 5.2 `domain/windows.rs`
-1. `pub fn new_window(before: &[WindowEntry], now: &[WindowEntry], pids_of_profile: &[u32]) -> Option<WindowEntry>`: visible, con título, de un pid de la terminal y no presente antes.
-2. Pruebas.
+1. `pub const MIN_WINDOW: (i32, i32) = (400, 300)`.
+2. `pub enum NewWindow { None, One(WindowEntry), Many(Vec<WindowEntry>), Reshown(WindowEntry) }`.
+3. `pub fn new_window(before: &[WindowEntry], now: &[WindowEntry], pids: &[u32]) -> NewWindow`. Candidata: está en `now`, visible, con título, de un pid de `pids` y de al menos `MIN_WINDOW`.
+   - `One`: una sola candidata que no estaba en `before`.
+   - `Many`: más de una.
+   - `Reshown`: ninguna nueva, pero una candidata estaba en `before` oculta (la terminal enseñó una ventana que ya tenía). El banco no la adopta: para y lo dice.
+   - `None`: nada aún.
+4. Pruebas: la `PseudoConsoleWindow` de 0×0 del `powershell.exe` (1.3) no cuenta; sin título no cuenta; dos nuevas dan `Many`; oculta que se vuelve visible da `Reshown`; la ventana del autor, que ya estaba, nunca sale.
 
-**Commit:** `feat(bench): finding the window a launch opened`
+**Commit:** `feat(bench): finding the window a launch opened, and only that one`
 
-### 5.3 `app/startup.rs`
-1. `StartupService::run(profile, runs, cold) -> Result<Measurement, String>`:
-   - `cold`: si `terminal_processes` no está vacío, error S4 («cierra Warp: el arranque en frío necesita que no esté abierto»).
-   - Por tanda: foto → `SafetyGuard`; `t0`; lanzar; cada 5 ms buscar `new_window` (máximo 20 s); muestra = hasta la ventana visible. Luego `close` (S2): esperar hasta 5 s a que la ventana desaparezca; si no, error y parar. En frío, esperar hasta 10 s a que no quede ningún proceso de la terminal. 2 s entre tandas.
-2. Pruebas con falsos: cuenta las tandas, se niega en frío si hay procesos, para si la ventana no se cierra, nunca toca la foto previa.
+### 5.3 `app/window_session.rs`
+Lo que abren y cierran todas las medidas de los bloques 5 y 6, en un solo sitio.
+1. `WindowSession::open(ports, profile, dir: &Path) -> Result<WindowSession, String>`:
+   - Foto de ventanas y de procesos de la terminal (`terminal_processes`); `SafetyGuard::new`.
+   - `t0` = `Clock::monotonic()`; `launch(exe, new_window_args, dir)`.
+   - Cada 5 ms (máximo 20 s): `new_window` con los pids de la terminal **de ese momento**. `One` → `adopt` y listo. `Many` → error («aparecieron N ventanas a la vez; no sé cuál es la mía»). `Reshown` → error con el título. Pasados 20 s → error.
+   - Guarda `hwnd`, `t0`, `visible_at` (el instante de la lectura que la encontró) y los pids de la foto.
+2. `WindowSession::close(self) -> Result<Closed, String>`:
+   - `check`; `close(hwnd)` (`WM_CLOSE`).
+   - Cada 50 ms, máximo 5 s: ¿sigue el `hwnd`? Si en ese tiempo aparece una ventana nueva visible del mismo pid, es un diálogo: error («Warp pidió confirmar el cierre; el banco no pulsa nada»). Si el `hwnd` sigue a los 5 s: error (S2).
+   - Espera los restos (D16): cada 1 s, `tree::new_since(foto, terminal_processes(ahora))`; termina cuando está vacío o a los 90 s. `Closed { leftovers: usize, waited: Duration }`. Que queden restos **no** es error: va a `notes`.
+3. `tree.rs`: `pub fn new_since(before: &[u32], now: &[u32]) -> Vec<u32>`, con prueba.
+4. Pruebas con falsos: encuentra la ventana a la tercera lectura y `visible_at` es esa; `Many` y `Reshown` paran sin tocar nada; un diálogo al cerrar para; una ventana que no se cierra para; los restos se esperan y se cuentan; nunca se toca la foto.
 
-**Commit:** `feat(bench): timing a terminal's start`
+**Commit:** `feat(bench): opening and closing one window of a terminal, and waiting for what it leaves`
 
-### 5.4 Adaptador de `Desktop`
-Features: `Win32_UI_WindowsAndMessaging`, `Win32_Graphics_Dwm`, `Win32_UI_HiDpi`, `Win32_UI_Input_KeyboardAndMouse`.
-1. `launch`: `std::process::Command::new(exe).args(..).spawn()`, devuelve el pid (no se espera al hijo).
-2. `windows`: `EnumWindows` + `IsWindowVisible` + `GetWindowThreadProcessId` + `GetWindowTextW` + `DwmGetWindowAttribute(DWMWA_EXTENDED_FRAME_BOUNDS)`.
+### 5.4 `app/startup.rs`
+1. `StartupService::run(profile, runs, cold, dir) -> Result<Measurement, String>`:
+   - `cold`: si `terminal_processes` no está vacío, error S4 («cierra Warp del todo: el arranque en frío necesita que no esté abierto»).
+   - Por tanda: `WindowSession::open`; muestra = `visible_at − t0`; `close`. En frío, además, esperar hasta 120 s a que no quede **ningún** proceso de la terminal; si sigue alguno, error («Warp no salió al cerrar su única ventana; no se fuerza (S2)»). 2 s entre tandas.
+   - `notes`: los restos de cada tanda y cuánto se esperaron.
+2. Métricas `StartupCold` y `StartupWarm` («Arranque en frío/caliente, hasta la ventana visible»: ajustar `label`).
+3. Pruebas con falsos: cuenta las tandas; se niega en frío si hay procesos; para si Warp no sale en frío; para si la ventana no se cierra; nunca toca la foto.
+
+**Commit:** `feat(bench): timing a terminal's start until its window shows`
+
+### 5.5 La carpeta de las medidas
+1. `FileStore`: `exists(path) -> bool` y `make_dir(path) -> Result<(), String>`.
+2. `domain/workdir.rs`: `pub fn repo_around(dir: &Path, exists: &dyn Fn(&Path) -> bool) -> Option<PathBuf>`: la primera carpeta, de `dir` hacia arriba, que tiene `.git`. Pruebas: dentro de un repo, en su raíz, fuera.
+3. Toda orden que abra ventanas (`startup` y las del bloque 6) se lanza desde `temp_dir()/home`, que se crea vacía, y se **niega** si la carpeta actual del banco está dentro de un repo: «lánzalo desde una carpeta sin Git: `cd "<home>"`; la ventana nueva copia la carpeta y el Git de la pestaña activa y las tandas no se podrían comparar». La carpeta actual la lee el binario y la pasa en la orden; `Desktop::launch` recibe `home`.
+
+**Commit:** `feat(bench): measuring always from the same empty folder`
+
+### 5.6 Adaptador de `Desktop`
+Features: `Win32_UI_WindowsAndMessaging`, `Win32_Graphics_Dwm`, `Win32_UI_HiDpi`.
+1. `launch`: `std::process::Command::new(exe).args(..).current_dir(dir).spawn()`, devuelve el pid. No se espera al hijo: con Warp abierto, ese proceso sale en ~121 ms y la ventana es de otro (1.3).
+2. `windows`: `EnumWindows` sin filtrar por visibilidad; `IsWindowVisible`, `GetWindowThreadProcessId`, `GetWindowTextW`, `GetClassNameW`, `DwmGetWindowAttribute(DWMWA_EXTENDED_FRAME_BOUNDS)`. Lo que ya hacen `examples/common/desktop.rs` y `warp.rs`: pasarlo a `src/` en vez de copiarlo, y que las sondas lo usen.
 3. `place`: `SetWindowPos` (`SWP_NOZORDER | SWP_NOACTIVATE`). `close`: `PostMessageW(WM_CLOSE)`. `foreground`: `GetForegroundWindow`.
-4. `focus`: el método que funcionó en la sonda 1.4; después comprueba `GetForegroundWindow() == hwnd` y si no, error.
-5. En `main` del banco, **lo primero**: `SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)` (referencia: `purifex/crates/purifex-platform/src/window/mod.rs`), para que todas las coordenadas sean físicas. Va en una función de `platform` que el binario llama.
+4. `focus`: `SetForegroundWindow` y luego `GetForegroundWindow() == hwnd`; si no, error. Nada más (1.4).
+5. En `main` del banco, **lo primero**: `SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)` (referencia: `purifex/crates/purifex-platform/src/window/mod.rs`), en una función de `platform` que el binario llama.
 
 **Commit:** `feat(bench): the desktop adapter`
 
-### 5.5 🖥 La orden `startup`
-1. `imperifex-bench startup <terminal> [--runs 10] [--cold] [--out archivo.json]`.
-2. Medir en caliente (Warp abierto: cada tanda abre y cierra una ventana nueva) y anotar en «Estado».
-3. Escribir en el README cómo lanza el autor la medida en frío (los pasos de D3: cerrar Warp del todo, PowerShell desde Inicio, la orden con ruta completa, volver a Warp).
+### 5.7 🖥 La orden `startup`
+1. `imperifex-bench startup <terminal> [--runs 10] [--cold] [--out archivo.json]`. Antes de empezar, en la consola: «no toques el PC; unos N minutos» (cada tanda puede esperar hasta 90 s los restos).
+2. Medir en caliente y anotar en «Estado».
+3. **Con el autor delante, una vez:** que mire en qué carpeta abre la ventana nueva lanzada desde `home`. Anotarlo en «Hechos medidos».
+4. README: cómo lanza el autor la medida en frío (D3): cerrar Warp del todo; PowerShell desde Inicio; `cd` a la carpeta `home` que imprime el banco; la orden con la ruta completa; esperar; volver a Warp. Y que, si Warp no sale al cerrar su ventana, el banco para y no lo fuerza.
 
+**Hecho cuando:** hay un número en caliente y la carpeta de la ventana está anotada. Si la ventana no abre en `home`, **Bloqueo**: el planificador decide.
 **Commit:** `feat(bench): the startup order`
 
 **PAUSA.**
@@ -387,54 +439,111 @@ Features: `Win32_UI_WindowsAndMessaging`, `Win32_Graphics_Dwm`, `Win32_UI_HiDpi`
 
 ## Bloque 6 · Pantalla y teclado: latencia y salida vista
 
-### 6.1 Puertos `ScreenWatch` y `Keyboard`
-1. `ScreenFrame { at: Duration /* en el reloj del banco */, width, height, bgra: Vec<u8> }`. `ScreenWatch::watch(region: Rect) -> Result<Box<dyn Watch>, String>`; `Watch::next(timeout) -> Result<Option<ScreenFrame>, String>` (`None` si no hubo frame nuevo).
-2. `Keyboard::type_text(hwnd, text)` y `press(hwnd, Key)` con `Key { Enter, Backspace, Char(char) }`; ambos comprueban el primer plano (S3) **en el adaptador** y además el servicio lo comprueba antes.
-3. **Un solo reloj:** el banco usa `QpcClock` (en `platform`, implementa `Clock` con `QueryPerformanceCounter`) y la pantalla convierte `LastPresentTime` a ese mismo reloj. Así `t1 - t0` compara lo mismo.
+> Revisado por el planificador el 2026-11-25 con los hechos de 1.1, 1.4 y 4.4. Lo que cambió y por qué:
+>
+> - Los avisos con `LastPresentTime = 0` se ignoran, y cuando DXGI junta presentaciones (`AccumulatedFrames > 1`) se anota (1.1).
+> - El instante de un frame es `LastPresentTime`, no cuándo lo recibe el banco. Así no cuenta lo que se tarda en copiarlo, que con el ratón quieto llegó a 6,6 ms en p95 (1.1).
+> - **Dos latencias de tecla** (D14). En el prompt, la «a» la dibuja el editor propio de Warp (1.4). En un programa en marcha, la tecla recorre ConPTY ida y vuelta, como en cualquier terminal. Para el segundo número el banco tiene su propio programa, la orden `echo`.
+> - **Antes de medir se escribe un prefijo sin sentido** (`zqxj`, sin medir). Así el historial no tiene nada que sugerir, porque con la «a» Warp sugirió `sdasd` (1.4). Además, la tecla solo se pulsa tras 300 ms sin cambios, y un cambio previo rehace la base. Así el primer cambio es el de la tecla.
+> - «Asentado» no cuenta el cursor que parpadea (D17). Solo cuenta un cambio de al menos el 0,5 % de la región.
+> - **La CPU durante la salida** se calcula con el total de CPU entre el principio y el final (D18), no con muestras de 250 ms: el reloj de CPU va en escalones de ~1,55 % por segundo (4.4).
+> - La orden se escribe para **PowerShell**, que es la shell de las ventanas de Warp (1.3): `& '<ruta>' …`.
+> - Antes de una medida de memoria se esperan los restos de ventanas anteriores (D16).
 
-**Commit:** `feat(bench): ports for watching the screen and typing`
+### 6.1 Puertos `ScreenWatch` y `Keyboard`, y un solo reloj
+1. `ScreenFrame { at: Duration, accumulated: u32, width, height, bgra: Vec<u8> }`. `ScreenWatch::watch(region: Rect) -> Result<Box<dyn Watch>, String>`; `Watch::next(timeout) -> Result<Option<ScreenFrame>, String>` (`None` si no hubo frame nuevo).
+2. `domain/keys.rs`: `Key { Enter, Backspace, Char(char), Chord(Chord) }`, `Chord { ctrl, shift, alt: bool, key: char }`, `parse_chord("Ctrl+Shift+T") -> Result<Chord, String>` (sin distinguir mayúsculas; error con lo que no entiende). Pruebas.
+3. `Keyboard::type_text(hwnd, text)` y `press(hwnd, Key)`: ambos comprueban el primer plano (S3) **en el adaptador**, y el servicio además llama a `SafetyGuard::check` y a `foreground()` antes.
+4. **Un solo reloj:** `domain/qpc.rs`: `pub fn qpc_to_duration(ticks: i64, frequency: i64) -> Duration` con aritmética de `u128` (prueba: 1 tick a 10 MHz son 100 ns; 30 días de ticks no desbordan; negativo o frecuencia 0 da 0). `platform/qpc_clock.rs`: `QpcClock` implementa `Clock` con `QueryPerformanceCounter` desde cero (no desde que arranca el banco), así `LastPresentTime` se convierte con la misma función y `t1 − t0` compara lo mismo. El binario del banco usa `QpcClock` en vez de `SystemClock`.
+
+**Commit:** `feat(bench): ports for watching the screen and typing, on one clock`
 
 ### 6.2 Adaptador DXGI
-1. `platform/screen/dxgi.rs` según la sonda 1.1: salida del monitor que contiene la región; dispositivo; duplicación; textura `STAGING` del tamaño de la región creada una vez; `next`: `AcquireNextFrame`, ignora frames con `LastPresentTime == 0`, copia, mapea, lee por filas, `ReleaseFrame` siempre (guarda con `Drop`).
-2. `DXGI_ERROR_ACCESS_LOST`: recrear la duplicación una vez; si vuelve a fallar, error.
-3. Archivo de más de 400 líneas: partirlo (`screen/dxgi.rs`, `screen/staging.rs`).
+1. `platform/screen/dxgi.rs` según la sonda 1.1 (pasar a `src/` lo que sirva de `examples/probe_duplication/capture.rs`): la salida cuyo escritorio **contiene entera** la región (si no hay ninguna, error con la región); dispositivo; duplicación; textura `STAGING` del tamaño de la región creada una vez.
+2. `next`: `AcquireNextFrame`; descarta los frames con `LastPresentTime == 0` (avisos de puntero, cientos por segundo) y los libera; `at` = `qpc_to_duration(LastPresentTime)`; `accumulated` = `AccumulatedFrames`; copia, mapea, lee por filas con `RowPitch`; `ReleaseFrame` siempre (guarda con `Drop`).
+3. `DXGI_ERROR_ACCESS_LOST`: recrear la duplicación una vez; si vuelve a fallar, error.
+4. Más de 400 líneas: partirlo (`screen/dxgi.rs`, `screen/staging.rs`).
 
 **Commit:** `feat(bench): watching the screen with desktop duplication`
 
 ### 6.3 Adaptador de teclado
-1. `SendInput` con `INPUT_KEYBOARD`: texto con `KEYEVENTF_UNICODE` por unidad UTF-16 (pulsar y soltar); teclas con su `VK_*`.
-2. Antes de cada lote de eventos: `GetForegroundWindow() == hwnd`, o error.
+Features: `Win32_UI_Input_KeyboardAndMouse`.
+1. `SendInput` con `INPUT_KEYBOARD`: texto con `KEYEVENTF_UNICODE` por unidad UTF-16 (pulsar y soltar); `Enter` y `Backspace` con su `VK_*`; un `Chord`: modificadores abajo, la tecla, y arriba en orden inverso, en un solo `SendInput`.
+2. Antes de cada lote: `GetForegroundWindow() == hwnd`, o error.
+3. Pasar a `src/` lo que sirva de `examples/probe_focus/input.rs`.
 
 **Commit:** `feat(bench): the keyboard adapter`
 
-### 6.4 `app/latency.rs`
-1. `LatencyService::run(profile, presses) -> Result<Measurement, String>`:
-   - Abrir una ventana nueva (reutiliza lo de 5.3), `place` en el monitor principal en `(100, 100, 1280, 720)`, esperar a que se asiente (`settled_at`, 500 ms de silencio, máximo 10 s), `focus`.
-   - Región: la ventana sin los 40 px de arriba.
-   - Aprender la máscara 2 s (`ChangeDetector::learn`, frames cada vez que llegan).
-   - Por pulsación: comprobar foco (S3); `t0`; `press(Char('a'))`; leer frames hasta que `changed(base, frame)`; muestra = `frame.at - t0`. Luego `Backspace`, esperar el cambio de vuelta, nueva base, pausa de 150 a 350 ms (secuencia de `XorShift64` con semilla fija). Sin cambio en 1 s: fallo. Más del 5 % de fallos: abortar con el motivo.
-   - Cerrar la ventana.
-2. Pruebas con falsos: la pantalla falsa cambia N ms después de la tecla y la muestra vale N; foco perdido aborta sin pulsar; los fallos se cuentan.
+### 6.4 `app/screen_wait.rs`: esperar a que la pantalla se asiente
+1. `pub const SETTLE_SHARE: f64 = 0.005` en el dominio: un cambio cuenta para «asentado» si toca al menos el 0,5 % de los píxeles de la región (en 1280×680, 4352). El cursor que parpadea y la letra suelta quedan por debajo; una pantalla de salida, por encima.
+2. `settle(watch, clock, start, quiet: Duration, max: Duration) -> Result<Settled, String>`: lee frames, anota los instantes de cambio (`ChangeDetector` sin máscara, `min_pixels` del 0,5 %), y usa `settle::settled_at`. `Settled { at, frame, changes, accumulated }`. Pasado `max` sin silencio: error con cuántos cambios hubo.
+3. Pruebas con una pantalla falsa: un cursor que cambia cada 530 ms no impide asentar; una ráfaga grande seguida de silencio da su último instante; sin silencio, error.
 
-**Commit:** `feat(bench): key-to-screen latency`
+**Commit:** `feat(bench): waiting for the screen to settle, past a blinking cursor`
 
-### 6.5 `app/output_seen.rs`
-1. `OutputService::run(profile, load, mib, repeats) -> Result<Vec<Measurement>, String>`: ventana nueva como en 6.4; escribir la orden `"<ruta del banco>" emit <load> --mib <n> --out "<temp>\<load>-<i>.json"` con `type_text` y `Enter` (`t0` al pulsar Enter); muestrear CPU de la terminal cada 250 ms en paralelo (`ProcessProbe`); esperar a que exista el JSON y la pantalla se asiente (500 ms); muestra vista = asentado − `t0`; muestra consumida = `seconds` del JSON. Entre repeticiones, escribir `cls` + Enter y esperar asentado.
-2. Devuelve `OutputSeen(load)`, `OutputConsumed(load)` (MB/s) y `CpuDuringOutput(load)`.
-3. Pruebas con falsos.
+### 6.5 Arranque hasta la ventana dibujada
+1. `Metric::StartupColdDrawn` y `StartupWarmDrawn` («… hasta la ventana dibujada»), grupo Arranque.
+2. `StartupService` (5.4), tras `visible_at`: sin mover la ventana, `watch(rect de la ventana)` y `settle` (silencio 500 ms, máximo 10 s); muestra dibujada = `settled.at − t0`. Si la ventana no cabe entera en un monitor, no hay muestra dibujada en esa tanda y se anota en `notes`, con el monitor.
+3. Pruebas con falsos: la muestra dibujada es el último cambio grande; una ventana entre dos monitores se anota y la visible sigue.
+
+**Commit:** `feat(bench): timing a terminal's start until its window is drawn`
+
+### 6.6 La orden `echo`
+Un programa propio que repite cada tecla, para medir la tecla dentro de un programa en marcha igual en todas las terminales.
+1. `domain/echo.rs`: `pub const ECHO_PROMPT: &str = "IMPERIFEX-ECHO> "`; `pub fn echo_reply(input: &[u8]) -> Reply { bytes: Vec<u8>, quit: bool }`: imprimibles ASCII, tal cual; `0x7F` y `0x08`, `"\x08 \x08"`; `q`, salir; lo demás se ignora. Pruebas.
+2. Puerto `KeyInput { read(&mut self, buf: &mut [u8]) -> Result<usize, String> }`.
+3. `platform/console_in.rs`: `ConsoleIn` pone la entrada en crudo (`GetConsoleMode`; quita `ENABLE_LINE_INPUT`, `ENABLE_ECHO_INPUT` y `ENABLE_PROCESSED_INPUT`; pone `ENABLE_VIRTUAL_TERMINAL_INPUT`) y devuelve el modo anterior en `Drop`; `read` sobre `std::io::stdin()`.
+4. `app/echo.rs`: escribe `ECHO_PROMPT`, y por cada lectura escribe la respuesta y hace `flush` **en cada tecla**; sale con `q`. Pruebas con falsos.
+5. `imperifex-bench echo`.
+
+**Commit:** `feat(bench): an echo program to time keys inside a running program`
+
+### 6.7 `app/latency.rs`
+1. `Metric::KeyLatency` pasa a `KeyLatencyPrompt` («Tecla en el prompt») y se añade `KeyLatencyProgram` («Tecla en un programa»).
+2. `LatencyService::run(profile, presses, mode: Prompt | Program, dir) -> Result<Measurement, String>`:
+   - `WindowSession::open`; `place` en el monitor principal en `(100, 100, 1280, 720)`; `settle` (500 ms, máximo 10 s); `focus`.
+   - `Program`: `type_text` de `& '<ruta del banco>' echo` (con `powershell_command`, abajo) y `Enter`; esperar a que se asiente.
+   - `Prompt`: `type_text("zqxj")` sin medir; esperar a que se asiente.
+   - Región: la ventana sin los 40 px de arriba. Aprender la máscara 2 s (`ChangeDetector::learn` con `DEFAULT_MIN_PIXELS`).
+   - Por pulsación: pausa de 150 a 350 ms (`XorShift64`, semilla fija), y además 300 ms seguidos sin cambios (un cambio rehace la base; más de 3 s sin calma es un fallo). Luego `check` + `foreground()` (S3); `t0`; `press(Char('a'))`; leer frames hasta `changed(base, frame)`; muestra = `frame.at − t0`. Luego `Backspace`, esperar el cambio de vuelta y tomar nueva base. Sin cambio en 1 s: fallo. Más del 5 % de fallos: abortar con el motivo.
+   - `notes`: fallos, muestras con `accumulated > 1` (pueden llegar hasta un frame tarde, 6,9 ms a 144 Hz) y cuántos píxeles tapó la máscara.
+   - `Program`: al final `press(Char('q'))` y esperar a que se asiente. Después `close`.
+3. `domain/shell.rs`: `pub fn powershell_command(exe: &str, args: &[&str]) -> String`: `& '<exe>' '<arg>'…` con cada `'` doblado. Pruebas: ruta con espacios y con comilla.
+4. Pruebas con falsos: la pantalla cambia N ms después de la tecla y la muestra vale N; un cambio antes de pulsar rehace la base y no da muestra falsa; foco perdido aborta sin pulsar; los fallos se cuentan; en `Program` se escribe la orden `echo` y se sale con `q`.
+5. Durante la medida no se toca el ratón: lo dice la consola al empezar (1.1).
+
+**Commit:** `feat(bench): key-to-screen latency, at the prompt and inside a program`
+
+### 6.8 `app/output_seen.rs`
+1. `OutputService::run(profile, load, mib, repeats, dir) -> Result<Vec<Measurement>, String>`:
+   - Ventana como en 6.7 (abrir, colocar, asentar, foco).
+   - Por repetición: `type_text(powershell_command(banco, ["emit", load, "--mib", n, "--out", json]))`. Leer el uso de los procesos de la terminal (`cpu_100ns`). `t0` y `Enter`. Esperar a que exista el JSON (`FileStore::exists`, cada 50 ms, máximo 120 s) y a que la pantalla se asiente (500 ms; el `settle` empieza en `t0`). Volver a leer el uso.
+   - Vista = asentado − `t0`; consumida = `seconds` del JSON (MB/s); CPU = `cpu_percent_of_core(antes, después, asentado − t0)` (D18).
+   - Entre repeticiones: `cls` + `Enter` y esperar a que se asiente.
+   - `close`.
+2. Devuelve `OutputSeen(load)` (ms), `OutputConsumed(load)` (MB/s) y `CpuDuringOutput(load)`.
+3. Pruebas con falsos: la vista llega al último cambio grande; el JSON que no aparece es error con su ruta; la CPU sale del total.
 
 **Commit:** `feat(bench): output as the terminal shows it`
 
-### 6.6 `app/memory_load.rs`
-1. Ventana nueva; huella; `emit ascii` de 1 millón de líneas (~82 MiB) y esperar asentado; huella → `MemoryScrollbackPrivate` (la diferencia en MB).
-2. Pestañas: pulsar `new_tab_keys` tres veces (asentado entre cada una) → `MemoryPerTabPrivate` = aumento medio por pestaña. Si el perfil no tiene `new_tab_keys`, se omite y se anota.
-3. Pruebas con falsos.
+### 6.9 `app/memory_load.rs`
+1. Esperar los restos de ventanas anteriores, máximo 90 s (D16), sin abrir nada.
+2. Ventana nueva; huella de 10 s (`FootprintService`); `emit ascii` de 1 millón de líneas (~82 MiB) como en 6.8, y esperar asentado; huella de 10 s → `MemoryScrollbackPrivate` = diferencia de las medianas, en MB.
+3. Pestañas, con `parse_chord(new_tab_keys)`. Tres veces: pulsar, y comprobar que en 5 s aparece un proceso auxiliar nuevo de la terminal (`new_since`): eso confirma la pestaña. Luego asentar y huella de 10 s. `MemoryPerTabPrivate` = aumento medio por pestaña. Si el perfil no tiene teclas, o la primera pulsación no abre nada, se omite y se anota.
+4. `close`. Si Warp pide confirmar el cierre de varias pestañas, `close` para (5.3). Eso es un **Bloqueo** y no se cierran las pestañas una a una por cuenta propia.
+5. Pruebas con falsos: diferencia de memoria; una pestaña que no abre se omite; el diálogo para.
 
 **Commit:** `feat(bench): memory with a long history and per tab`
 
-### 6.7 🖥 Órdenes `latency`, `output`, `memory`
-1. `latency <terminal> [--presses 200]`, `output <terminal> [--load L|all] [--repeats 3]`, `memory <terminal>`, todas con `--out`.
-2. Correr cada una una vez y anotar los números en «Estado».
+### 6.10 🖥 Órdenes `latency`, `output`, `memory`
+1. `latency <terminal> [--presses 200] [--mode prompt|program|both]` (por defecto `both`), `output <terminal> [--load L|all] [--repeats 3]`, `memory <terminal>`, todas con `--out`; `startup` gana las muestras dibujadas de 6.5.
+2. Correr cada una una vez, con el permiso del autor, y anotar los números en «Estado».
+3. En «Hechos medidos», lo que el plan da por supuesto y nadie ha visto aún:
+   - si el cursor de Warp parpadea (los píxeles de la máscara);
+   - si, con `echo` en marcha, las teclas llegan al programa o se las queda el editor de Warp (si se las queda: **Bloqueo**);
+   - si `Ctrl+Shift+T` abre pestaña;
+   - si cerrar una ventana con pestañas pide confirmar;
+   - cuánto duró cada orden.
 
 **Commit:** `feat(bench): the latency, output and memory orders`
 
@@ -445,7 +554,7 @@ Features: `Win32_UI_WindowsAndMessaging`, `Win32_Graphics_Dwm`, `Win32_UI_HiDpi`
 ## Bloque 7 · La línea base de Warp
 
 ### 7.1 La orden `all`
-1. `imperifex-bench all <terminal> [--out-dir bench/results/<fecha>-<terminal>-<n>]`: en orden, `footprint` 60 s en reposo, `startup` en caliente ×10, `latency` ×200, `output all` ×3, `memory`. Un `report.json` con todo. Si una parte falla, las demás siguen y el informe lo anota.
+1. `imperifex-bench all <terminal> [--out-dir bench/results/<fecha>-<terminal>-<n>]`: en orden, `footprint` 60 s en reposo, `startup` en caliente ×10, `latency` ×200 en los dos modos, `output all` ×3, `memory`. Entre una parte y otra se esperan los restos (D16), así que la duración estimada sale de lo que tardó cada orden en 6.10. Un `report.json` con todo. Si una parte falla, las demás siguen y el informe lo anota.
 2. Avisar en la consola, antes de empezar, de que no se toque el PC y cuánto durará (estimado).
 
 **Commit:** `feat(bench): the whole baseline in one order`
@@ -500,8 +609,8 @@ Bloques previstos, en este orden. Cada uno se planifica en detalle **antes** de 
 2.1 → 2.2 → 2.3 → 2.4 ; 2.5 → 2.6        (el bloque 2 se puede hacer antes que el 1)
 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → [PAUSA]     (3.5 da la primera medida de salida)
 4.1 → 4.2 → 4.3 → 4.4 → [PAUSA]           (4.4 da la primera huella limpia)
-5.1 → 5.2 → 5.3 → 5.4 → 5.5 🖥 → [PAUSA]
-6.1 → 6.2 → 6.3 → 6.4 → 6.5 → 6.6 → 6.7 🖥 → [PAUSA]
+5.1 → 5.2 → 5.3 → 5.4 → 5.5 → 5.6 → 5.7 🖥 → [PAUSA]
+6.1 → 6.2 → 6.3 → 6.4 → 6.5 → 6.6 → 6.7 → 6.8 → 6.9 → 6.10 🖥 → [PAUSA]
 7.1 → 7.2 → 7.3 🖥 → [PAUSA: plan de la fase T]
 ```
 
@@ -512,7 +621,8 @@ El camino más corto a un número útil: bloque 2 → 3 (salida) → 4 (huella).
 | Riesgo | Mitigación |
 |---|---|
 | Una tecla acaba en la sesión del autor | S1 y S3, comprobados en el adaptador y en el servicio; el falso hace fallar la prueba si se intenta |
-| Warp abre ventanas nuevas en el mismo proceso, o pide confirmación al cerrar | Lo aclara la sonda 1.3 antes de escribir el bloque 5 |
+| Warp abre ventanas nuevas en el mismo proceso, o pide confirmación al cerrar | Confirmado que sí, el mismo proceso (1.3): `SafetyGuard` adopta ventanas (D12). Un diálogo al cerrar para la medida (5.3); con varias pestañas no se ha probado (6.10) |
+| Las teclas con `echo` en marcha se las queda el editor de Warp | Se comprueba en 6.10; si pasa, Bloqueo y el planificador busca otra forma de medir la tecla en un programa |
 | El foco no se puede tomar desde un proceso de fondo | La sonda 1.4 prueba tres métodos; si ninguno sirve, se para y se replantea |
 | La latencia medida incluye el monitor y la composición de Windows | Igual para todas las terminales: la comparación es en esta máquina, a 144 Hz |
 | Las sugerencias o la IA de Warp cambian la pantalla al escribir `a` | La máscara solo quita lo que parpadea; si aparecen cambios ajenos, se anota y se prueba con otra tecla |
@@ -591,8 +701,9 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - [x] 2.1 (2026-11-25) · [x] 2.2 (2026-11-25) · [x] 2.3 (2026-11-25) · [x] 2.4 (2026-11-25) · [x] 2.5 (2026-11-25) · [x] 2.6 (2026-11-25)
 - [x] 3.1 (2026-11-25) · [x] 3.2 (2026-11-25) · [x] 3.3 (2026-11-25) · [x] 3.4 (2026-11-25) · [x] 3.5 (2026-11-25: Warp consume `ascii` a **19,1 MB/s**, 100 MiB en 5,23 s; una sola muestra, ver abajo)
 - [x] 4.1 (2026-11-25) · [x] 4.2 (2026-11-25) · [x] 4.3 (2026-11-25) · [x] 4.4 (2026-11-25: Warp en reposo, **689 MB privados, 462 MB de trabajo, CPU 1,1 % de un núcleo de media, GPU 0 %**; ver abajo)
-- [ ] 5.1 · [ ] 5.2 · [ ] 5.3 · [ ] 5.4 · [ ] 5.5
-- [ ] 6.1 · [ ] 6.2 · [ ] 6.3 · [ ] 6.4 · [ ] 6.5 · [ ] 6.6 · [ ] 6.7
+- 2026-11-25: el planificador revisó los bloques 5 y 6 con los hechos de 1.1-1.4 y 4.4 (decisiones D12-D18; el bloque 5 pasa a 7 tareas y el 6 a 10).
+- [ ] 5.1 · [ ] 5.2 · [ ] 5.3 · [ ] 5.4 · [ ] 5.5 · [ ] 5.6 · [ ] 5.7
+- [ ] 6.1 · [ ] 6.2 · [ ] 6.3 · [ ] 6.4 · [ ] 6.5 · [ ] 6.6 · [ ] 6.7 · [ ] 6.8 · [ ] 6.9 · [ ] 6.10
 - [ ] 7.1 · [ ] 7.2 · [ ] 7.3
 
 **Primera medida de salida (M3, consumida), 2026-11-25:** el autor corrió `emit ascii` (release, 100 MiB, semilla 1) en una pestaña de Warp: 5,229 s, 19,1 MB/s (1 MB = 1 048 576 bytes). Es **una sola muestra**, no es la línea base: no se anotó el tamaño de la ventana ni qué más hacía el PC (había una sesión de Claude Code en el mismo Warp). «Consumida» es el tiempo hasta que la consola aceptó los bytes, no hasta que se vieron (eso lo medirá la 6.5). Sin comprobar: en qué trozos entrega la biblioteca estándar de Rust esos bytes a la consola y cuánto cuesta; es igual para todas las terminales que se midan con esta herramienta.
