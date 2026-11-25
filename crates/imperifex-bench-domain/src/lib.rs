@@ -18,3 +18,4 @@ pub mod settle;
 pub mod stats;
 pub mod tree;
 pub mod usage;
+pub mod windows;
