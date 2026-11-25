@@ -53,6 +53,8 @@ La imagen es la referencia de estilo, no una especificación.
 | T-D5 | Las aplicaciones de pantalla alternativa (vim, monitores) usan todo el ancho, sin bloques ni márgenes | Necesitan la cuadrícula exacta |
 | T-D6 | La terminal dibuja solo cuando algo cambia | Consumo en reposo |
 | T-D7 | El motor funciona sin ventana antes de pintar nada | Se prueba y se confía en él primero |
+| T-D8 | El espaciado de la interfaz usa una escala con **base 16**, como el `rem` de CSS: 4, 8, 12, 16, 24 y 32 (ver «Diseño: espaciado») | Pedido del autor: da aire parejo a todo |
+| T-D9 | **Todo nativo**, como en Luminifex y Purifex: Rust y las API del sistema. Sin WebView, Electron, HTML, CSS, JavaScript ni motor web. La imagen del diseño es solo una referencia visual | Pedido del autor: rendimiento |
 
 ## Decisiones abiertas (cada una se cierra antes de su bloque)
 
@@ -96,6 +98,7 @@ Los datos están en «Hechos medidos» de `docs/PLAN.md`. Esto es lo que toca a 
 | `CommandBlock` | Orden, filas que ocupa, duración y código de salida |
 | `Settings` | Tema, idioma, fuente, perfiles, atajos; con `Default` |
 | `ThemeChoice`, `Palette` | Lo elegido, y los colores resultantes |
+| `Space` | Un paso de la escala de espaciado |
 | `LanguageChoice`, `Language`, `strings!` | Lo elegido, el idioma resultante y los textos |
 | `AgentSession`, `AgentState`, `AgentEvent` | Un agente en una pestaña y lo que le pasa |
 | `Model`, `Action` | Lo que dibuja `ui` y lo que `ui` pide |
@@ -124,6 +127,25 @@ Los valores oscuros son una aproximación a ojo de la imagen, no medidos de ella
 El estado nunca se dice solo con color: lleva también icono o palabra.
 
 Además, cada tema tiene sus 16 colores ANSI. Los programas que mandan color de 24 bits suelen suponer un fondo: la terminal responde a la consulta del color de fondo (OSC 10/11) para que puedan adaptarse. Qué programas la usan se comprueba en T2.
+
+## Diseño: espaciado
+
+La idea se toma del `rem` de CSS, y **solo la idea** (T-D9): una base, normalmente 16, de la que salen las demás medidas. En Imperifex es código Rust: la base se define **una sola vez**, los pasos salen de ella y al dibujar son píxeles.
+
+| Paso | En `rem` | Valor | Uso orientativo |
+|---|---|---|---|
+| `xs` | 0,25 | 4 | Entre un icono y su texto |
+| `s` | 0,5 | 8 | Entre elementos relacionados |
+| `m` | 0,75 | 12 | Relleno de botones y pestañas |
+| `l` | 1 | **16 (base)** | Relleno de paneles, tarjetas y salida |
+| `xl` | 1,5 | 24 | Entre grupos |
+| `xxl` | 2 | 32 | Entre secciones, como en Ajustes |
+
+- **Unidad:** píxeles lógicos, multiplicados por la escala de Windows (a 150 %, la base son 24 píxeles físicos). El resultado se redondea a píxel entero para que nada se vea borroso, y cambia al pasar la ventana a un monitor con otra escala.
+- **En el código:** un `enum Space` en `domain`; `ui` no escribe márgenes ni rellenos como números sueltos. Si hace falta un paso más (48, 64), se añade a la escala.
+- **No es espaciado:** bordes de 1 px, radios, iconos y tamaño de letra tienen sus propios valores.
+- **La cuadrícula queda fuera:** dentro de la salida mandan las celdas, cuyo ancho y alto vienen de la fuente. La escala se aplica alrededor, no entre filas ni columnas. Lo que sobre al dividir el área en celdas queda como margen abajo y a la derecha.
+- **Coste en la salida:** 16 a cada lado quita unas 4 columnas (estimado para celdas de unos 8,4 px de ancho; se confirma con la fuente elegida). La pantalla alternativa sigue sin márgenes (T-D5).
 
 ## Diseño: idioma
 
@@ -195,10 +217,10 @@ Si no se puede saber cuándo un agente espera, **parar** y replantear el panel.
 | # | Tarea | Hecho cuando |
 |---|---|---|
 | T2.1 | `i18n` con `strings!` y `resolve_language` | Pruebas de la regla y de plurales |
-| T2.2 | `Palette`, tokens, ANSI y `resolve_theme` | Pruebas, incluida la de contraste |
+| T2.2 | `Palette`, tokens, ANSI, `resolve_theme` y la escala `Space` | Pruebas, incluidas la de contraste y la de la escala a 100, 125 y 150 % |
 | T2.3 | `Settings` con `Default`, lectura tolerante y escritura atómica en `%APPDATA%\Imperifex\settings.json` | Un archivo dañado o antiguo no impide arrancar; se conserva copia |
 | T2.4 | Puertos y adaptadores de apariencia e idioma del sistema, con aviso de cambios | Cambiar el tema de Windows llega como evento (probado a mano) |
-| T2.5 | Crate `imperifex-ui` y su fila en las guardas | Una guarda falla si `ui` tiene un color o un texto visible suelto (probada rompiéndola) |
+| T2.5 | Crate `imperifex-ui` y su fila en las guardas | Una guarda falla si `ui` tiene un color o un texto visible suelto (probada rompiéndola). Los márgenes y rellenos reciben `Space`, no números, para que lo impida el compilador |
 | T2.6 | Ventana con barra de título propia: mover, maximizar, ajuste de Windows, varios monitores y DPI | Lista de comprobación en el PC real |
 | T2.7 | Atlas de glifos y dibujo de la cuadrícula con daños, cursor y fuente | Se ve la salida de una shell; sin cambios no se dibuja |
 
