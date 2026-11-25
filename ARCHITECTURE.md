@@ -95,7 +95,7 @@ El autor trabaja **dentro** de la terminal que se mide. Estas reglas no se rompe
 - [x] Bloque 0 · Cimientos del banco: sus crates, la orden `help` y el perfil de Warp.
 - [x] Bloque 1 · Investigación: sondas de pantalla, GPU, ventanas y foco (hechos en `docs/PLAN.md`).
 - [x] Bloque 2 · El motor de medidas: estadística, métricas, informe y su tabla, cambio en pantalla y asentamiento (dominio puro, sin probar todavía con datos reales).
-- [ ] Bloque 3 · Las cargas y la orden `emit`
+- [x] Bloque 3 · Las cargas y la orden `emit`: seis cargas fijas, el servicio, los adaptadores de consola y archivos, y una primera medida real en Warp.
 - [ ] Bloque 4 · Huella: memoria, CPU y GPU
 - [ ] Bloque 5 · Ventanas y arranque
 - [ ] Bloque 6 · Pantalla y teclado: latencia y salida vista

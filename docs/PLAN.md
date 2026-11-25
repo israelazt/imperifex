@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **en curso: bloques 1 y 2 hechos; en la PAUSA del 2**. Pendiente: que el planificador revise los bloques 5 y 6 con lo que dijeron las sondas. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **en curso: bloques 1, 2 y 3 hechos; en la PAUSA del 3**. Pendiente: que el planificador revise los bloques 5 y 6 con lo que dijeron las sondas. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -588,8 +588,10 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - [x] 0.1 (2026-11-25; además, la guarda de `unsafe` admite `imperifex-bench-platform` y `main.rs` del banco puede imprimir su salida) · [x] 0.2 (2026-11-25) · [x] 0.3 (2026-11-25)
 - [x] 1.1 (2026-11-25: 143,8 presentaciones/s moviendo el ratón; copia p95 1,38 ms) · [x] 1.2 (2026-11-25: `pid_<n>_luid_…_engtype_3D`; recolectar y leer, ~0,6 ms en p50) · [x] 1.3 (2026-11-25: la ventana la abre el Warp ya abierto; cierra sin diálogo; su shell vive ~1 min más) · [x] 1.4 (2026-11-25: basta `SetForegroundWindow`; la tecla llega a la ventana propia; Warp sugiere al escribir)
 - [x] 2.1 (2026-11-25) · [x] 2.2 (2026-11-25) · [x] 2.3 (2026-11-25) · [x] 2.4 (2026-11-25) · [x] 2.5 (2026-11-25) · [x] 2.6 (2026-11-25)
-- [x] 3.1 (2026-11-25) · [x] 3.2 (2026-11-25) · [x] 3.3 (2026-11-25) · [x] 3.4 (2026-11-25) · [ ] 3.5
+- [x] 3.1 (2026-11-25) · [x] 3.2 (2026-11-25) · [x] 3.3 (2026-11-25) · [x] 3.4 (2026-11-25) · [x] 3.5 (2026-11-25: Warp consume `ascii` a **19,1 MB/s**, 100 MiB en 5,23 s; una sola muestra, ver abajo)
 - [ ] 4.1 · [ ] 4.2 · [ ] 4.3 · [ ] 4.4
 - [ ] 5.1 · [ ] 5.2 · [ ] 5.3 · [ ] 5.4 · [ ] 5.5
 - [ ] 6.1 · [ ] 6.2 · [ ] 6.3 · [ ] 6.4 · [ ] 6.5 · [ ] 6.6 · [ ] 6.7
 - [ ] 7.1 · [ ] 7.2 · [ ] 7.3
+
+**Primera medida de salida (M3, consumida), 2026-11-25:** el autor corrió `emit ascii` (release, 100 MiB, semilla 1) en una pestaña de Warp: 5,229 s, 19,1 MB/s (1 MB = 1 048 576 bytes). Es **una sola muestra**, no es la línea base: no se anotó el tamaño de la ventana ni qué más hacía el PC (había una sesión de Claude Code en el mismo Warp). «Consumida» es el tiempo hasta que la consola aceptó los bytes, no hasta que se vieron (eso lo medirá la 6.5). Sin comprobar: en qué trozos entrega la biblioteca estándar de Rust esos bytes a la consola y cuánto cuesta; es igual para todas las terminales que se midan con esta herramienta.

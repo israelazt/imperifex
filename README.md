@@ -18,6 +18,13 @@ Antes de cada commit: `powershell -File tools/check.ps1` (formato, clippy sin av
 | `imperifex status [--json]` | Ejemplo: dice que la app funciona y cuánto tardó |
 | `imperifex help` | La ayuda |
 
+## El banco de medidas
+
+| Orden | Hace |
+|---|---|
+| `imperifex-bench emit <carga> --out <archivo.json> [--mib N] [--seed S]` | Manda una carga a la terminal en la que corre y mide cuánto tarda en aceptarla |
+| `imperifex-bench help` | La ayuda |
+
 ## Arquitectura
 
 Ver `ARCHITECTURE.md`. El plan de trabajo está en `docs/PLAN.md`.
