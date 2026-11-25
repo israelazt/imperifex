@@ -11,7 +11,12 @@ fn main() {
     use imperifex_bench_app::Command;
     use imperifex_platform::install_stderr_log;
 
+    // Before anything else, so that every coordinate is a physical one.
+    let scaling = imperifex_bench_platform::use_physical_pixels();
     install_stderr_log();
+    if let Err(error) = scaling {
+        imperifex_domain::log_warn!("{error}");
+    }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let command = match Command::parse(&args) {
         Ok(command) => command,

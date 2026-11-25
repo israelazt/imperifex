@@ -5,6 +5,10 @@
 mod console_out;
 #[cfg(any(windows, test))]
 mod decode;
+#[cfg(windows)]
+mod desktop;
+#[cfg(windows)]
+mod dpi;
 mod files;
 #[cfg(windows)]
 mod gpu;
@@ -17,6 +21,10 @@ mod processes;
 
 #[cfg(windows)]
 pub use console_out::ConsoleOut;
+#[cfg(windows)]
+pub use desktop::WindowsDesktop;
+#[cfg(windows)]
+pub use dpi::use_physical_pixels;
 pub use files::DiskFiles;
 #[cfg(windows)]
 pub use gpu::GpuCounters;

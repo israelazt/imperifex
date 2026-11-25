@@ -704,7 +704,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - [x] 3.1 (2026-11-25) · [x] 3.2 (2026-11-25) · [x] 3.3 (2026-11-25) · [x] 3.4 (2026-11-25) · [x] 3.5 (2026-11-25: Warp consume `ascii` a **19,1 MB/s**, 100 MiB en 5,23 s; una sola muestra, ver abajo)
 - [x] 4.1 (2026-11-25) · [x] 4.2 (2026-11-25) · [x] 4.3 (2026-11-25) · [x] 4.4 (2026-11-25: Warp en reposo, **689 MB privados, 462 MB de trabajo, CPU 1,1 % de un núcleo de media, GPU 0 %**; ver abajo)
 - 2026-11-25: el planificador revisó los bloques 5 y 6 con los hechos de 1.1-1.4 y 4.4 (decisiones D12-D18; el bloque 5 pasa a 7 tareas y el 6 a 10).
-- [x] 5.1 (2026-11-25) · [x] 5.2 (2026-11-25) · [x] 5.3 (2026-11-25) · [ ] 5.4 · [ ] 5.5 · [ ] 5.6 · [ ] 5.7
+- [x] 5.1 (2026-11-25) · [x] 5.2 (2026-11-25) · [x] 5.3 (2026-11-25) · [x] 5.4 (2026-11-25) · [ ] 5.5 · [ ] 5.6 · [ ] 5.7
 - [ ] 6.1 · [ ] 6.2 · [ ] 6.3 · [ ] 6.4 · [ ] 6.5 · [ ] 6.6 · [ ] 6.7 · [ ] 6.8 · [ ] 6.9 · [ ] 6.10
 - [ ] 7.1 · [ ] 7.2 · [ ] 7.3
 
@@ -733,3 +733,5 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - Fijar el estado en que se mide Warp (cuántas pestañas, con qué dentro, ventana visible o no): Imperifex tendrá que medirse igual.
 - La CPU de cada muestra sale en escalones de ~1,55 % (probablemente la resolución del reloj de CPU de Windows; sin comprobar). En reposo el p50 puede dar 0: **la media dice más**, y la tabla de la 2.4 no la muestra.
 - Nada impide por sí solo que alguien use el PC durante una tanda: la alteración de la tanda 1 solo se vio mirando las muestras.
+
+**Coste de leer las ventanas (5.4), 2026-11-25:** `measure_reading_the_windows` en release, 195 ventanas (28 visibles), 10 lecturas seguidas: la primera 1,1 ms, las demás 0,25 a 0,50 ms. El arranque (5.3) solo lista los procesos (unos 10 ms, ver 4.3) cuando ya hay una ventana candidata, y el instante de la muestra se toma antes de listarlos.
