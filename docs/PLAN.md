@@ -18,7 +18,7 @@ Antes de escribir la terminal, **medir Warp** en esta máquina. Esos números so
 | GPU | NVIDIA GeForce GTX 1660 Ti |
 | Sistema | Windows 11 Pro 10.0.26200 |
 | Warp | v0.2026.11.11.08.17.stable_01 |
-| Monitor | _pendiente: resolución y Hz (la latencia depende de ellos)_ |
+| Monitores | `DISPLAY1` principal: 1920×1080 a **144 Hz** (ASUS VG279QR); `DISPLAY2`: 1920×1080 a 60 Hz (BenQ GW2480). Las medidas de latencia se hacen en el principal |
 
 ## Qué se mide
 
@@ -48,11 +48,11 @@ CPU del proceso principal: 453 ms en 10 s (**4,5 % de un núcleo**) mientras est
 
 | # | Decisión | Propuesta |
 |---|---|---|
-| D1 (D) | La herramienta de medida vive en este repo como `apps/imperifex-bench` y mide cualquier terminal | Sí: la misma vara para Warp y para Imperifex |
-| D2 (D) | ¿Qué cargas importan más? | Las del uso real del autor: Claude Code, `cargo build`, `git`, registros largos |
-| D3 (D) | M1 en frío necesita Warp cerrado: esta sesión corre dentro de Warp, así que esa medida la lanza el autor desde otra terminal | Sí |
-| D4 (D) | ¿Medir también Windows Terminal como segunda referencia? | Sí: cuesta poco y dice si un número de Warp es bueno o malo |
-| D5 (D) | ¿Repositorio en GitHub? | Cuando el autor lo cree |
+| D1 ✅ | La herramienta de medida vive en este repo como `apps/imperifex-bench` y mide cualquier terminal | Sí: la misma vara para Warp y para Imperifex. Imperifex es una app aparte del ecosistema Fexarium |
+| D2 ✅ | ¿Qué cargas importan más? | La terminal es la herramienta principal del autor: se mide toda la experiencia (arranque, tecla, salida, reposo), con cargas reales: Claude Code, `cargo build`, `git`, registros largos |
+| D3 ✅ | M1 en frío necesita Warp cerrado: esta sesión corre dentro de Warp, así que esa medida la lanza el autor desde una ventana de PowerShell normal, al final del bloque | Sí |
+| D4 ✅ | ¿Medir también Windows Terminal? | **No**: el autor la va a eliminar. La única vara es Warp |
+| D5 ✅ | Repositorio | `github.com/israelazt/imperifex` (público): nada personal en el código ni en los documentos |
 | D6 (D) | Qué funciones de Warp necesita Imperifex (bloques, IA, pestañas, paneles…) | Se decide después de la línea base, en su propio plan |
 
 ## Fuera de esta fase
@@ -83,7 +83,7 @@ CPU del proceso principal: 453 ms en 10 s (**4,5 % de un núcleo**) mientras est
 | 1.1 | `domain`: el modelo de una medida (muestras, mediana, percentiles, dispersión) y del informe | Pruebas puras |
 | 1.2 | M3: las cargas, generadas con semilla fija (siempre los mismos bytes), y su escritura cronometrada | Pruebas: cada carga da el tamaño y el hash esperados |
 | 1.3 | M4-M6: muestreo de memoria, CPU y GPU de un proceso por un puerto, con su falso | Pruebas con el falso; medido en real |
-| 1.4 | M1: lanzar, encontrar la ventana, esperar a que deje de cambiar | Medido en real con Warp y Windows Terminal |
+| 1.4 | M1: lanzar, encontrar la ventana, esperar a que deje de cambiar | Medido en real con Warp (en caliente por mí; en frío, el autor) |
 | 1.5 | M2: tecla y vigilancia de pantalla por DXGI | Medido en real; se contrasta con una tecla a mano grabada a 240 fps si hace falta |
 | 1.6 | Correr las dos tandas y escribir `docs/BASELINE.md` | Criterios de aceptación cumplidos |
 
