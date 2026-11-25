@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 
 pub mod change;
+pub mod loads;
 pub mod markdown;
 pub mod metric;
 pub mod profile;
