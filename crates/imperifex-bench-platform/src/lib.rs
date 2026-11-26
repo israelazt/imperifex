@@ -20,6 +20,10 @@ mod machine;
 mod processes;
 #[cfg(windows)]
 mod qpc_clock;
+#[cfg(windows)]
+mod screen;
+#[cfg(any(windows, test))]
+mod screen_region;
 
 #[cfg(windows)]
 pub use console_out::ConsoleOut;
@@ -36,3 +40,5 @@ pub use machine::WindowsMachine;
 pub use processes::WindowsProcesses;
 #[cfg(windows)]
 pub use qpc_clock::QpcClock;
+#[cfg(windows)]
+pub use screen::DxgiScreen;
