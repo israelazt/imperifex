@@ -9,8 +9,9 @@ use imperifex_bench_domain::profile::TerminalProfile;
 use imperifex_bench_domain::report::Measurement;
 use imperifex_domain::ports::Clock;
 
-use crate::own_window::{running, wait_for, Opener};
+use crate::window_session::{running, wait_for, SessionPorts, WindowSession};
 
+const EVERY_SECOND: Duration = Duration::from_secs(1);
 const BETWEEN_RUNS: Duration = Duration::from_secs(2);
 /// How long a terminal has to leave no process behind, between cold starts.
 const TO_LEAVE: Duration = Duration::from_secs(10);
@@ -20,18 +21,12 @@ const WHAT_IS_TIMED: &str = "Desde que se lanza el programa hasta que su ventana
     lo que tarda cada lectura.";
 
 pub struct StartupService<C, D, P> {
-    clock: C,
-    desktop: D,
-    processes: P,
+    ports: SessionPorts<C, D, P>,
 }
 
 impl<C: Clock, D: Desktop, P: ProcessProbe> StartupService<C, D, P> {
-    pub fn new(clock: C, desktop: D, processes: P) -> Self {
-        Self {
-            clock,
-            desktop,
-            processes,
-        }
+    pub fn new(ports: SessionPorts<C, D, P>) -> Self {
+        Self { ports }
     }
 
     /// Opens and closes a window `runs` times. A cold start also needs, and
@@ -47,7 +42,7 @@ impl<C: Clock, D: Desktop, P: ProcessProbe> StartupService<C, D, P> {
         let mut samples = Vec::new();
         for number in 0..runs {
             if number > 0 {
-                self.clock.sleep(BETWEEN_RUNS);
+                self.ports.clock.sleep(BETWEEN_RUNS);
             }
             samples.push(self.once(profile, cold, dir)?.as_secs_f64() * 1000.0);
         }
@@ -61,28 +56,25 @@ impl<C: Clock, D: Desktop, P: ProcessProbe> StartupService<C, D, P> {
     }
 
     fn once(&self, profile: &TerminalProfile, cold: bool, dir: &Path) -> Result<Duration, String> {
-        if cold && !running(&self.processes, profile)?.is_empty() {
+        if cold && !running(&self.ports.processes, profile)?.is_empty() {
             return Err(format!(
                 "cierra {} del todo: el arranque en frío necesita que no esté abierto (regla S4)",
                 profile.name
             ));
         }
-        let opener = Opener {
-            clock: &self.clock,
-            desktop: &self.desktop,
-            processes: &self.processes,
-        };
-        let own = opener.open(profile, dir)?;
-        opener.close(&own)?;
+        let session = WindowSession::open(&self.ports, profile, dir)?;
+        let took = session.visible_at.saturating_sub(session.started_at);
+        session.close()?;
         if cold {
             self.wait_until_gone(profile)?;
         }
-        Ok(own.took)
+        Ok(took)
     }
 
     fn wait_until_gone(&self, profile: &TerminalProfile) -> Result<(), String> {
-        wait_for(&self.clock, TO_LEAVE, || {
-            Ok(running(&self.processes, profile)?.is_empty().then_some(()))
+        let ports = &self.ports;
+        wait_for(&ports.clock, EVERY_SECOND, TO_LEAVE, || {
+            Ok(running(&ports.processes, profile)?.is_empty().then_some(()))
         })?
         .ok_or_else(|| {
             format!(

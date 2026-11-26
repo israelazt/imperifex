@@ -27,6 +27,12 @@ pub fn terminal_processes(entries: &[ProcessEntry], profile: &TerminalProfile) -
         .collect()
 }
 
+/// The processes of `now` that were not in `before`.
+pub fn new_since(before: &[u32], now: &[u32]) -> Vec<u32> {
+    let known: HashSet<&u32> = before.iter().collect();
+    now.iter().copied().filter(|p| !known.contains(p)).collect()
+}
+
 /// Whether some ancestor is in `roots`. Reused pids can make the parents go in a
 /// circle, so no process is visited twice.
 fn descends(
@@ -80,6 +86,12 @@ mod tests {
             entry(20, 1, "OpenConsole.exe"),
         ];
         assert_eq!(terminal_processes(&entries, &warp()), [10, 11]);
+    }
+
+    #[test]
+    fn the_new_processes_are_those_that_were_not_there() {
+        assert_eq!(new_since(&[1, 2], &[2, 3, 4]), [3, 4]);
+        assert!(new_since(&[1, 2], &[1]).is_empty());
     }
 
     #[test]

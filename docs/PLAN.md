@@ -703,7 +703,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - [x] 4.1 (2026-11-25) · [x] 4.2 (2026-11-25) · [x] 4.3 (2026-11-25) · [x] 4.4 (2026-11-25: Warp en reposo, **689 MB privados, 462 MB de trabajo, CPU 1,1 % de un núcleo de media, GPU 0 %**; ver abajo)
 - 2026-11-25: el planificador revisó los bloques 5 y 6 con los hechos de 1.1-1.4 y 4.4 (decisiones D12-D18; el bloque 5 pasa a 7 tareas y el 6 a 10).
 - 2026-11-25, corrección: los commits `6e09964`, `01917ea`, `2e25b25` y `f385ae8` programaron el bloque 5 **como estaba antes de la revisión** (`11485b4`): quien programaba no releyó el plan, y anotó aquí, en falso, que la revisión no se había hecho. Ninguna de las tareas 5.1-5.4 revisadas estaba hecha; se rehacen en orden, aprovechando ese código.
-- [x] 5.1 (2026-11-25) · [x] 5.2 (2026-11-25) · [ ] 5.3 · [ ] 5.4 · [ ] 5.5 · [ ] 5.6 · [ ] 5.7
+- [x] 5.1 (2026-11-25) · [x] 5.2 (2026-11-25) · [x] 5.3 (2026-11-25) · [ ] 5.4 · [ ] 5.5 · [ ] 5.6 · [ ] 5.7
 - [ ] 6.1 · [ ] 6.2 · [ ] 6.3 · [ ] 6.4 · [ ] 6.5 · [ ] 6.6 · [ ] 6.7 · [ ] 6.8 · [ ] 6.9 · [ ] 6.10
 - [ ] 7.1 · [ ] 7.2 · [ ] 7.3
 

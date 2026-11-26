@@ -3,6 +3,7 @@
 
 pub mod adapters;
 pub mod desktop;
+pub mod processes_of;
 pub mod system;
 
 use std::cell::{Cell, RefCell};
@@ -25,6 +26,7 @@ pub enum Event {
 pub type Events = Rc<RefCell<Vec<Event>>>;
 
 /// A clock that moves `step_ms` every time it is read.
+#[derive(Debug, Clone)]
 pub struct FakeClock {
     step_ms: u64,
     now_ms: Cell<u64>,

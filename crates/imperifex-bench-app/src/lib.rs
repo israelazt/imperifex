@@ -7,10 +7,10 @@ pub mod command;
 pub mod emit;
 pub mod footprint;
 pub mod footprint_report;
-pub mod own_window;
 pub mod startup;
 #[cfg(test)]
 mod testing;
+pub mod window_session;
 
 pub use command::{Adapters, Command, Output};
 pub use emit::EmitService;

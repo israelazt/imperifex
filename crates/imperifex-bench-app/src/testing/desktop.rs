@@ -1,22 +1,30 @@
 //! A fake desktop. Whatever was on it before the test is the author's: asking
 //! to touch any of it fails the test on the spot (safety rule S1).
 //!
-//! A launch opens one window of a new terminal process, which shows up after
-//! some looks at the desktop, as a real one takes a while.
+//! A launch opens a window of a new terminal process, which shows up after some
+//! looks at the desktop, as a real one takes a while.
 
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use imperifex_bench_domain::desktop::{Rect, WindowEntry};
-use imperifex_bench_domain::ports::{Desktop, ProcessProbe};
-use imperifex_bench_domain::process::{ProcessEntry, ProcessUsage};
+use imperifex_bench_domain::ports::Desktop;
+
+use super::processes_of::DesktopProcesses;
+use super::{Events, FakeClock};
+use crate::window_session::SessionPorts;
 
 /// The windows a launch opens get handles from here up.
 pub const FIRST_OPENED: u64 = 0x100;
 /// The processes a launch starts get numbers from here up.
 pub const FIRST_PID: u32 = 1000;
+/// The author's window, its process, and a window of it that is hidden.
+pub const AUTHORS_WINDOW: u64 = 0xA;
+pub const AUTHORS_PID: u32 = 1;
+pub const AUTHORS_HIDDEN: u64 = 0xB;
+/// The handle of the question a window asks before closing.
+const QUESTION: u64 = 0xD1A;
 
 /// How the fake behaves, as a test scripts it.
 #[derive(Debug, Clone)]
@@ -24,18 +32,29 @@ pub struct Behaviour {
     /// Looks at the desktop after a launch before the window is seen; `None` if
     /// it never shows up.
     pub looks_to_show: Option<usize>,
+    pub windows_per_launch: usize,
+    /// A launch shows the author's hidden window.
+    pub reshows_hidden: bool,
     /// Whether a window goes away when asked to.
     pub closes: bool,
-    /// Whether its process leaves with it.
+    /// Whether asking to close it brings up a question instead.
+    pub asks_to_confirm: bool,
+    /// Whether its process leaves once it is closed.
     pub exits_on_close: bool,
+    /// How many looks at the processes it stays for after the close.
+    pub lingers_for: usize,
 }
 
 impl Default for Behaviour {
     fn default() -> Self {
         Self {
             looks_to_show: Some(1),
+            windows_per_launch: 1,
+            reshows_hidden: false,
             closes: true,
+            asks_to_confirm: false,
             exits_on_close: true,
+            lingers_for: 0,
         }
     }
 }
@@ -50,12 +69,18 @@ pub struct State {
     /// The windows opened by launches that are still there.
     pub opened: Vec<WindowEntry>,
     waiting: Vec<(usize, WindowEntry)>,
+    windows_made: u64,
     launches: usize,
+    reshown: bool,
     /// The processes the launches started that are still there.
-    alive: Vec<u32>,
+    pub alive: Vec<u32>,
+    /// Processes on their way out, with the looks they have left.
+    pub leaving: Vec<(usize, u32)>,
+    /// A window to answer as the foreground instead of the real one.
+    pub foreground_taken_by: Option<u64>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct FakeDesktop {
     /// The author's windows.
     before: Vec<WindowEntry>,
@@ -98,20 +123,38 @@ impl FakeDesktop {
             .asked
             .push(format!("{what} {hwnd:#x}"));
     }
+
+    fn drop_window(&self, hwnd: u64) {
+        let mut state = self.state.borrow_mut();
+        let Some(at) = state.opened.iter().position(|w| w.hwnd == hwnd) else {
+            return;
+        };
+        let pid = state.opened.remove(at).pid;
+        if !self.behaviour.exits_on_close {
+            return;
+        }
+        match self.behaviour.lingers_for {
+            0 => state.alive.retain(|&p| p != pid),
+            looks => state.leaving.push((looks, pid)),
+        }
+    }
 }
 
 impl Desktop for FakeDesktop {
     fn launch(&self, exe: &Path, _args: &[String], dir: &Path) -> Result<u32, String> {
         let mut state = self.state.borrow_mut();
-        let number = state.launches;
+        let pid = FIRST_PID + state.launches as u32;
         state.launches += 1;
         state.asked.push(format!("launch {}", exe.display()));
         state.dirs.push(dir.to_path_buf());
-        let pid = FIRST_PID + number as u32;
         state.alive.push(pid);
+        state.reshown |= self.behaviour.reshows_hidden;
         if let Some(looks) = self.behaviour.looks_to_show {
-            let opened = window(FIRST_OPENED + number as u64, pid, "Terminal");
-            state.waiting.push((looks, opened));
+            for _ in 0..self.behaviour.windows_per_launch {
+                let hwnd = FIRST_OPENED + state.windows_made;
+                state.windows_made += 1;
+                state.waiting.push((looks, window(hwnd, pid, "Terminal")));
+            }
         }
         Ok(pid)
     }
@@ -125,11 +168,20 @@ impl Desktop for FakeDesktop {
                 _ => state.opened.push(opened),
             }
         }
-        Ok(self.before.iter().chain(&state.opened).cloned().collect())
+        let mut all: Vec<WindowEntry> = self.before.clone();
+        for w in &mut all {
+            w.visible |= state.reshown && w.hwnd == AUTHORS_HIDDEN;
+        }
+        all.extend(state.opened.iter().cloned());
+        Ok(all)
     }
 
-    fn place(&self, hwnd: u64, _rect: Rect) -> Result<(), String> {
+    fn place(&self, hwnd: u64, rect: Rect) -> Result<(), String> {
         self.note("place", hwnd);
+        let mut state = self.state.borrow_mut();
+        for w in state.opened.iter_mut().filter(|w| w.hwnd == hwnd) {
+            w.rect = rect;
+        }
         Ok(())
     }
 
@@ -139,77 +191,69 @@ impl Desktop for FakeDesktop {
     }
 
     fn foreground(&self) -> Result<Option<u64>, String> {
-        Ok(self.state.borrow().opened.last().map(|w| w.hwnd))
+        let state = self.state.borrow();
+        Ok(state
+            .foreground_taken_by
+            .or_else(|| state.opened.last().map(|w| w.hwnd)))
     }
 
     fn close(&self, hwnd: u64) -> Result<(), String> {
         self.note("close", hwnd);
-        if self.behaviour.closes {
+        if self.behaviour.asks_to_confirm {
             let mut state = self.state.borrow_mut();
-            let closed: Vec<u32> = state
+            let pid = state.opened.iter().find(|w| w.hwnd == hwnd).map(|w| w.pid);
+            state
                 .opened
-                .iter()
-                .filter(|w| w.hwnd == hwnd)
-                .map(|w| w.pid)
-                .collect();
-            state.opened.retain(|w| w.hwnd != hwnd);
-            if self.behaviour.exits_on_close {
-                state.alive.retain(|pid| !closed.contains(pid));
-            }
+                .push(window(QUESTION, pid.unwrap_or_default(), "¿Cerrar?"));
+        } else if self.behaviour.closes {
+            self.drop_window(hwnd);
         }
         Ok(())
     }
 }
 
-/// The processes that go with a fake desktop: the author's and the ones its
-/// launches started. All are `warp.exe` unless renamed.
-#[derive(Clone)]
-pub struct DesktopProcesses {
-    author: Vec<u32>,
-    state: Rc<RefCell<State>>,
-    images: Rc<RefCell<HashMap<u32, String>>>,
-    calls: Rc<Cell<usize>>,
+pub type FakePorts = SessionPorts<FakeClock, FakeDesktop, DesktopProcesses>;
+
+/// A desktop with its processes and a clock that only moves when waited on.
+pub struct Rig {
+    pub ports: FakePorts,
 }
 
-impl DesktopProcesses {
-    pub fn new(desktop: &FakeDesktop, author: &[u32]) -> Self {
-        Self {
-            author: author.to_vec(),
-            state: Rc::clone(&desktop.state),
-            images: Rc::default(),
-            calls: Rc::default(),
-        }
+impl Rig {
+    pub fn asked(&self) -> Vec<String> {
+        self.ports.desktop.state.borrow().asked.clone()
     }
 
-    pub fn rename(&self, pid: u32, image: &str) {
-        self.images.borrow_mut().insert(pid, image.into());
-    }
-
-    /// How many times the list was asked for.
-    pub fn calls(&self) -> usize {
-        self.calls.get()
+    pub fn dirs(&self) -> Vec<PathBuf> {
+        self.ports.desktop.state.borrow().dirs.clone()
     }
 }
 
-impl ProcessProbe for DesktopProcesses {
-    fn processes(&self) -> Result<Vec<ProcessEntry>, String> {
-        self.calls.set(self.calls.get() + 1);
-        let state = self.state.borrow();
-        let images = self.images.borrow();
-        Ok(self
-            .author
-            .iter()
-            .chain(&state.alive)
-            .map(|&pid| ProcessEntry {
-                pid,
-                parent: 0,
-                image: images.get(&pid).map_or("warp.exe", String::as_str).into(),
-            })
-            .collect())
-    }
+pub fn home() -> &'static Path {
+    Path::new("home")
+}
 
-    fn usage(&self, _pid: u32) -> Result<ProcessUsage, String> {
-        Ok(ProcessUsage::default())
+/// With `authors_terminal`, the author has the terminal open: a window, a
+/// hidden one and their process, none of which may be touched.
+pub fn rig(behaviour: Behaviour, authors_terminal: bool) -> Rig {
+    let (before, author) = if authors_terminal {
+        let hidden = WindowEntry {
+            visible: false,
+            ..window(AUTHORS_HIDDEN, AUTHORS_PID, "Hidden")
+        };
+        let session = window(AUTHORS_WINDOW, AUTHORS_PID, "Session");
+        (vec![session, hidden], vec![AUTHORS_PID])
+    } else {
+        (vec![], vec![])
+    };
+    let desktop = FakeDesktop::new(before, behaviour);
+    let processes = DesktopProcesses::new(&desktop, &author);
+    Rig {
+        ports: SessionPorts {
+            clock: FakeClock::ticking(0, &Events::default()),
+            desktop,
+            processes,
+        },
     }
 }
 
@@ -217,48 +261,25 @@ impl ProcessProbe for DesktopProcesses {
 mod tests {
     use super::*;
 
-    fn with_the_authors_window() -> FakeDesktop {
-        FakeDesktop::new(vec![window(0xA, 1, "Session")], Behaviour::default())
+    fn desktop() -> FakeDesktop {
+        rig(Behaviour::default(), true).ports.desktop
     }
 
     #[test]
     #[should_panic(expected = "S1 broken")]
     fn closing_a_window_that_was_there_fails_the_test() {
-        let _ = with_the_authors_window().close(0xA);
+        let _ = desktop().close(AUTHORS_WINDOW);
     }
 
     #[test]
     #[should_panic(expected = "S1 broken")]
     fn focusing_a_window_that_was_there_fails_the_test() {
-        let _ = with_the_authors_window().focus(0xA);
+        let _ = desktop().focus(AUTHORS_HIDDEN);
     }
 
     #[test]
     #[should_panic(expected = "S1 broken")]
     fn moving_a_window_that_was_there_fails_the_test() {
-        let _ = with_the_authors_window().place(0xA, Rect::default());
-    }
-
-    #[test]
-    fn a_launched_window_shows_up_after_its_looks_and_closes() {
-        let desktop = FakeDesktop::new(
-            vec![],
-            Behaviour {
-                looks_to_show: Some(2),
-                ..Default::default()
-            },
-        );
-        desktop
-            .launch(Path::new("t.exe"), &[], Path::new("home"))
-            .unwrap();
-        assert_eq!(desktop.state.borrow().dirs, [Path::new("home")]);
-        assert!(desktop.windows().unwrap().is_empty());
-        assert_eq!(desktop.windows().unwrap().len(), 1);
-        assert_eq!(desktop.foreground().unwrap(), Some(FIRST_OPENED));
-        desktop.focus(FIRST_OPENED).unwrap();
-        desktop.place(FIRST_OPENED, Rect::default()).unwrap();
-        desktop.close(FIRST_OPENED).unwrap();
-        assert!(desktop.windows().unwrap().is_empty());
-        assert_eq!(desktop.state.borrow().asked.len(), 4);
+        let _ = desktop().place(AUTHORS_WINDOW, Rect::default());
     }
 }
