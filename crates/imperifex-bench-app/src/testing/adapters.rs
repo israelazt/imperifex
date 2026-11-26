@@ -1,12 +1,14 @@
 //! All the adapters at once, as an order gets them.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use imperifex_bench_domain::ports::{FileStore, MachineProbe};
 use imperifex_bench_domain::report::Machine;
 
-use super::system::{running, FakeGpu, FakeProcesses};
+use super::desktop::{Behaviour, FakeDesktop};
+use super::processes_of::DesktopProcesses;
+use super::system::FakeGpu;
 use super::{Events, FakeClock, FakeFiles, FakeOutput};
 use crate::command::Adapters;
 
@@ -17,6 +19,7 @@ pub struct FakeAdapters {
     pub no_console: Option<String>,
     pub version: Result<String, String>,
     pub events: Events,
+    pub desktop: FakeDesktop,
 }
 
 impl Default for FakeAdapters {
@@ -26,6 +29,7 @@ impl Default for FakeAdapters {
             no_console: None,
             version: Ok("v9".into()),
             events: Events::default(),
+            desktop: FakeDesktop::new(vec![], Behaviour::default()),
         }
     }
 }
@@ -67,7 +71,8 @@ impl MachineProbe for FakeMachine {
 impl Adapters for FakeAdapters {
     type Clock = FakeClock;
     type Output = FakeOutput;
-    type Processes = FakeProcesses;
+    type Processes = DesktopProcesses;
+    type Desktop = FakeDesktop;
     type Gpu = FakeGpu;
     type Machine = FakeMachine;
 
@@ -86,8 +91,18 @@ impl Adapters for FakeAdapters {
         &self.files
     }
 
-    fn processes(&self) -> FakeProcesses {
-        FakeProcesses::new(vec![vec![running(1, 0, "warp.exe", 1024, 2048, 0)]])
+    /// Outside any repository, unless a test makes one there.
+    fn current_dir(&self) -> Result<PathBuf, String> {
+        Ok("elsewhere".into())
+    }
+
+    /// Warp is already running, as process 1.
+    fn processes(&self) -> DesktopProcesses {
+        DesktopProcesses::new(&self.desktop, &[1])
+    }
+
+    fn desktop(&self) -> FakeDesktop {
+        self.desktop.clone()
     }
 
     fn gpu(&self) -> Result<FakeGpu, String> {

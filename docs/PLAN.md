@@ -704,6 +704,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - 2026-11-25: el planificador revisó los bloques 5 y 6 con los hechos de 1.1-1.4 y 4.4 (decisiones D12-D18; el bloque 5 pasa a 7 tareas y el 6 a 10).
 - 2026-11-25, corrección: los commits `6e09964`, `01917ea`, `2e25b25` y `f385ae8` programaron el bloque 5 **como estaba antes de la revisión** (`11485b4`): quien programaba no releyó el plan, y anotó aquí, en falso, que la revisión no se había hecho. Ninguna de las tareas 5.1-5.4 revisadas estaba hecha; se rehacen en orden, aprovechando ese código.
 - [x] 5.1 (2026-11-25) · [x] 5.2 (2026-11-25) · [x] 5.3 (2026-11-25) · [x] 5.4 (2026-11-25) · [x] 5.5 (2026-11-25) · [x] 5.6 (2026-11-25) · [ ] 5.7
+- Pendiente de la 5.7 (2026-11-25): la orden `startup` está programada y subida, **sin medir**: falta correrla en caliente con el permiso del autor y que mire en qué carpeta abre la ventana. Una medida anterior (137 ms) se hizo con el diseño viejo y lanzada desde el repo: no vale. Por indicación del autor se programa el bloque 6 sin esperar a ese número.
 - [ ] 6.1 · [ ] 6.2 · [ ] 6.3 · [ ] 6.4 · [ ] 6.5 · [ ] 6.6 · [ ] 6.7 · [ ] 6.8 · [ ] 6.9 · [ ] 6.10
 - [ ] 7.1 · [ ] 7.2 · [ ] 7.3
 

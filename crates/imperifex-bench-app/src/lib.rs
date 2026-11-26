@@ -6,7 +6,7 @@
 pub mod command;
 pub mod emit;
 pub mod footprint;
-pub mod footprint_report;
+pub mod reports;
 pub mod startup;
 #[cfg(test)]
 mod testing;

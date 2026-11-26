@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use imperifex_bench_domain::emit::EmitResult;
+use imperifex_bench_domain::metric::{Load, Metric};
 use imperifex_bench_domain::report::Report;
 
 use super::*;
@@ -158,4 +159,45 @@ fn a_footprint_with_a_file_saves_the_report_and_prints_its_summary() {
     );
     let saved = adapters.files.read(Path::new("r.json")).unwrap().unwrap();
     assert!(Report::from_json(&String::from_utf8(saved).unwrap()).is_ok());
+}
+
+fn startup_order(line: &str) -> StartupOrder {
+    match parse(line) {
+        Ok(Command::Startup(order)) => order,
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn startup_runs_ten_times_warm_unless_told_otherwise() {
+    let order = startup_order("startup warp");
+    assert_eq!((order.runs, order.cold, order.out), (10, false, None));
+    let order = startup_order("startup warp --cold --out r.json --runs 3");
+    assert_eq!(
+        (order.runs, order.cold, order.out),
+        (3, true, Some("r.json".into()))
+    );
+}
+
+#[test]
+fn a_wrong_startup_argument_is_an_error_that_shows_it() {
+    for (line, shown) in [
+        ("startup", "terminal"),
+        ("startup warp --runs 0", "0"),
+        ("startup warp --runs 101", "101"),
+        ("startup warp --runs", "--runs"),
+        ("startup warp --warm", "--warm"),
+    ] {
+        let error = parse(line).unwrap_err();
+        assert!(error.contains(shown), "{line}: {error}");
+    }
+}
+
+#[test]
+fn startup_reports_a_warm_start() {
+    let command = parse("startup warp --runs 2").unwrap();
+    let (out, _) = run_on(command, FakeAdapters::default());
+    assert!(out.ok, "{}", out.text);
+    let report = Report::from_json(&out.text).unwrap();
+    assert_eq!(report.measurements[0].metric, Metric::StartupWarm);
 }

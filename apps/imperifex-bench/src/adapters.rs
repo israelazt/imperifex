@@ -1,9 +1,11 @@
 //! The real adapters, handed to the orders. Only wiring.
 
+use std::path::PathBuf;
+
 use imperifex_bench_app::Adapters;
 use imperifex_bench_domain::ports::FileStore;
 use imperifex_bench_platform::{
-    ConsoleOut, DiskFiles, GpuCounters, WindowsMachine, WindowsProcesses,
+    ConsoleOut, DiskFiles, GpuCounters, WindowsDesktop, WindowsMachine, WindowsProcesses,
 };
 use imperifex_platform::SystemClock;
 
@@ -18,6 +20,7 @@ impl Adapters for RealAdapters {
     type Processes = WindowsProcesses;
     type Gpu = GpuCounters;
     type Machine = WindowsMachine;
+    type Desktop = WindowsDesktop;
 
     fn clock(&self) -> SystemClock {
         SystemClock::new()
@@ -31,6 +34,11 @@ impl Adapters for RealAdapters {
         &self.files
     }
 
+    fn current_dir(&self) -> Result<PathBuf, String> {
+        std::env::current_dir()
+            .map_err(|error| format!("no se pudo saber la carpeta actual: {error}"))
+    }
+
     fn processes(&self) -> WindowsProcesses {
         WindowsProcesses::new()
     }
@@ -41,5 +49,9 @@ impl Adapters for RealAdapters {
 
     fn machine(&self) -> WindowsMachine {
         WindowsMachine
+    }
+
+    fn desktop(&self) -> WindowsDesktop {
+        WindowsDesktop
     }
 }
