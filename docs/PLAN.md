@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **bloques 0 a 7 programados salvo las pruebas 🖥; el planificador revisó el arranque y la línea base (2026-11-25)**. A.1 a A.5 hechos. Siguen, con permiso del autor, la 5.7, la 6.10 y la 7.3. Queda abierta la decisión D24 (en qué monitor abre la ventana), que responde el autor. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **bloques 0 a 7 programados salvo las pruebas 🖥; el planificador revisó el arranque y la línea base (2026-11-25)**. A.1 a A.5 y la 5.7 hechos. Siguen, con permiso del autor, la 6.10 y la 7.3. Queda abierta la decisión D24 (en qué monitor abre la ventana), que responde el autor. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -790,6 +790,10 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - Pendiente de la 6.10 (2026-11-25): las órdenes `latency`, `output` y `memory` están programadas y subidas, **sin ejecutar ninguna vez en el PC real**: faltan el permiso del autor, las medidas y los puntos del paso 3. Antes, A.5. (La comprobación de la 6.2 con la pantalla desbloqueada ya se hizo: 18:38, abajo.)
 - [x] 7.1 (2026-11-25) · [x] 7.2 (2026-11-25) · [ ] 7.3
 - 2026-11-26, el planificador relee el plan contra el código: las órdenes que escriben empezarían antes de que Warp esté listo (D25, ajuste A.5, antes de la 6.10); queda abierta D24 (monitor de la ventana en la línea base); textos viejos corregidos (cabecera, 5.7, 6.5, 6.9, 6.10). [x] A.5 (2026-11-26: probado solo con falsos; `look_before` y `watch_window` viven en `app/ready_window.rs`)
+- [x] 5.7 (2026-11-26, 13:46 a 13:58: `startup warp --runs 10` en caliente, release de `8b3b737`, desde la raíz del repo, sin observador ni capturas. **No es la línea base:** debajo estaba la ventana del autor con una sesión de Claude Code, no el estado de D23)
+  - Visible: p50 71 ms, p95 84 ms (68 a 84). Primer contenido: p50 809 ms, p95 1013 ms (738 a 1013). Lista: p50 2186 ms, p95 2777 ms (1762 a 2777). Con n = 10, el p95 es el máximo. Ninguna tanda sin alguno de los tres; tras cada ventana, 0 procesos a los 60 s. En 4 muestras de «lista» (el informe no dice cuáles) la imagen juntaba varias presentaciones.
+  - Muestras en orden de tanda, en ms. Lista: 1762, 1815, 1897, 1994, 2186, 2238, 2333, 2374, 2604, 2777. Primer contenido: 763, 738, 809, 759, 750, 879, 854, 870, 946, 1013. Visible: 84, 76, 68, 75, 75, 73, 71, 69, 71, 70.
+  - **A revisar antes de la 7.3:** «lista» **subió en cada tanda**, unos 1 s de la primera a la última, y el primer contenido tiende a subir; «visible» no. Causa desconocida: no se ha mirado si es de Warp, del banco o de otra cosa del PC. Mientras siga así, la mediana depende de cuántas tandas se hagan.
 
 **Primera medida de salida (M3, consumida), 2026-11-25:** el autor corrió `emit ascii` (release, 100 MiB, semilla 1) en una pestaña de Warp: 5,229 s, 19,1 MB/s (1 MB = 1 048 576 bytes). Es **una sola muestra**, no es la línea base: no se anotó el tamaño de la ventana ni qué más hacía el PC (había una sesión de Claude Code en el mismo Warp). «Consumida» es el tiempo hasta que la consola aceptó los bytes, no hasta que se vieron (eso lo medirá la 6.5). Sin comprobar: en qué trozos entrega la biblioteca estándar de Rust esos bytes a la consola y cuánto cuesta; es igual para todas las terminales que se midan con esta herramienta.
 
