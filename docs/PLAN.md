@@ -705,6 +705,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - 2026-11-25, corrección: los commits `6e09964`, `01917ea`, `2e25b25` y `f385ae8` programaron el bloque 5 **como estaba antes de la revisión** (`11485b4`): quien programaba no releyó el plan, y anotó aquí, en falso, que la revisión no se había hecho. Ninguna de las tareas 5.1-5.4 revisadas estaba hecha; se rehacen en orden, aprovechando ese código.
 - [x] 5.1 (2026-11-25) · [x] 5.2 (2026-11-25) · [x] 5.3 (2026-11-25) · [x] 5.4 (2026-11-25) · [x] 5.5 (2026-11-25) · [x] 5.6 (2026-11-25) · [ ] 5.7
 - Pendiente de la 5.7 (2026-11-25): la orden `startup` está programada y subida, **sin medir**: falta correrla en caliente con el permiso del autor y que mire en qué carpeta abre la ventana. Una medida anterior (137 ms) se hizo con el diseño viejo y lanzada desde el repo: no vale. Por indicación del autor se programa el bloque 6 sin esperar a ese número.
+- **Bloqueo (2026-11-25), 5.7 y 6.5:** en la primera prueba de `startup` la ventana de Warp contó como visible a los 91 ms y no mostraba nada en pantalla; la regla de 6.5 («500 ms sin cambios» desde que es visible) la dio por **dibujada** en el mismo instante y la cerró. «Dibujada» así no mide nada, y la carpeta en que abre no se pudo ver. Lo decide el planificador (ver «Hechos medidos»). La 5.7 sigue sin marcar.
 - [x] 6.1 (2026-11-25) · [x] 6.2 (2026-11-25) · [x] 6.3 (2026-11-25) · [x] 6.4 (2026-11-25) · [x] 6.5 (2026-11-25) · [x] 6.6 (2026-11-25) · [x] 6.7 (2026-11-25) · [x] 6.8 (2026-11-25) · [x] 6.9 (2026-11-25) · [ ] 6.10
 - Pendiente de la 6.10 (2026-11-25): las órdenes `latency`, `output` y `memory` están programadas y subidas, **sin ejecutar ninguna vez en el PC real**: faltan el permiso del autor, las medidas y los puntos del paso 3. Antes, repetir la comprobación de la 6.2 con la pantalla desbloqueada.
 - [x] 7.1 (2026-11-25) · [x] 7.2 (2026-11-25) · [ ] 7.3
@@ -742,3 +743,16 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 **Memoria (6.9), 2026-11-25, dos puntos para el planificador:** (a) **sin programar el paso 1** («esperar los restos de ventanas anteriores antes de abrir»): al arrancar no hay foto con la que saber qué es un resto, y no se inventó otra regla. Cada `close` del banco ya espera los suyos, así que dentro de `all` queda cubierto; lanzada sola justo después de otra orden que se detuvo, no. (b) El plan dice «1 millón de líneas (~82 MiB)»: un millón de líneas de 82 bytes son 78,2 MiB; se emiten 79 MiB.
 
 **Adaptador DXGI (6.2), comprobado con imágenes el 2026-11-25 a las 18:38, con la pantalla desbloqueada:** `measure_watching_a_window_sized_region` en release, región de 1280×680 en (100, 140), 5 s: 89 imágenes (ninguna juntaba varias presentaciones); de presentada a leída p50 1,46 ms y p95 9,20 ms. No se controló qué había en pantalla. Queda resuelto lo pendiente de la nota anterior. La latencia usa el instante de presentación, así que este retraso no entra en las muestras.
+
+### Primera prueba de `startup` con el diseño revisado (5.7), 2026-11-25 18:51
+
+`startup warp --runs 1`, en release, lanzado desde `home` por la sesión de Claude Code, con el autor sin tocar el PC. Un guion aparte fotografió la ventana nueva mientras estuvo en primer plano (las fotos no se suben: muestran la sesión).
+
+- La ventana se adoptó, se cerró sin diálogo y no quedó ningún proceso suyo tras 60 s de espera. El primer plano volvió a la ventana del autor.
+- Visible: 91,0 ms. «Dibujada»: 91,0 ms, es decir, **ningún cambio que contara** en los 500 ms siguientes.
+- Dos fotos de la ventana nueva, separadas 330 ms, no muestran nada suyo: se ve lo que había detrás (la sesión y el fondo) en el rectángulo de la ventana. En la 1.4, el mismo modo de fotografiar sí mostró una ventana de Warp ya dibujada.
+- **Inferencia:** Warp da la ventana por visible antes de presentar su contenido, y durante al menos unos cientos de ms es transparente o está vacía. No se sabe cuánto tarda en dibujarse, porque el banco la cerró antes.
+- **Por tanto, los 91 ms de «visible» tampoco son lo que el usuario percibe como arranque.**
+- No se pudo ver en qué carpeta abre.
+
+**Para el planificador (propuesta):** que «dibujada» exija **al menos un cambio grande** antes de aceptar la calma; sin ninguno en 10 s, no hay muestra y se anota. Aun así, lo dibujado antes de la primera imagen capturada no se vería como cambio: conviene medir primero cuándo aparece el contenido (una sola ventana abierta unos 10 s, como hace `probe_warp_window`, fotografiándola) antes de fijar la regla.
