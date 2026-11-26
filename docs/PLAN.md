@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **bloques 0 a 7 programados salvo las pruebas 🖥; el planificador revisó el arranque y la línea base (2026-11-25)**. A.1 a A.5 y la 5.7 hechos. Siguen, con permiso del autor, la 6.10 y la 7.3. Queda abierta la decisión D24 (en qué monitor abre la ventana), que responde el autor. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **bloques 0 a 7 programados salvo las pruebas 🖥; el planificador revisó el arranque y la línea base (2026-11-25)**. A.1 a A.5, la 5.7 y la 6.10 hechos (**PAUSA**: ver en «Estado» lo que queda por revisar). Sigue, con permiso del autor, la 7.3. Queda abierta la decisión D24 (en qué monitor abre la ventana), que responde el autor. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -786,8 +786,8 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - 2026-11-25 22:05: medido cuándo aparece el contenido (ver «Cuándo aparece el contenido de Warp»): primer marco entre 1,2 y 1,3 s tras ser visible, sesión lista entre 2,3 y 2,4 s, y la ventana abre en `home`. El bloqueo sigue hasta que el planificador defina «dibujada».
 - 2026-11-25, el planificador cierra el bloqueo de 5.7 y 6.5 y los dos puntos de la 6.9, por encargo del autor: decisiones D13 y D15 (cambiadas) y D19 a D23, y ajustes A.1 a A.4.
 - [x] A.1 (2026-11-25) · [x] A.2 (2026-11-25) · [x] A.3 (2026-11-25: la imagen inicial llega sin cambiar el adaptador; ver «Primera imagen de una duplicación nueva») · [x] A.4 (2026-11-25)
-- [x] 6.1 (2026-11-25) · [x] 6.2 (2026-11-25) · [x] 6.3 (2026-11-25) · [x] 6.4 (2026-11-25) · [x] 6.5 (2026-11-25) · [x] 6.6 (2026-11-25) · [x] 6.7 (2026-11-25) · [x] 6.8 (2026-11-25) · [x] 6.9 (2026-11-25) · [ ] 6.10
-- Pendiente de la 6.10 (2026-11-25): las órdenes `latency`, `output` y `memory` están programadas y subidas, **sin ejecutar ninguna vez en el PC real**: faltan el permiso del autor, las medidas y los puntos del paso 3. Antes, A.5. (La comprobación de la 6.2 con la pantalla desbloqueada ya se hizo: 18:38, abajo.)
+- [x] 6.1 (2026-11-25) · [x] 6.2 (2026-11-25) · [x] 6.3 (2026-11-25) · [x] 6.4 (2026-11-25) · [x] 6.5 (2026-11-25) · [x] 6.6 (2026-11-25) · [x] 6.7 (2026-11-25) · [x] 6.8 (2026-11-25) · [x] 6.9 (2026-11-25) · [x] 6.10 (2026-11-26, abajo)
+- (Ya resuelto el 2026-11-26.) Pendiente de la 6.10 (2026-11-25): las órdenes `latency`, `output` y `memory` están programadas y subidas, **sin ejecutar ninguna vez en el PC real**: faltan el permiso del autor, las medidas y los puntos del paso 3. Antes, A.5. (La comprobación de la 6.2 con la pantalla desbloqueada ya se hizo: 18:38, abajo.)
 - [x] 7.1 (2026-11-25) · [x] 7.2 (2026-11-25) · [ ] 7.3
 - 2026-11-26, el planificador relee el plan contra el código: las órdenes que escriben empezarían antes de que Warp esté listo (D25, ajuste A.5, antes de la 6.10); queda abierta D24 (monitor de la ventana en la línea base); textos viejos corregidos (cabecera, 5.7, 6.5, 6.9, 6.10). [x] A.5 (2026-11-26: probado solo con falsos; `look_before` y `watch_window` viven en `app/ready_window.rs`)
 - [x] 5.7 (2026-11-26, 13:46 a 13:58: `startup warp --runs 10` en caliente, release de `8b3b737`, desde la raíz del repo, sin observador ni capturas. **No es la línea base:** debajo estaba la ventana del autor con una sesión de Claude Code, no el estado de D23)
@@ -820,6 +820,16 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
   - La CPU de long_lines subió en cada repetición (115, 302, 414); causa desconocida. En ascii y color la primera repetición gastó menos que las otras dos.
   - Sin comprobar a ojo que el último cambio detectado sea el final de cada salida, ni que `cls` limpiara la pantalla.
   - **Más sobre «lista» (ver 5.7):** en las seis ventanas fue 3,0, 3,1, 3,5, 3,4, 3,6 y 3,8 s. En las órdenes anteriores de la tarde: 2,8 (14:02), 3,1 (14:10) y 3,0 (14:17), frente a 1,76 en la primera de las 10 tandas de las 13:46. La subida **no volvió al principio al lanzar otra vez el banco** (cada orden es un proceso nuevo), así que no parece algo que se acumule dentro de él; es una inferencia. El Warp abierto fue el mismo todo el rato (no se reinició): sin probar si al reiniciarlo baja.
+- 6.10, parte 5 (2026-11-26, 14:36 a 14:40, con permiso; release de `8b3b737`): `memory warp`. **Una sola muestra** de cada cosa, y no es la línea base: la huella cuenta todo Warp, incluida la ventana del autor.
+  - Memoria del historial 17,5 MB (privada, tras emitir 79 MiB de `ascii`); por pestaña 7,4 MB (sin contar PowerShell, que no es del perfil); 3 pestañas abiertas. Lista a los 4,1 s. La orden duró 3 min 38 s, con los 90 s previos.
+  - **Sin comprobar** cuántas líneas conserva Warp: 17,5 MB para algo más de un millón de líneas es poco, y puede que recorte el historial. Hasta saberlo, el número no dice lo que cuesta guardar un millón de líneas.
+- 6.10 cerrada: lo que pedía el paso 3.
+  - ¿Parpadea el cursor? Algo cambia solo en el prompt (57 píxeles ignorados), probablemente el cursor; no se miró cuáles.
+  - Con `echo` en marcha las teclas llegan al programa (parte 2). No hay Bloqueo.
+  - `Ctrl+Shift+T` abre pestaña: se abrieron 3 (cada una confirmada por un proceso auxiliar nuevo).
+  - Cerrar la ventana con pestañas **no** pidió confirmar: la orden terminó bien, y habría parado con un error si la ventana no se cierra.
+  - Duración: `latency` 200 en el prompt 2 min 21 s; en un programa unos 2 min 30 s; `output ascii` x1 1 min 15 s; `output all` x3 7 min 53 s; `memory` 3 min 38 s. `startup` x10, unos 11 min. `latency --mode both` en una sola orden no se ha corrido (cada modo, por separado), ni `all`.
+- **Para el planificador, antes de la 7.3:** (1) D24: Warp abrió siempre la ventana nueva en el principal, encima de la del autor; (2) «lista» tiende a subir durante la tarde: 1,76 s a las 13:46 y 4,1 s a las 14:36, sin reiniciar Warp; causa desconocida; (3) el contador de tiempo de Warp dentro de la región vigilada (parte 2); (4) las 6 muestras de 40 a 87 ms en la tecla en un programa; (5) cuánto historial conserva Warp; (6) rehacer la estimación de `all` con las duraciones de arriba.
 
 **Primera medida de salida (M3, consumida), 2026-11-25:** el autor corrió `emit ascii` (release, 100 MiB, semilla 1) en una pestaña de Warp: 5,229 s, 19,1 MB/s (1 MB = 1 048 576 bytes). Es **una sola muestra**, no es la línea base: no se anotó el tamaño de la ventana ni qué más hacía el PC (había una sesión de Claude Code en el mismo Warp). «Consumida» es el tiempo hasta que la consola aceptó los bytes, no hasta que se vieron (eso lo medirá la 6.5). Sin comprobar: en qué trozos entrega la biblioteca estándar de Rust esos bytes a la consola y cuánto cuesta; es igual para todas las terminales que se midan con esta herramienta.
 
