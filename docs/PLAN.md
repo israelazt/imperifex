@@ -806,6 +806,20 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - 6.10, parte 3 (2026-11-26, 14:17 a 14:18, con permiso; release de `8b3b737`): `output warp --load ascii --repeats 1` (100 MiB). **Una sola muestra**, y no es la línea base.
   - Vista 5492 ms; consumida 19,9 MB/s; CPU 124,9 % de un núcleo. Lista a los 3,0 s. La orden duró 1 min 15 s, con la espera de lo que deja la ventana. La velocidad consumida es parecida a la de la primera medida de M3 (19,1 MB/s).
   - Sin comprobar a ojo que el último cambio detectado sea el final de la salida. Faltan las demás cargas y las tres repeticiones, y con ellas `cls` entre repeticiones, que no se ha ejecutado.
+- 6.10, parte 4 (2026-11-26, 14:20 a 14:28, con permiso; release de `8b3b737`): `output warp --load all --repeats 3` (ascii 100 MiB; las demás, 32 MiB). Terminó sin errores, con `cls` entre repeticiones. Duró 7 min 53 s. **No es la línea base.**
+
+  | Carga | Vista, p50 (ms) | Consumida, p50 (MB/s) | CPU, p50 (% de un núcleo) |
+  |---|---|---|---|
+  | ascii | 4872 | 22,6 | 165 |
+  | long_lines | 1959 | 21,4 | 302 (de 115 a 414) |
+  | color | 1805 | 22,1 | 228 |
+  | unicode | 2278 | 15,9 | 145 |
+  | cursor | 1422 | 28,5 | 142 |
+  | cargo | 2243 | 15,8 | 165 |
+
+  - La CPU de long_lines subió en cada repetición (115, 302, 414); causa desconocida. En ascii y color la primera repetición gastó menos que las otras dos.
+  - Sin comprobar a ojo que el último cambio detectado sea el final de cada salida, ni que `cls` limpiara la pantalla.
+  - **Más sobre «lista» (ver 5.7):** en las seis ventanas fue 3,0, 3,1, 3,5, 3,4, 3,6 y 3,8 s. En las órdenes anteriores de la tarde: 2,8 (14:02), 3,1 (14:10) y 3,0 (14:17), frente a 1,76 en la primera de las 10 tandas de las 13:46. La subida **no volvió al principio al lanzar otra vez el banco** (cada orden es un proceso nuevo), así que no parece algo que se acumule dentro de él; es una inferencia. El Warp abierto fue el mismo todo el rato (no se reinició): sin probar si al reiniciarlo baja.
 
 **Primera medida de salida (M3, consumida), 2026-11-25:** el autor corrió `emit ascii` (release, 100 MiB, semilla 1) en una pestaña de Warp: 5,229 s, 19,1 MB/s (1 MB = 1 048 576 bytes). Es **una sola muestra**, no es la línea base: no se anotó el tamaño de la ventana ni qué más hacía el PC (había una sesión de Claude Code en el mismo Warp). «Consumida» es el tiempo hasta que la consola aceptó los bytes, no hasta que se vieron (eso lo medirá la 6.5). Sin comprobar: en qué trozos entrega la biblioteca estándar de Rust esos bytes a la consola y cuánto cuesta; es igual para todas las terminales que se midan con esta herramienta.
 
