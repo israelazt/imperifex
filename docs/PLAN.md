@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **todo lo que no es 🖥 está programado (2026-11-25)**. Falta correr en el PC real, con permiso del autor: 5.7 (arranque), 6.10 (latencia, salida y memoria) y 7.3 (las dos tandas). Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **bloques 0 a 7 programados salvo las pruebas 🖥; el planificador revisó el arranque y la línea base (2026-11-25)**. Siguen los ajustes A.1 a A.4 (sin ventanas) y después, con permiso del autor: 5.7, 6.10 y 7.3. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -75,12 +75,17 @@ CPU del principal: 4,5 % de un núcleo en 10 s mientras la sesión escribía; 4,
 | D10 | Percentiles por **rango más cercano**: `rango = ceil(p/100 · n)`, contado desde 1 | Simple, sin interpolar, cualquiera lo reproduce |
 | D11 | `unsafe` solo para lo que la biblioteca estándar no ofrece: una operación por bloque con su `// SAFETY:` (lo exigen los lints, también en las sondas); prohibido en `domain`, `app` y los binarios. Una dependencia que lo evite se decide con el autor | Si falla la memoria, hay pocos sitios, pequeños y explicados, donde buscar |
 | D12 | `SafetyGuard` adopta ventanas concretas y el banco no actúa nunca sobre procesos | La ventana nueva de Warp es del proceso de la sesión del autor (1.3) |
-| D13 | El arranque da dos números: hasta la ventana visible y hasta la ventana dibujada (asentada) | «Visible» no prueba que haya contenido (1.3) |
+| D13 | El arranque da tres números: hasta la ventana visible, hasta su **primer contenido** y hasta la ventana **lista** (D19) | En Warp, «visible» llega más de 1 s antes que el contenido, y el primer contenido 1 s antes que la sesión lista |
 | D14 | Dos latencias de tecla: en el prompt (en Warp, su editor) y en un programa en marcha (`imperifex-bench echo`). **La vara para el motor de Imperifex es la del programa**: hace el mismo camino en cualquier terminal. La del prompt es la de la experiencia y también se compara | Warp dibuja la entrada con su editor, sin pasar por la shell (1.4) |
-| D15 | Las órdenes que abren ventanas se lanzan desde una carpeta fija sin Git (`temp/imperifex-bench/home`) y se niegan dentro de un repo | La ventana nueva copia la carpeta y el Git de la pestaña activa (1.4) |
+| D15 | La ventana se lanza **con una carpeta fija sin Git como carpeta de trabajo** (`temp/imperifex-bench/home`). El banco puede lanzarse desde cualquier carpeta, también desde el repo; solo se niega si `home` está dentro de un repo | La ventana de Warp abre en la carpeta del proceso que la lanza, no en la de la pestaña activa (22:05: la pestaña estaba en el repo y abrió en `home`) |
 | D16 | Tras cerrar una ventana se esperan sus procesos hasta 90 s, sin forzarlos; en frío, hasta 120 s a que la terminal salga | Quedan entre 40 y 62 s (1.3) |
 | D17 | «Asentado» solo cuenta cambios de al menos el 0,5 % de la región | El cursor que parpadea no dejaría asentar nunca |
 | D18 | La CPU durante la salida, con el total de CPU entre el principio y el final | El reloj de CPU va en escalones de ~1,55 % por segundo (4.4) |
+| D19 | **Primer contenido** = primera imagen posterior al lanzamiento en la que la región de la ventana difiere un 0,5 % o más de **una imagen tomada antes de lanzar**. **Lista** = último cambio del 0,5 % seguido de **3 s** de calma (máximo 15 s desde visible) | Con 500 ms Warp quedaba «dibujado» en «Starting Windows PowerShell…», con ~1 s sin cambios antes de estar listo. La calma no suma al número, solo a la duración. La imagen previa vale también para una terminal que dibuje en cuanto es visible |
+| D20 | Antes de `memory` se esperan **90 s fijos** sin abrir nada; no se intenta reconocer restos | Sin una foto anterior no se puede saber qué es un resto, y si uno muere a mitad de medida falsea la diferencia de memoria |
+| D21 | La tabla de la línea base lleva la columna **Media** | En reposo la mediana de CPU da 0 y la media 1,1 % (4.4) |
+| D22 | Antes de guardar un `report.json`, las rutas personales de sus notas se cambian por su variable (`%TEMP%`, `%LOCALAPPDATA%`, `%USERPROFILE%`) | Los informes se suben al repo público (S5) y los errores llevan rutas |
+| D23 | Estado fijo de la línea base (7.3): Warp recién abierto, **una ventana y una pestaña** en el prompt, a la vista en el monitor secundario; el banco se lanza desde un PowerShell **fuera de Warp**, también en el secundario; el principal, despejado y quieto | La huella cuenta todo lo que Warp tenga abierto, y una sesión de Claude Code ni es reposo ni se puede repetir igual con Imperifex |
 
 ## Fuera de esta fase
 
@@ -348,6 +353,8 @@ Referencia: `dockview/crates/dockview-platform/src/perf.rs` (memoria y tiempos d
 
 ## Bloque 5 · Ventanas y arranque
 
+> **Segunda revisión (2026-11-25, 22:05):** cambian D13 y D15 y se añade D19. Donde 5.5 y 6.5 digan otra cosa, mandan los ajustes A.2 y A.3.
+
 > Revisado por el planificador el 2026-11-25 con los hechos de las sondas 1.3, 1.4 y la huella 4.4. Lo que cambió respecto al plan original y por qué:
 >
 > - **La ventana nueva es del `warp.exe` que ya estaba abierto** (1.3), el mismo proceso que lleva la sesión del autor. «Solo lo que el banco abrió» no puede decidirse por procesos: `SafetyGuard` **adopta ventanas concretas** (D12).
@@ -427,10 +434,10 @@ Features: `Win32_UI_WindowsAndMessaging`, `Win32_Graphics_Dwm`, `Win32_UI_HiDpi`
 ### 5.7 🖥 La orden `startup`
 1. `imperifex-bench startup <terminal> [--runs 10] [--cold] [--out archivo.json]`. Antes de empezar, en la consola: «no toques el PC; unos N minutos» (cada tanda puede esperar hasta 90 s los restos).
 2. Medir en caliente y anotar en «Estado».
-3. **Con el autor delante, una vez:** que mire en qué carpeta abre la ventana nueva lanzada desde `home`. Anotarlo en «Hechos medidos».
+3. **Con el autor delante, una vez, lanzando el banco desde la raíz del repo:** que mire que la ventana nueva abre en `home` y sin avisos de Git (D15). Anotarlo en «Hechos medidos», y también en qué monitor abre.
 4. README: cómo lanza el autor la medida en frío (D3): cerrar Warp del todo; PowerShell desde Inicio; `cd` a la carpeta `home` que imprime el banco; la orden con la ruta completa; esperar; volver a Warp. Y que, si Warp no sale al cerrar su ventana, el banco para y no lo fuerza.
 
-**Hecho cuando:** hay un número en caliente y la carpeta de la ventana está anotada. Si la ventana no abre en `home`, **Bloqueo**: el planificador decide.
+**Hecho cuando:** hay números en caliente (visible, primer contenido y lista) y la carpeta y el monitor de la ventana están anotados. Si la ventana no abre en `home` o no abre en el principal, **Bloqueo**: el planificador decide.
 **Commit:** `feat(bench): the startup order`
 
 **PAUSA.**
@@ -551,6 +558,48 @@ Un programa propio que repite cada tecla, para medir la tecla dentro de un progr
 
 ---
 
+## Ajustes antes de las pruebas 🖥
+
+> Decididos el 2026-11-25 tras medir cuándo aparece el contenido de Warp y releer el código. Ninguno abre ventanas ni pulsa teclas. Van en orden y **antes** de 5.7.
+
+### A.1 El informe sin rutas personales (D22)
+1. `domain/loads/scrub.rs` es de la carga `Cargo`: la regla nueva va aparte, en `domain/private_paths.rs`: `pub fn hide_folders(text: &str, folders: &[(String, String)]) -> String`, con pares (ruta, variable). Cambia la ruta más larga primero, sin distinguir mayúsculas y con `\` o `/`. Una ruta vacía no cambia nada.
+2. Se aplica a **todas** las notas (las del informe y las de cada medida) en el único camino por el que se escribe un `report.json`, también en los guardados intermedios de `all`. Las rutas se leen con `MachineProbe::env_var`.
+3. Pruebas: la carpeta temporal dentro del perfil queda como `%TEMP%`; otras mayúsculas y barras también; un `all` con una parte que falla con una ruta guarda el JSON sin ella.
+
+**Commit:** `fix(bench): no personal paths in a saved report`
+
+### A.2 El banco puede lanzarse desde el repo (D15)
+1. `measure_home` ya no recibe ni mira la carpeta actual: crea `home` y solo se niega si `home` está dentro de un repo. Quitar lo que quede sin uso (la carpeta actual sigue haciendo falta para la carpeta por defecto de `all`).
+2. Comprobar en las pruebas que `Desktop::launch` recibe `home`.
+3. README: quitar el `cd` obligatorio de las órdenes que abren ventanas y del arranque en frío, y el motivo viejo (la pestaña activa).
+4. `all` no cambia: lanzado desde la raíz del repo, su carpeta por defecto es `bench/results` del repo.
+
+**Commit:** `fix(bench): measuring from any folder, windows still open in home`
+
+### A.3 Primer contenido y ventana lista (D19)
+1. **Antes de programar**, con una prueba de solo lectura en el PC real: en una pantalla quieta, ¿entrega el adaptador una imagen justo después de crear la duplicación? Hoy descarta todo frame con `LastPresentTime == 0`. Si la primera imagen llega con 0, el adaptador la entrega como imagen inicial, solo esa vez. Si no hay forma de tener una imagen sin que cambie la pantalla: **Bloqueo**.
+2. `StartupColdDrawn` y `StartupWarmDrawn` se sustituyen por `StartupColdContent`, `StartupWarmContent` («… hasta el primer contenido»), `StartupColdReady` y `StartupWarmReady` («… hasta la ventana lista»). No hay informes guardados con los nombres viejos.
+3. `StartupService`, por tanda:
+   - **Antes de `WindowSession::open`:** `watch` del monitor principal entero (origen 0,0 y el tamaño que da `MachineProbe`), y esperar la imagen inicial y 1 s de calma (máximo 10 s). La última imagen es la base. Sin calma, la tanda solo da «visible» y se anota.
+   - Con la ventana encontrada: si no cabe entera en el principal, solo «visible» y se anota dónde abrió. Si cabe, base e imágenes siguientes se **recortan** a su rectángulo (función pura en el dominio, con pruebas).
+   - **Primer contenido:** `at` de la primera imagen cuyo recorte difiere un 0,5 % o más del recorte de la base, menos `t0`.
+   - **Lista:** `at` del último cambio (frente a la imagen anterior) del 0,5 % antes de 3 s de calma, menos `t0`. Máximo 15 s desde visible. Sin primer contenido no hay «lista»; si no llega la calma, queda el primer contenido y se anota.
+   - Anotar cuántas muestras venían con `accumulated > 1`: pueden salir tarde, porque el instante es el de la última presentación.
+4. `settle` (6.4) no cambia para la latencia, la salida ni la memoria.
+5. Pruebas con falsos: contenido, pausa de 1,2 s y segundo cambio dan los dos números; una ventana que ya está dibujada en la primera imagen tras ser visible da primer contenido; sin cambios no hay muestra de ninguno y «visible» sigue; pantalla sin calma antes de lanzar; ventana fuera del principal.
+
+**Commit:** `feat(bench): timing the first content and the ready window`
+
+### A.4 Memoria y tabla (D20, D21)
+1. `MemoryService::run`: 90 s de `Clock::sleep` antes de `WindowSession::open`, con un aviso en la consola. Sustituye al paso 1 de 6.9. El perfil se sigue leyendo antes, para que uno malo falle sin esperar. Sumar los 90 s a la estimación de `all`. La carga del historial queda en 79 MiB.
+2. `markdown.rs`: columna `Media` entre `n` y `p50`, con el mismo formato. Actualizar la prueba del texto completo.
+3. Pruebas: la ventana se abre después de la espera.
+
+**Commit:** `feat(bench): a quiet wait before measuring memory, and the mean in the table`
+
+---
+
 ## Bloque 7 · La línea base de Warp
 
 ### 7.1 La orden `all`
@@ -565,7 +614,7 @@ Un programa propio que repite cada tecla, para medir la tecla dentro de un progr
 **Commit:** `feat(bench): the baseline document from the reports`
 
 ### 7.3 🖥 Las dos tandas
-1. Con el permiso del autor, el PC en reposo y sin jugar: `all warp` dos veces seguidas.
+1. Con el permiso del autor, el PC en reposo y sin jugar, en el estado de D23: cerrar Warp del todo (también la sesión de Claude Code), abrirlo con una ventana y una pestaña y dejarlo en el monitor secundario; desde un PowerShell fuera de Warp, en la raíz del repo, `all warp` dos veces seguidas. Lo lanza el autor.
 2. El autor corre `startup warp --cold --runs 10 --out …` como dice el README y deja el JSON en la carpeta de la primera tanda.
 3. `report` de las dos carpetas → `docs/BASELINE.md`; subir resultados y documento.
 4. En «Estado»: si alguna medida difiere más de un 10 % en p50 entre tandas, decirlo y por qué podría ser.
@@ -609,8 +658,9 @@ Bloques previstos, en este orden. Cada uno se planifica en detalle **antes** de 
 2.1 → 2.2 → 2.3 → 2.4 ; 2.5 → 2.6        (el bloque 2 se puede hacer antes que el 1)
 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → [PAUSA]     (3.5 da la primera medida de salida)
 4.1 → 4.2 → 4.3 → 4.4 → [PAUSA]           (4.4 da la primera huella limpia)
-5.1 → 5.2 → 5.3 → 5.4 → 5.5 → 5.6 → 5.7 🖥 → [PAUSA]
-6.1 → 6.2 → 6.3 → 6.4 → 6.5 → 6.6 → 6.7 → 6.8 → 6.9 → 6.10 🖥 → [PAUSA]
+5.1 → 5.2 → 5.3 → 5.4 → 5.5 → 5.6 → [bloque 6 sin 🖥]
+6.1 → 6.2 → 6.3 → 6.4 → 6.5 → 6.6 → 6.7 → 6.8 → 6.9
+A.1 → A.2 → A.3 → A.4 → [PAUSA] → 5.7 🖥 → 6.10 🖥 → [PAUSA]
 7.1 → 7.2 → 7.3 🖥 → [PAUSA: plan de la fase T]
 ```
 
@@ -707,6 +757,8 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - Pendiente de la 5.7 (2026-11-25): la orden `startup` está programada y subida, **sin medir**: falta correrla en caliente con el permiso del autor y que mire en qué carpeta abre la ventana. Una medida anterior (137 ms) se hizo con el diseño viejo y lanzada desde el repo: no vale. Por indicación del autor se programa el bloque 6 sin esperar a ese número.
 - **Bloqueo (2026-11-25), 5.7 y 6.5:** en la primera prueba de `startup` la ventana de Warp contó como visible a los 91 ms y no mostraba nada en pantalla; la regla de 6.5 («500 ms sin cambios» desde que es visible) la dio por **dibujada** en el mismo instante y la cerró. «Dibujada» así no mide nada, y la carpeta en que abre no se pudo ver. Lo decide el planificador (ver «Hechos medidos»). La 5.7 sigue sin marcar.
 - 2026-11-25 22:05: medido cuándo aparece el contenido (ver «Cuándo aparece el contenido de Warp»): primer marco entre 1,2 y 1,3 s tras ser visible, sesión lista entre 2,3 y 2,4 s, y la ventana abre en `home`. El bloqueo sigue hasta que el planificador defina «dibujada».
+- 2026-11-25, el planificador cierra el bloqueo de 5.7 y 6.5 y los dos puntos de la 6.9, por encargo del autor: decisiones D13 y D15 (cambiadas) y D19 a D23, y ajustes A.1 a A.4.
+- [ ] A.1 · [ ] A.2 · [ ] A.3 · [ ] A.4
 - [x] 6.1 (2026-11-25) · [x] 6.2 (2026-11-25) · [x] 6.3 (2026-11-25) · [x] 6.4 (2026-11-25) · [x] 6.5 (2026-11-25) · [x] 6.6 (2026-11-25) · [x] 6.7 (2026-11-25) · [x] 6.8 (2026-11-25) · [x] 6.9 (2026-11-25) · [ ] 6.10
 - Pendiente de la 6.10 (2026-11-25): las órdenes `latency`, `output` y `memory` están programadas y subidas, **sin ejecutar ninguna vez en el PC real**: faltan el permiso del autor, las medidas y los puntos del paso 3. Antes, repetir la comprobación de la 6.2 con la pantalla desbloqueada.
 - [x] 7.1 (2026-11-25) · [x] 7.2 (2026-11-25) · [ ] 7.3
