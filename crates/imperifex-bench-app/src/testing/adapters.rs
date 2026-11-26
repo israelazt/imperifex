@@ -6,7 +6,8 @@ use std::rc::Rc;
 use imperifex_bench_domain::ports::{FileStore, MachineProbe};
 use imperifex_bench_domain::report::Machine;
 
-use super::desktop::{Behaviour, FakeDesktop};
+use super::desktop::{rig, Behaviour, FakeDesktop};
+use super::keyboard::{typing, FakeKeyboard, Script};
 use super::processes_of::DesktopProcesses;
 use super::screen::FakeScreen;
 use super::system::FakeGpu;
@@ -80,6 +81,7 @@ impl Adapters for FakeAdapters {
     type Desktop = FakeDesktop;
     type Screen = FakeScreen;
     type Input = FakeKeys;
+    type Keyboard = FakeKeyboard;
     type Gpu = FakeGpu;
     type Machine = FakeMachine;
 
@@ -114,6 +116,15 @@ impl Adapters for FakeAdapters {
 
     fn screen(&self) -> FakeScreen {
         FakeScreen::new(&self.clock)
+    }
+
+    /// Wired to a screen of its own: the orders' tests do not look at it.
+    fn keyboard(&self) -> FakeKeyboard {
+        typing(rig(Behaviour::default(), false), Script::default()).keyboard
+    }
+
+    fn current_exe(&self) -> Result<String, String> {
+        Ok("bench.exe".into())
     }
 
     fn key_input(&self) -> Result<FakeKeys, String> {

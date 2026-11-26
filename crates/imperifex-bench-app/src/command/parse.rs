@@ -4,12 +4,12 @@ use std::path::PathBuf;
 
 use imperifex_bench_domain::metric::Load;
 
-use super::{Command, EmitOrder, FootprintOrder, StartupOrder};
+use super::{
+    Command, EmitOrder, FootprintOrder, LatencyOrder, MemoryOrder, OutputOrder, StartupOrder,
+};
+use crate::emit::default_mib;
+use crate::latency::LatencyMode;
 
-/// The size of a load when none is asked for. ASCII is the fastest to take in,
-/// so it needs more to be timed well.
-const DEFAULT_MIB: usize = 32;
-const DEFAULT_ASCII_MIB: usize = 100;
 /// The whole load is held in memory, so it has a limit.
 const MAX_MIB: usize = 1024;
 const DEFAULT_SEED: u64 = 1;
@@ -17,6 +17,10 @@ const DEFAULT_SECONDS: u64 = 60;
 const MAX_SECONDS: u64 = 3600;
 const DEFAULT_RUNS: u32 = 10;
 const MAX_RUNS: u32 = 100;
+const DEFAULT_PRESSES: u32 = 200;
+const MAX_PRESSES: u32 = 2000;
+const DEFAULT_REPEATS: u32 = 3;
+const MAX_REPEATS: u32 = 20;
 
 /// The arguments still to be read.
 type Args<'a> = dyn Iterator<Item = &'a str> + 'a;
@@ -68,11 +72,7 @@ fn parse_emit<'a>(args: &mut Args<'a>) -> Result<EmitOrder, String> {
     }
     Ok(EmitOrder {
         load,
-        mib: mib.unwrap_or(if load == Load::Ascii {
-            DEFAULT_ASCII_MIB
-        } else {
-            DEFAULT_MIB
-        }),
+        mib: mib.unwrap_or_else(|| default_mib(load)),
         seed,
         out: out.ok_or("emit necesita --out <archivo.json>")?,
     })
@@ -105,13 +105,75 @@ fn parse_footprint<'a>(args: &mut Args<'a>) -> Result<FootprintOrder, String> {
     Ok(order)
 }
 
-fn parse_runs(value: &str) -> Result<u32, String> {
-    let runs = number("--runs", value)?;
-    if (1..=MAX_RUNS).contains(&runs) {
-        Ok(runs)
+/// A whole number from 1 to `max`.
+fn count(option: &str, value: &str, max: u32) -> Result<u32, String> {
+    let count = number(option, value)?;
+    if (1..=max).contains(&count) {
+        Ok(count)
     } else {
-        Err(format!("--runs va de 1 a {MAX_RUNS}, no {value}"))
+        Err(format!("{option} va de 1 a {max}, no {value}"))
     }
+}
+
+fn terminal_of<'a>(order: &str, args: &mut Args<'a>) -> Result<String, String> {
+    args.next()
+        .map(str::to_string)
+        .ok_or_else(|| format!("{order} necesita el nombre de una terminal"))
+}
+
+fn modes(value: &str) -> Result<Vec<LatencyMode>, String> {
+    match value {
+        "prompt" => Ok(vec![LatencyMode::Prompt]),
+        "program" => Ok(vec![LatencyMode::Program]),
+        "both" => Ok(vec![LatencyMode::Prompt, LatencyMode::Program]),
+        other => Err(format!("--mode es prompt, program o both, no «{other}»")),
+    }
+}
+
+fn parse_latency<'a>(args: &mut Args<'a>) -> Result<LatencyOrder, String> {
+    let mut order = LatencyOrder {
+        terminal: terminal_of("latency", args)?,
+        presses: DEFAULT_PRESSES,
+        modes: vec![LatencyMode::Prompt, LatencyMode::Program],
+        out: None,
+    };
+    while let Some((option, value)) = next_option(args, &["--presses", "--mode", "--out"])? {
+        match option {
+            "--presses" => order.presses = count(option, value, MAX_PRESSES)?,
+            "--mode" => order.modes = modes(value)?,
+            _ => order.out = Some(PathBuf::from(value)),
+        }
+    }
+    Ok(order)
+}
+
+fn parse_output<'a>(args: &mut Args<'a>) -> Result<OutputOrder, String> {
+    let mut order = OutputOrder {
+        terminal: terminal_of("output", args)?,
+        loads: Load::ALL.to_vec(),
+        repeats: DEFAULT_REPEATS,
+        out: None,
+    };
+    while let Some((option, value)) = next_option(args, &["--load", "--repeats", "--out"])? {
+        match option {
+            "--load" if value == "all" => order.loads = Load::ALL.to_vec(),
+            "--load" => order.loads = vec![Load::parse(value)?],
+            "--repeats" => order.repeats = count(option, value, MAX_REPEATS)?,
+            _ => order.out = Some(PathBuf::from(value)),
+        }
+    }
+    Ok(order)
+}
+
+fn parse_memory<'a>(args: &mut Args<'a>) -> Result<MemoryOrder, String> {
+    let mut order = MemoryOrder {
+        terminal: terminal_of("memory", args)?,
+        out: None,
+    };
+    while let Some((_, value)) = next_option(args, &["--out"])? {
+        order.out = Some(PathBuf::from(value));
+    }
+    Ok(order)
 }
 
 fn parse_startup<'a>(args: &mut Args<'a>) -> Result<StartupOrder, String> {
@@ -127,7 +189,7 @@ fn parse_startup<'a>(args: &mut Args<'a>) -> Result<StartupOrder, String> {
     while let Some(option) = args.next() {
         match option {
             "--cold" => order.cold = true,
-            "--runs" => order.runs = parse_runs(value_of(option, args)?)?,
+            "--runs" => order.runs = count(option, value_of(option, args)?, MAX_RUNS)?,
             "--out" => order.out = Some(PathBuf::from(value_of(option, args)?)),
             other => return Err(format!("opción desconocida: {other}")),
         }
@@ -151,6 +213,9 @@ impl Command {
             Some("emit") => parse_emit(&mut args).map(Self::Emit),
             Some("footprint") => parse_footprint(&mut args).map(Self::Footprint),
             Some("startup") => parse_startup(&mut args).map(Self::Startup),
+            Some("latency") => parse_latency(&mut args).map(Self::Latency),
+            Some("output") => parse_output(&mut args).map(Self::OutputLoads),
+            Some("memory") => parse_memory(&mut args).map(Self::Memory),
             Some(other) => Err(format!("orden desconocida: {other}")),
         }
     }

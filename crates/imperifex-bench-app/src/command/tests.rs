@@ -5,6 +5,7 @@ use imperifex_bench_domain::metric::{Load, Metric};
 use imperifex_bench_domain::report::Report;
 
 use super::*;
+use crate::latency::LatencyMode;
 use crate::testing::adapters::FakeAdapters;
 use crate::testing::FakeFiles;
 
@@ -209,4 +210,48 @@ fn echo_takes_nothing_and_runs_on_the_terminal() {
     assert!(run_on(Command::Echo, FakeAdapters::default()).0.ok);
     let console = FakeAdapters::without_console("sin consola");
     assert!(!run_on(Command::Echo, console).0.ok);
+}
+
+#[test]
+fn latency_measures_both_places_two_hundred_times_unless_told_otherwise() {
+    let Ok(Command::Latency(order)) = parse("latency warp") else {
+        panic!("not a latency order");
+    };
+    assert_eq!(order.presses, 200);
+    assert_eq!(order.modes, [LatencyMode::Prompt, LatencyMode::Program]);
+    let Ok(Command::Latency(order)) = parse("latency warp --mode program --presses 5") else {
+        panic!("not a latency order");
+    };
+    assert_eq!(
+        (order.presses, order.modes),
+        (5, vec![LatencyMode::Program])
+    );
+}
+
+#[test]
+fn output_takes_every_load_three_times_unless_told_otherwise() {
+    let Ok(Command::OutputLoads(order)) = parse("output warp") else {
+        panic!("not an output order");
+    };
+    assert_eq!((order.loads.len(), order.repeats), (6, 3));
+    let Ok(Command::OutputLoads(order)) = parse("output warp --load color --repeats 1") else {
+        panic!("not an output order");
+    };
+    assert_eq!((order.loads, order.repeats), (vec![Load::Color], 1));
+}
+
+#[test]
+fn a_wrong_argument_of_the_window_orders_is_an_error_that_shows_it() {
+    for (line, shown) in [
+        ("latency", "terminal"),
+        ("latency warp --mode fast", "fast"),
+        ("latency warp --presses 0", "0"),
+        ("output warp --load binary", "binary"),
+        ("output warp --repeats 21", "21"),
+        ("memory", "terminal"),
+        ("memory warp --tabs 2", "--tabs"),
+    ] {
+        let error = parse(line).unwrap_err();
+        assert!(error.contains(shown), "{line}: {error}");
+    }
 }

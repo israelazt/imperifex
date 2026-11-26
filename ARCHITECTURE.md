@@ -58,6 +58,7 @@ En `imperifex-bench-domain` (`ports.rs`). Son pequeños, según lo que cada serv
 | `Desktop` | Abrir, encontrar, colocar, enfocar y cerrar ventanas | 5.1 |
 | `ScreenWatch` | Ver cuándo cambia una región de la pantalla | 6.1 |
 | `Keyboard` | Escribir en una ventana | 6.1 |
+| `KeyInput` | La entrada del propio banco, tecla a tecla, para `echo` | 6.6 |
 | `MachineProbe` | Datos de la máquina, versión de la terminal y fecha del informe | 4.4 |
 
 Las órdenes reciben todos los adaptadores por `Adapters` (`app::command`): cada uno se crea solo cuando una orden lo pide. El binario es quien lo implementa.
@@ -101,7 +102,7 @@ El autor trabaja **dentro** de la terminal que se mide. Estas reglas no se rompe
 - [x] Bloque 3 · Las cargas y la orden `emit`: seis cargas fijas, el servicio, los adaptadores de consola y archivos, y una primera medida real en Warp.
 - [x] Bloque 4 · Huella: memoria, CPU y GPU, con la orden `footprint` y una primera medida de Warp en reposo (no es un Warp limpio).
 - [ ] Bloque 5 · Ventanas y arranque
-- [ ] Bloque 6 · Pantalla y teclado: latencia y salida vista
+- [ ] Bloque 6 · Pantalla y teclado: latencia y salida vista. Programado y probado con dobles; **falta correrlo en el PC real** (6.10), incluida la comprobación de que la captura de pantalla entrega imágenes.
 - [ ] Bloque 7 · Línea base
 
 El detalle de cada bloque está en `docs/PLAN.md`.

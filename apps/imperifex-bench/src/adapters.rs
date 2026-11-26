@@ -6,7 +6,7 @@ use imperifex_bench_app::Adapters;
 use imperifex_bench_domain::ports::FileStore;
 use imperifex_bench_platform::{
     ConsoleIn, ConsoleOut, DiskFiles, DxgiScreen, GpuCounters, QpcClock, WindowsDesktop,
-    WindowsMachine, WindowsProcesses,
+    WindowsKeyboard, WindowsMachine, WindowsProcesses,
 };
 
 #[derive(Default)]
@@ -23,6 +23,7 @@ impl Adapters for RealAdapters {
     type Desktop = WindowsDesktop;
     type Screen = DxgiScreen;
     type Input = ConsoleIn;
+    type Keyboard = WindowsKeyboard;
 
     fn clock(&self) -> QpcClock {
         QpcClock::new()
@@ -59,6 +60,16 @@ impl Adapters for RealAdapters {
 
     fn screen(&self) -> DxgiScreen {
         DxgiScreen
+    }
+
+    fn keyboard(&self) -> WindowsKeyboard {
+        WindowsKeyboard
+    }
+
+    fn current_exe(&self) -> Result<String, String> {
+        std::env::current_exe()
+            .map(|path| path.display().to_string())
+            .map_err(|error| format!("no se pudo saber la ruta del banco: {error}"))
     }
 
     fn key_input(&self) -> Result<ConsoleIn, String> {

@@ -9,6 +9,16 @@ use imperifex_bench_domain::metric::Load;
 use imperifex_bench_domain::ports::{FileStore, Output};
 use imperifex_domain::ports::Clock;
 
+/// The size of a load when none is asked for. ASCII is the fastest to take in,
+/// so it needs more to be timed well.
+pub fn default_mib(load: Load) -> usize {
+    if load == Load::Ascii {
+        100
+    } else {
+        32
+    }
+}
+
 /// The size of the pieces the load is handed over in.
 const CHUNK: usize = 64 * 1024;
 

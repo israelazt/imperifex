@@ -6,15 +6,18 @@ use std::path::{Path, PathBuf};
 use imperifex_bench_domain::emit::BYTES_PER_MB;
 use imperifex_bench_domain::metric::Load;
 use imperifex_bench_domain::ports::{
-    Desktop, FileStore, GpuProbe, KeyInput, MachineProbe, Output as TerminalOutput, ProcessProbe,
-    ScreenWatch,
+    Desktop, FileStore, GpuProbe, KeyInput, Keyboard, MachineProbe, Output as TerminalOutput,
+    ProcessProbe, ScreenWatch,
 };
 use imperifex_bench_domain::report::Report;
 use imperifex_domain::ports::Clock;
 
 use crate::echo::run_echo;
 use crate::emit::EmitService;
-use crate::reports::{footprint_report, startup_report};
+use crate::latency::LatencyMode;
+use crate::reports::{
+    footprint_report, latency_report, memory_report, output_report, startup_report,
+};
 
 mod parse;
 
@@ -46,6 +49,31 @@ pub struct StartupOrder {
     pub out: Option<PathBuf>,
 }
 
+/// What `latency` was asked for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LatencyOrder {
+    pub terminal: String,
+    pub presses: u32,
+    pub modes: Vec<LatencyMode>,
+    pub out: Option<PathBuf>,
+}
+
+/// What `output` was asked for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OutputOrder {
+    pub terminal: String,
+    pub loads: Vec<Load>,
+    pub repeats: u32,
+    pub out: Option<PathBuf>,
+}
+
+/// What `memory` was asked for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MemoryOrder {
+    pub terminal: String,
+    pub out: Option<PathBuf>,
+}
+
 /// The adapters the orders run on. Each is made only when an order asks for
 /// it, so that none needs what it does not use.
 pub trait Adapters {
@@ -57,6 +85,7 @@ pub trait Adapters {
     type Desktop: Desktop;
     type Screen: ScreenWatch;
     type Input: KeyInput;
+    type Keyboard: Keyboard;
 
     fn clock(&self) -> Self::Clock;
     /// The output of the terminal the program runs in.
@@ -69,6 +98,9 @@ pub trait Adapters {
     fn machine(&self) -> Self::Machine;
     fn desktop(&self) -> Self::Desktop;
     fn screen(&self) -> Self::Screen;
+    fn keyboard(&self) -> Self::Keyboard;
+    /// The bench's own program, for a window to run it.
+    fn current_exe(&self) -> Result<String, String>;
     /// The program's own input, key by key.
     fn key_input(&self) -> Result<Self::Input, String>;
 }
@@ -81,6 +113,9 @@ pub enum Command {
     Emit(EmitOrder),
     Footprint(FootprintOrder),
     Startup(StartupOrder),
+    Latency(LatencyOrder),
+    OutputLoads(OutputOrder),
+    Memory(MemoryOrder),
 }
 
 /// What the program should write, and whether it went well.
@@ -110,6 +145,16 @@ Uso:
       verse cada una. No uses el PC mientras corre: cerca de un minuto por vez,
       por la espera de lo que deja cada ventana. Se lanza desde una carpeta sin
       Git. Con --cold la terminal tiene que estar cerrada del todo (README).
+
+  Las tres que siguen ABREN UNA VENTANA Y ESCRIBEN EN ELLA. No toques el
+  teclado ni el ratón mientras corren. Se lanzan desde una carpeta sin Git.
+  imperifex-bench latency <terminal> [--presses 200] [--mode prompt|program|both]
+      Cuánto tarda una tecla en verse, en el prompt y en un programa.
+  imperifex-bench output <terminal> [--load <carga>|all] [--repeats 3]
+      Cuánto tarda en verse una carga, a qué velocidad y con cuánta CPU.
+  imperifex-bench memory <terminal>
+      Memoria de un historial largo y de cada pestaña.
+  Todas admiten --out <archivo.json>.
 ";
 
 impl Command {
@@ -121,6 +166,9 @@ impl Command {
             Self::Emit(order) => run_emit(&order, adapters),
             Self::Footprint(order) => run_footprint(&order, adapters),
             Self::Startup(order) => run_startup(&order, adapters),
+            Self::Latency(order) => run_latency(&order, adapters),
+            Self::OutputLoads(order) => run_output(&order, adapters),
+            Self::Memory(order) => run_memory(&order, adapters),
         };
         match done {
             Ok(text) => Output { text, ok: true },
@@ -157,6 +205,21 @@ fn run_footprint(order: &FootprintOrder, adapters: &impl Adapters) -> Result<Str
 
 fn run_startup(order: &StartupOrder, adapters: &impl Adapters) -> Result<String, String> {
     let report = startup_report(&order.terminal, order.runs, order.cold, adapters)?;
+    deliver(&report, order.out.as_deref(), adapters)
+}
+
+fn run_latency(order: &LatencyOrder, adapters: &impl Adapters) -> Result<String, String> {
+    let report = latency_report(&order.terminal, order.presses, &order.modes, adapters)?;
+    deliver(&report, order.out.as_deref(), adapters)
+}
+
+fn run_output(order: &OutputOrder, adapters: &impl Adapters) -> Result<String, String> {
+    let report = output_report(&order.terminal, &order.loads, order.repeats, adapters)?;
+    deliver(&report, order.out.as_deref(), adapters)
+}
+
+fn run_memory(order: &MemoryOrder, adapters: &impl Adapters) -> Result<String, String> {
+    let report = memory_report(&order.terminal, adapters)?;
     deliver(&report, order.out.as_deref(), adapters)
 }
 

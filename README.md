@@ -25,6 +25,10 @@ Antes de cada commit: `powershell -File tools/check.ps1` (formato, clippy sin av
 | `imperifex-bench emit <carga> --out <archivo.json> [--mib N] [--seed S]` | Manda una carga a la terminal en la que corre y mide cuánto tarda en aceptarla |
 | `imperifex-bench footprint <terminal> [--seconds N] [--out archivo.json]` | Memoria, CPU y GPU de una terminal ya abierta. Solo lee. Para medir en reposo, no la uses mientras corre |
 | `imperifex-bench startup <terminal> [--runs N] [--cold] [--out archivo.json]` | **Abre y cierra ventanas** de la terminal (10 veces) y mide cuánto tarda en verse cada una. No uses el PC mientras corre |
+| `imperifex-bench latency <terminal> [--presses 200] [--mode prompt\|program\|both]` | **Abre una ventana y escribe en ella**: cuánto tarda una tecla en verse. Sin probar aún en el PC real |
+| `imperifex-bench output <terminal> [--load carga\|all] [--repeats 3]` | **Abre ventanas y escribe en ellas**: cuánto tarda en verse una carga, a qué velocidad y con cuánta CPU. Sin probar aún |
+| `imperifex-bench memory <terminal>` | **Abre una ventana, escribe y abre pestañas**: memoria del historial y por pestaña. Sin probar aún |
+| `imperifex-bench echo` | Repite cada tecla hasta la `q`; lo usa `latency` |
 | `imperifex-bench help` | La ayuda |
 
 ### Órdenes que abren ventanas
