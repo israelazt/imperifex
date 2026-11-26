@@ -29,6 +29,8 @@ Antes de cada commit: `powershell -File tools/check.ps1` (formato, clippy sin av
 | `imperifex-bench output <terminal> [--load carga\|all] [--repeats 3]` | **Abre ventanas y escribe en ellas**: cuánto tarda en verse una carga, a qué velocidad y con cuánta CPU. Sin probar aún |
 | `imperifex-bench memory <terminal>` | **Abre una ventana, escribe y abre pestañas**: memoria del historial y por pestaña. Sin probar aún |
 | `imperifex-bench echo` | Repite cada tecla hasta la `q`; lo usa `latency` |
+| `imperifex-bench all <terminal> [--out-dir carpeta]` | **Toda la línea base** (unos 35 min, sin medir): no toques el PC. Deja un `report.json`; si una parte falla, sigue y lo anota. Sin probar aún |
+| `imperifex-bench report <carpeta>... --md docs/BASELINE.md` | Escribe las tablas a partir de los `report.json` de esas carpetas |
 | `imperifex-bench help` | La ayuda |
 
 ### Órdenes que abren ventanas

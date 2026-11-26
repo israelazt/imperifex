@@ -13,6 +13,7 @@ use imperifex_bench_domain::report::Report;
 use imperifex_domain::ports::Clock;
 
 use crate::all::run_all;
+use crate::baseline::write_baseline;
 use crate::echo::run_echo;
 use crate::emit::EmitService;
 use crate::latency::LatencyMode;
@@ -83,6 +84,13 @@ pub struct AllOrder {
     pub out_dir: Option<PathBuf>,
 }
 
+/// What `report` was asked for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReportOrder {
+    pub folders: Vec<PathBuf>,
+    pub markdown: PathBuf,
+}
+
 /// The adapters the orders run on. Each is made only when an order asks for
 /// it, so that none needs what it does not use.
 pub trait Adapters {
@@ -126,6 +134,7 @@ pub enum Command {
     OutputLoads(OutputOrder),
     Memory(MemoryOrder),
     All(AllOrder),
+    Report(ReportOrder),
 }
 
 /// What the program should write, and whether it went well.
@@ -170,6 +179,8 @@ Uso:
       TODA LA LÍNEA BASE, unos 35 minutos (sin medir) sin tocar el PC. Deja
       report.json; sin --out-dir, en bench/results/<fecha>-<terminal>-<n> de la
       carpeta actual. Se lanza desde una carpeta sin Git.
+  imperifex-bench report <carpeta>... --md <archivo.md>
+      El documento de la línea base a partir de los report.json de esas carpetas.
 ";
 
 impl Command {
@@ -185,6 +196,7 @@ impl Command {
             Self::OutputLoads(order) => run_output(&order, adapters),
             Self::Memory(order) => run_memory(&order, adapters),
             Self::All(order) => run_all_order(&order, adapters),
+            Self::Report(order) => run_report(&order, adapters),
         };
         match done {
             Ok(text) => Output { text, ok: true },
@@ -251,6 +263,11 @@ fn run_all_order(order: &AllOrder, adapters: &impl Adapters) -> Result<String, S
     } else {
         Err(text)
     }
+}
+
+fn run_report(order: &ReportOrder, adapters: &impl Adapters) -> Result<String, String> {
+    write_baseline(adapters.files(), &order.folders, &order.markdown)?;
+    Ok(format!("Escrito {}", order.markdown.display()))
 }
 
 /// With a file, the report is kept there and its summary printed; without

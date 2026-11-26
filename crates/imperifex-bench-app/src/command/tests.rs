@@ -268,6 +268,24 @@ fn all_takes_a_terminal_and_may_take_a_folder() {
 }
 
 #[test]
+fn report_takes_folders_and_where_to_write() {
+    let Ok(Command::Report(order)) = parse("report a b --md B.md") else {
+        panic!("not a report order");
+    };
+    assert_eq!(order.folders, [Path::new("a"), Path::new("b")]);
+    assert_eq!(order.markdown, Path::new("B.md"));
+    for (line, shown) in [
+        ("report --md B.md", "carpeta"),
+        ("report a", "--md"),
+        ("report a --md", "--md"),
+        ("report a --csv x", "--csv"),
+    ] {
+        let error = parse(line).unwrap_err();
+        assert!(error.contains(shown), "{line}: {error}");
+    }
+}
+
+#[test]
 fn a_whole_run_with_a_part_that_failed_does_not_go_well_and_says_which() {
     let command = parse("all warp --out-dir out").unwrap();
     let (out, _) = run_on(command, FakeAdapters::default());

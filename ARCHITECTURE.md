@@ -103,6 +103,6 @@ El autor trabaja **dentro** de la terminal que se mide. Estas reglas no se rompe
 - [x] Bloque 4 · Huella: memoria, CPU y GPU, con la orden `footprint` y una primera medida de Warp en reposo (no es un Warp limpio).
 - [ ] Bloque 5 · Ventanas y arranque
 - [ ] Bloque 6 · Pantalla y teclado: latencia y salida vista. Programado y probado con dobles; **falta correrlo en el PC real** (6.10), incluida la comprobación de que la captura de pantalla entrega imágenes.
-- [ ] Bloque 7 · Línea base
+- [ ] Bloque 7 · Línea base. Las órdenes `all` y `report` están programadas y probadas con dobles; **las dos tandas (7.3) no se han corrido**.
 
 El detalle de cada bloque está en `docs/PLAN.md`.

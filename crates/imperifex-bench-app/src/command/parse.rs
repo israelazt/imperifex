@@ -6,7 +6,7 @@ use imperifex_bench_domain::metric::Load;
 
 use super::{
     AllOrder, Command, EmitOrder, FootprintOrder, LatencyOrder, MemoryOrder, OutputOrder,
-    StartupOrder,
+    ReportOrder, StartupOrder,
 };
 use crate::emit::default_mib;
 use crate::latency::LatencyMode;
@@ -209,6 +209,26 @@ fn parse_all<'a>(args: &mut Args<'a>) -> Result<AllOrder, String> {
     Ok(order)
 }
 
+fn parse_report<'a>(args: &mut Args<'a>) -> Result<ReportOrder, String> {
+    let (mut folders, mut markdown) = (Vec::new(), None);
+    while let Some(arg) = args.next() {
+        if arg == "--md" {
+            markdown = Some(PathBuf::from(value_of(arg, args)?));
+        } else if arg.starts_with("--") {
+            return Err(format!("opción desconocida: {arg}"));
+        } else {
+            folders.push(PathBuf::from(arg));
+        }
+    }
+    if folders.is_empty() {
+        return Err("report necesita al menos una carpeta con su report.json".into());
+    }
+    Ok(ReportOrder {
+        folders,
+        markdown: markdown.ok_or("report necesita --md <archivo.md>")?,
+    })
+}
+
 impl Command {
     /// Reads the arguments after the program's name. `help` is the default.
     pub fn parse<S: AsRef<str>>(args: &[S]) -> Result<Self, String> {
@@ -229,6 +249,7 @@ impl Command {
             Some("output") => parse_output(&mut args).map(Self::OutputLoads),
             Some("memory") => parse_memory(&mut args).map(Self::Memory),
             Some("all") => parse_all(&mut args).map(Self::All),
+            Some("report") => parse_report(&mut args).map(Self::Report),
             Some(other) => Err(format!("orden desconocida: {other}")),
         }
     }
