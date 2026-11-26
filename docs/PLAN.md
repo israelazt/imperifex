@@ -706,6 +706,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - [x] 5.1 (2026-11-25) · [x] 5.2 (2026-11-25) · [x] 5.3 (2026-11-25) · [x] 5.4 (2026-11-25) · [x] 5.5 (2026-11-25) · [x] 5.6 (2026-11-25) · [ ] 5.7
 - Pendiente de la 5.7 (2026-11-25): la orden `startup` está programada y subida, **sin medir**: falta correrla en caliente con el permiso del autor y que mire en qué carpeta abre la ventana. Una medida anterior (137 ms) se hizo con el diseño viejo y lanzada desde el repo: no vale. Por indicación del autor se programa el bloque 6 sin esperar a ese número.
 - **Bloqueo (2026-11-25), 5.7 y 6.5:** en la primera prueba de `startup` la ventana de Warp contó como visible a los 91 ms y no mostraba nada en pantalla; la regla de 6.5 («500 ms sin cambios» desde que es visible) la dio por **dibujada** en el mismo instante y la cerró. «Dibujada» así no mide nada, y la carpeta en que abre no se pudo ver. Lo decide el planificador (ver «Hechos medidos»). La 5.7 sigue sin marcar.
+- 2026-11-25 22:05: medido cuándo aparece el contenido (ver «Cuándo aparece el contenido de Warp»): primer marco entre 1,2 y 1,3 s tras ser visible, sesión lista entre 2,3 y 2,4 s, y la ventana abre en `home`. El bloqueo sigue hasta que el planificador defina «dibujada».
 - [x] 6.1 (2026-11-25) · [x] 6.2 (2026-11-25) · [x] 6.3 (2026-11-25) · [x] 6.4 (2026-11-25) · [x] 6.5 (2026-11-25) · [x] 6.6 (2026-11-25) · [x] 6.7 (2026-11-25) · [x] 6.8 (2026-11-25) · [x] 6.9 (2026-11-25) · [ ] 6.10
 - Pendiente de la 6.10 (2026-11-25): las órdenes `latency`, `output` y `memory` están programadas y subidas, **sin ejecutar ninguna vez en el PC real**: faltan el permiso del autor, las medidas y los puntos del paso 3. Antes, repetir la comprobación de la 6.2 con la pantalla desbloqueada.
 - [x] 7.1 (2026-11-25) · [x] 7.2 (2026-11-25) · [ ] 7.3
@@ -756,3 +757,21 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - No se pudo ver en qué carpeta abre.
 
 **Para el planificador (propuesta):** que «dibujada» exija **al menos un cambio grande** antes de aceptar la calma; sin ninguno en 10 s, no hay muestra y se anota. Aun así, lo dibujado antes de la primera imagen capturada no se vería como cambio: conviene medir primero cuándo aparece el contenido (una sola ventana abierta unos 10 s, como hace `probe_warp_window`, fotografiándola) antes de fijar la regla.
+
+### Cuándo aparece el contenido de Warp (2026-11-25 22:05)
+
+`probe_warp_window` en release, una ejecución, en caliente, lanzado desde `home` con el permiso del autor. Un guion aparte fotografió el rectángulo de la ventana nueva (1280×801), siempre en primer plano: una foto cada ~110 ms los primeros 3 s y cada ~500 ms hasta los 9,65 s (42 fotos, que no se suben). **El cero es cuando el guion vio la ventana visible, no el lanzamiento** (la sonda la vio a los 119 ms de lanzar). Cada instante queda acotado entre dos fotos.
+
+| Entre | Qué se ve | Cambio frente a la foto anterior |
+|---|---|---|
+| 0 y 1200 ms | Solo lo que había detrás; las 12 fotos son idénticas | ninguno |
+| 1200 y 1310 ms | **Primer contenido de Warp:** barra, entrada y «Starting Windows PowerShell…» | 13,1 % de los píxeles |
+| 1639 y 1858 ms | Detalles pequeños | 57 y 1354 px (menos del 0,5 % de D17) |
+| 2298 y 2408 ms | **Sesión lista:** panel «New terminal session» y la carpeta | 3,0 % |
+| después | Nada más que el cursor, que parpadea | 57 px |
+
+- **La ventana abre en `home`**, sin avisos de Git. La pestaña activa estaba en este repo, así que la carpeta no salió de ella. Inferencia de esta ejecución y la de la 1.4 (lanzada desde el repo, abrió en el repo): sigue a la carpeta desde la que se lanza. El texto de la negativa de la 5.5 dice que copia la pestaña activa: lo revisa el planificador.
+- **«Al menos un cambio grande y 500 ms de calma» no basta:** daría por dibujada la ventana en «Starting Windows PowerShell…», porque hasta la sesión lista pasa cerca de 1 s sin ningún cambio que cuente.
+- El primer marco cambia solo un 13 % porque lo de detrás también era oscuro. Cuánto cambie depende del fondo.
+- **A decidir:** si «dibujada» es el primer contenido de Warp (aquí, entre 1,2 y 1,3 s) o la sesión lista (entre 2,3 y 2,4 s, que incluye el arranque de PowerShell), y con qué regla se detecta. Son dos números distintos y podrían medirse los dos.
+- Límites: una sola muestra; las fotos pueden perder cambios que duren menos que su separación; la sonda (listar procesos cada ~60 ms) y las fotos cargan el PC mientras Warp arranca.
