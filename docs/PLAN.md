@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **bloques 0 a 7 programados salvo las pruebas 🖥; el planificador revisó el arranque y la línea base (2026-11-25)**. A.1 a A.5, la 5.7 y la 6.10 hechos (**PAUSA**: ver en «Estado» lo que queda por revisar). Sigue, con permiso del autor, la 7.3. Queda abierta la decisión D24 (en qué monitor abre la ventana), que responde el autor. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **bloques 0 a 7 programados salvo las pruebas 🖥; el planificador revisó el arranque y la línea base (2026-11-25)**. A.1 a A.5, la 5.7 y la 6.10 hechos. El planificador revisó lo pendiente antes de la 7.3 (2026-11-26): siguen los ajustes B.1 a B.4 y después, con permiso del autor, la 7.3. D24 se cierra con la prueba B.1. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -92,7 +92,16 @@ CPU del principal: 4,5 % de un núcleo en 10 s mientras la sesión escribía; 4,
 
 | # | Pregunta | Por qué importa | Recomendación |
 |---|---|---|---|
-| D24 | **¿En qué monitor está la ventana de Warp ya abierta durante la línea base?** D23 la pone en el secundario | El primer contenido y la ventana lista solo se miden si la ventana nueva cabe entera en el principal (A.3), y `startup` no puede moverla sin falsear la medida. Si Warp abre las ventanas nuevas donde está la última, con D23 tal cual el arranque solo daría «visible». Las órdenes que escriben tampoco pueden esperar a «lista» fuera del principal (A.5) | Esperar al dato de la 5.7 (en qué monitor abre la ventana nueva, y en cuál estaba la del autor). Si abre junto a la última ventana de Warp: cambiar D23 para que la ventana de Warp quede en el **principal**, a un lado, y el PowerShell del banco en el secundario. Una ventana de Warp quieta en el prompt solo cambia el cursor (57 px, por debajo del 0,5 %) y la imagen previa la incluye. **En todo caso, la ventana nueva y la de Warp ya abierta no pueden solaparse:** el primer contenido se detecta contra la imagen previa de ese sitio, y un Warp sobre otro con el mismo tema puede no cambiar el 0,5 % o cambiarlo tarde, lo que afectaría también a «lista» (sin comprobar en pantalla). La ventana de las órdenes que escriben va de x = 100 a 1380 en un monitor de 1920: a su lado queda poco sitio |
+| D24 | **¿En qué monitor está la ventana de Warp ya abierta durante la línea base?** D23 la pone en el secundario | El primer contenido y la ventana lista solo se miden si la ventana nueva cabe entera en el principal (A.3), y `startup` no puede moverla sin falsear la medida. Si Warp abre las ventanas nuevas donde está la última, con D23 tal cual el arranque solo daría «visible». Las órdenes que escriben tampoco pueden esperar a «lista» fuera del principal (A.5) | Esperar al dato de la 5.7 (en qué monitor abre la ventana nueva, y en cuál estaba la del autor). Si abre junto a la última ventana de Warp: cambiar D23 para que la ventana de Warp quede en el **principal**, a un lado, y el PowerShell del banco en el secundario. Una ventana de Warp quieta en el prompt solo cambia el cursor (57 px, por debajo del 0,5 %) y la imagen previa la incluye. **En todo caso, la ventana nueva y la de Warp ya abierta no pueden solaparse:** el primer contenido se detecta contra la imagen previa de ese sitio, y un Warp sobre otro con el mismo tema puede no cambiar el 0,5 % o cambiarlo tarde, lo que afectaría también a «lista» (sin comprobar en pantalla). La ventana de las órdenes que escriben va de x = 100 a 1380 en un monitor de 1920: a su lado queda poco sitio. **Dato de la 5.7 (2026-11-26):** con la ventana del autor en el principal, Warp abrió la nueva en el mismo sitio y del mismo tamaño, tapándola entera. **Se cierra con B.1**, que prueba la ventana de Warp en el secundario y, si hace falta, minimizada, con lo que decide cada resultado ya escrito allí |
+
+### Decisiones de la revisión antes de la línea base (2026-11-26)
+
+| # | Decisión | Motivo |
+|---|---|---|
+| D26 | «Lista» sube con cada ventana que abre el mismo Warp: **se mide tal cual**, y cada tanda de la línea base empieza con un Warp recién abierto. El informe de `startup` dice cuánto subió de la primera a la última tanda | Es lo que vive el usuario si abre muchas ventanas, pero sin reiniciar Warp la mediana depende de lo que se midió antes. Si al reiniciar no baja (B.1), no es de Warp y la 7.3 no se corre |
+| D27 | La latencia solo cuenta cambios **en la zona de la tecla**: la que aprenden 5 pulsaciones previas que no cuentan | Warp pinta un contador de tiempo (`(13s)`) sobre la orden en marcha, dentro de la región vigilada. Una cifra nueva justo después de la tecla daría una muestra falsa y corta |
+| D28 | Las muestras lentas de la tecla (40 a 87 ms, 6 de 200 en un programa) **se quedan**: son de la experiencia y el p99 las cuenta. Cada informe dice cuáles fueron y cuándo | No hay motivo medido para quitarlas; quitarlas haría a Warp mejor de lo que es |
+| D29 | La memoria del historial se mide con el límite de historial **que Warp trae de fábrica**, y el informe dice cuántas filas conserva. Imperifex se comparará con ese mismo número de filas | 17,5 MB para algo más de un millón de líneas es poco: Warp probablemente recorta. Sin saber cuánto guarda, el número no se puede comparar |
 
 ## Fuera de esta fase
 
@@ -626,6 +635,57 @@ Un programa propio que repite cada tecla, para medir la tecla dentro de un progr
 
 ---
 
+## Ajustes antes de la línea base
+
+> Decididos por el planificador el 2026-11-26 con lo que dieron la 5.7 y la 6.10. B.2 y B.3 no abren ventanas y los programa Sonnet en cualquier orden. B.1 y B.4 los hace el autor. Todo va **antes** de la 7.3.
+
+### B.1 🖥 Dónde abre Warp la ventana nueva, y si «lista» vuelve a bajar (D24, D26)
+
+Lo lanza **el autor**, como la 7.3: hay que cerrar Warp del todo, también la sesión de Claude Code. Unos 30 minutos.
+
+1. Cerrar Warp del todo y abrirlo: una ventana, una pestaña, en el prompt, **en el monitor secundario**. Desde un PowerShell fuera de Warp, también en el secundario: `startup warp --runs 10 --out <home>\b1-a.json`. No tocar el PC.
+2. Sin reiniciar Warp, otra vez: `startup warp --runs 10 --out <home>\b1-b.json`.
+3. Si en el paso 1 las ventanas **no** abrieron enteras en el principal (el informe lo dice: «la ventana no cabe entera en el monitor principal: abrió en …»), cerrar Warp, abrirlo, **minimizar** su ventana y `startup warp --runs 3 --out <home>\b1-c.json`.
+4. Quien programa anota en «Hechos medidos» dónde abrieron (el informe da la posición solo cuando no caben; cuando caben, lo dice el autor, que las ve abrir) y las muestras de «lista» en orden de las tres órdenes.
+
+**Qué decide cada resultado (lo dejó escrito el planificador; el autor puede decir otra cosa):**
+- **D24.** Si en el paso 1 abren enteras en el principal: D23 se queda como está y D24 queda cerrada. Si no, pero en el paso 3 sí, y sin tapar nada de Warp: D23 pasa a «la ventana de Warp, minimizada». Si ninguna de las dos: **Bloqueo**, y el planificador lo replantea con los datos (la única opción que queda es medir con una ventana nueva encima de un Warp quieto en el prompt, sin comprobar que eso detecte el primer contenido).
+- **D26.** Si la primera tanda del paso 1 sale cerca de 1,8 s y sube como el 2026-11-26, y el paso 2 empieza donde terminó el 1: es de Warp y la 7.3 reinicia Warp antes de cada tanda. Si el paso 1 ya empieza alto (cerca de 3 a 4 s) con Warp recién abierto: no es de Warp, **Bloqueo** y no se corre la 7.3.
+
+**Hecho cuando:** los tres JSON (o dos) están en `home`, lo de arriba está anotado y D24 y D26 tienen su resultado en «Estado».
+
+### B.2 La tecla solo cuenta en su zona (D27, D28)
+
+1. `change.rs`: `ChangeDetector::changed_area(&self, before, after) -> Option<Rect>`: el rectángulo que encierra los píxeles cambiados no enmascarados, en coordenadas de la región; `None` si no llega a `min_pixels`. Pruebas.
+2. `LatencyService`, tras aprender la máscara:
+   - **5 pulsaciones previas** con el mismo ciclo que las medidas (pausa, calma, tecla, cambio, retroceso, vuelta), **que no cuentan**. La zona de la tecla es la unión de sus `changed_area`, ampliada 24 px por cada lado y recortada a la región.
+   - Si la zona ocupa más del 10 % de la región, o alguna previa no cambia nada: la orden para («la tecla no cambia siempre el mismo sitio: …»), sin medir.
+   - Desde ahí, base e imágenes se **recortan a la zona** (`ScreenFrame::crop`, ya existe) y se aprende otra vez la máscara 2 s sobre el recorte. Lo de fuera de la zona no cuenta, ni para la calma ni para la muestra.
+3. `notes`: el tamaño y la posición de la zona; y, para cada muestra de más de 4 veces el p50, su número y cuántos segundos llevaba la medida.
+4. Pruebas con falsos: un contador que cambia otra parte de la ventana 1 ms después de la tecla no da muestra, y la muestra es la de la letra; las 5 previas no cuentan en `n`; una previa sin cambio para; una zona demasiado grande para; las muestras lentas salen en las notas.
+5. README: la tecla se mide en su zona, que aprenden 5 pulsaciones previas.
+
+**Commit:** `fix(bench): a key counts only where it shows`
+
+### B.3 La subida de «lista» en el informe, y lo que dura `all` (D26)
+
+1. `startup`: una nota por cada uno de los tres tiempos, con la primera y la última muestra y la diferencia («lista: de 1762 a 2777 ms de la primera a la última tanda, +1015 ms»). Es una nota: la medida no cambia.
+2. `all.rs`: `ESTIMATE` con lo medido el 2026-11-26: huella 1 min, `startup` ×10 unos 11 min, `latency` en los dos modos unos 5 min (con B.2, 10 pulsaciones más), `output all` ×3 unos 8 min, `memory` unos 4 min: «unos 30 minutos (medidos por partes el 2026-11-26)». Quitar el comentario de la estimación sin medir. README igual.
+3. Pruebas: la nota de la subida con muestras que suben, bajan o son una sola (con una, no hay nota).
+
+**Commit:** `feat(bench): how much each start time moved over the runs, and how long all takes`
+
+### B.4 Cuántas filas conserva Warp (D29)
+
+1. El autor mira en la configuración de Warp si hay un límite de filas o líneas del historial (o de la salida de un bloque) y cuál es, **sin cambiarlo**. Quien programa lo anota en «Hechos medidos» con la versión de Warp.
+2. `TerminalProfile` gana `history_rows: Option<u64>` (en `bench/terminals.json`, el valor de Warp; sin límite conocido, se omite). `MemoryService` lo escribe en `notes`: «la terminal conserva como mucho N filas (su configuración de fábrica); se emitieron M líneas». Sin el dato: «no se sabe cuántas filas conserva la terminal».
+3. Si el límite queda muy por debajo del millón de líneas, la carga **no cambia**: mide lo que cuesta llenar el historial de Warp hasta su límite.
+4. Pruebas: la nota con y sin el dato; el perfil se lee con y sin el campo.
+
+**Commit:** `feat(bench): how many rows a terminal keeps, said with its memory`
+
+---
+
 ## Bloque 7 · La línea base de Warp
 
 ### 7.1 La orden `all`
@@ -640,10 +700,10 @@ Un programa propio que repite cada tecla, para medir la tecla dentro de un progr
 **Commit:** `feat(bench): the baseline document from the reports`
 
 ### 7.3 🖥 Las dos tandas
-1. Con el permiso del autor, el PC en reposo y sin jugar, en el estado de D23: cerrar Warp del todo (también la sesión de Claude Code), abrirlo con una ventana y una pestaña y dejarlo en el monitor secundario; desde un PowerShell fuera de Warp, en la raíz del repo, `all warp` dos veces seguidas. Lo lanza el autor.
+1. Con el permiso del autor, el PC en reposo y sin jugar, en el estado de D23 (como quede tras B.1): cerrar Warp del todo (también la sesión de Claude Code), abrirlo con una ventana y una pestaña y dejar su ventana donde diga D24; desde un PowerShell fuera de Warp, en la raíz del repo, `all warp`. Luego **cerrar Warp y abrirlo otra vez igual** (D26) y el segundo `all warp`. Lo lanza el autor.
 2. El autor corre `startup warp --cold --runs 10 --out …` como dice el README y deja el JSON en la carpeta de la primera tanda.
 3. `report` de las dos carpetas → `docs/BASELINE.md`; subir resultados y documento.
-4. En «Estado»: si alguna medida difiere más de un 10 % en p50 entre tandas, decirlo y por qué podría ser.
+4. En «Estado»: si alguna medida difiere más de un 10 % en p50 entre tandas, decirlo y por qué podría ser. Anotar también cuánto subió «lista» dentro de cada tanda (la nota de B.3) y en qué muestras salieron las teclas lentas (B.2).
 
 **Hecho cuando:** criterios de aceptación cumplidos.
 **Commit:** `docs: the Warp baseline`
@@ -688,7 +748,7 @@ Bloques previstos, en este orden. Cada uno se planifica en detalle **antes** de 
 6.1 → 6.2 → 6.3 → 6.4 → 6.5 → 6.6 → 6.7 → 6.8 → 6.9
 A.1 → A.2 → A.3 → A.4 → [PAUSA] → 5.7 🖥 → [D24: el autor]
 A.5 (sin ventanas; a la vez que la 5.7) → 6.10 🖥 → [PAUSA]
-7.1 → 7.2 → 7.3 🖥 → [PAUSA: plan de la fase T]
+7.1 → 7.2 → B.2 ; B.3 (sin ventanas) ; B.1 🖥 y B.4 (el autor) → 7.3 🖥 → [PAUSA: plan de la fase T]
 ```
 
 El camino más corto a un número útil: bloque 2 → 3 (salida) → 4 (huella). Las tareas sin 🖥 se pueden hacer mientras el autor trabaja.
@@ -830,6 +890,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
   - Cerrar la ventana con pestañas **no** pidió confirmar: la orden terminó bien, y habría parado con un error si la ventana no se cierra.
   - Duración: `latency` 200 en el prompt 2 min 21 s; en un programa unos 2 min 30 s; `output ascii` x1 1 min 15 s; `output all` x3 7 min 53 s; `memory` 3 min 38 s. `startup` x10, unos 11 min. `latency --mode both` en una sola orden no se ha corrido (cada modo, por separado), ni `all`.
 - **Para el planificador, antes de la 7.3:** (1) D24: Warp abrió siempre la ventana nueva en el principal, encima de la del autor; (2) «lista» tiende a subir durante la tarde: 1,76 s a las 13:46 y 4,1 s a las 14:36, sin reiniciar Warp; causa desconocida; (3) el contador de tiempo de Warp dentro de la región vigilada (parte 2); (4) las 6 muestras de 40 a 87 ms en la tecla en un programa; (5) cuánto historial conserva Warp; (6) rehacer la estimación de `all` con las duraciones de arriba.
+- 2026-11-26, el planificador revisa esos seis puntos: (1) D24 se cierra con la prueba B.1; (2) D26: se mide tal cual, cada tanda con Warp recién abierto, y B.1 comprueba que reiniciar Warp lo devuelve al principio; (3) D27 y B.2: la tecla solo cuenta en su zona; (4) D28: las muestras lentas se quedan y el informe dice cuáles; (5) D29 y B.4: el informe dice cuántas filas conserva Warp; (6) B.3: `all`, unos 30 minutos. La 7.3 se rehízo para reiniciar Warp entre tandas. [ ] B.1 · [ ] B.2 · [ ] B.3 · [ ] B.4
 
 **Primera medida de salida (M3, consumida), 2026-11-25:** el autor corrió `emit ascii` (release, 100 MiB, semilla 1) en una pestaña de Warp: 5,229 s, 19,1 MB/s (1 MB = 1 048 576 bytes). Es **una sola muestra**, no es la línea base: no se anotó el tamaño de la ventana ni qué más hacía el PC (había una sesión de Claude Code en el mismo Warp). «Consumida» es el tiempo hasta que la consola aceptó los bytes, no hasta que se vieron (eso lo medirá la 6.5). Sin comprobar: en qué trozos entrega la biblioteca estándar de Rust esos bytes a la consola y cuánto cuesta; es igual para todas las terminales que se midan con esta herramienta.
 
