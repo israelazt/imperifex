@@ -5,9 +5,8 @@ use std::path::PathBuf;
 use imperifex_bench_app::Adapters;
 use imperifex_bench_domain::ports::FileStore;
 use imperifex_bench_platform::{
-    ConsoleOut, DiskFiles, GpuCounters, WindowsDesktop, WindowsMachine, WindowsProcesses,
+    ConsoleOut, DiskFiles, GpuCounters, QpcClock, WindowsDesktop, WindowsMachine, WindowsProcesses,
 };
-use imperifex_platform::SystemClock;
 
 #[derive(Default)]
 pub struct RealAdapters {
@@ -15,15 +14,15 @@ pub struct RealAdapters {
 }
 
 impl Adapters for RealAdapters {
-    type Clock = SystemClock;
+    type Clock = QpcClock;
     type Output = ConsoleOut;
     type Processes = WindowsProcesses;
     type Gpu = GpuCounters;
     type Machine = WindowsMachine;
     type Desktop = WindowsDesktop;
 
-    fn clock(&self) -> SystemClock {
-        SystemClock::new()
+    fn clock(&self) -> QpcClock {
+        QpcClock::new()
     }
 
     fn terminal_output(&self) -> Result<ConsoleOut, String> {

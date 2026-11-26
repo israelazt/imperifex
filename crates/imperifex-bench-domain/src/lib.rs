@@ -6,14 +6,17 @@
 pub mod change;
 pub mod desktop;
 pub mod emit;
+pub mod keys;
 pub mod loads;
 pub mod markdown;
 pub mod metric;
 pub mod ports;
 pub mod process;
 pub mod profile;
+pub mod qpc;
 pub mod report;
 pub mod safety;
+pub mod screen;
 pub mod settle;
 pub mod stats;
 pub mod tree;

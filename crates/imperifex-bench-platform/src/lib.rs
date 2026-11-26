@@ -18,6 +18,8 @@ mod gpu_instance;
 mod machine;
 #[cfg(windows)]
 mod processes;
+#[cfg(windows)]
+mod qpc_clock;
 
 #[cfg(windows)]
 pub use console_out::ConsoleOut;
@@ -32,3 +34,5 @@ pub use gpu::GpuCounters;
 pub use machine::WindowsMachine;
 #[cfg(windows)]
 pub use processes::WindowsProcesses;
+#[cfg(windows)]
+pub use qpc_clock::QpcClock;

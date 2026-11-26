@@ -5,8 +5,11 @@
 use std::path::{Path, PathBuf};
 
 use crate::desktop::{Rect, WindowEntry};
+use crate::keys::Key;
 use crate::process::{ProcessEntry, ProcessUsage};
 use crate::report::Machine;
+use crate::screen::ScreenFrame;
+use std::time::Duration;
 
 /// The output of the program, which the terminal being measured takes in.
 pub trait Output {
@@ -58,6 +61,27 @@ pub trait Desktop {
     /// Asks a window to close, as its close button does. It returns at once:
     /// the window may take a while, or stay. Nothing is ever forced (S2).
     fn close(&self, hwnd: u64) -> Result<(), String>;
+}
+
+/// Watching what is on the screen.
+pub trait ScreenWatch {
+    /// Starts watching a region, which must lie wholly inside one monitor.
+    fn watch(&self, region: Rect) -> Result<Box<dyn Watch>, String>;
+}
+
+/// A region being watched.
+pub trait Watch {
+    /// The next new picture within `timeout`; `Ok(None)` if nothing was
+    /// presented.
+    fn next(&mut self, timeout: Duration) -> Result<Option<ScreenFrame>, String>;
+}
+
+/// Typing into a window. Keys go to whatever is in the foreground, so both
+/// operations send nothing unless that is `hwnd` (rule S3). Whether `hwnd` may
+/// be touched at all is for the service to ask the `SafetyGuard` first.
+pub trait Keyboard {
+    fn type_text(&self, hwnd: u64, text: &str) -> Result<(), String>;
+    fn press(&self, hwnd: u64, key: Key) -> Result<(), String>;
 }
 
 /// What a report says about where and when it was taken.
