@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use imperifex_bench_domain::emit::BYTES_PER_MB;
 use imperifex_bench_domain::metric::Load;
 use imperifex_bench_domain::ports::{
-    Desktop, FileStore, GpuProbe, MachineProbe, Output as TerminalOutput, ProcessProbe,
+    Desktop, FileStore, GpuProbe, MachineProbe, Output as TerminalOutput, ProcessProbe, ScreenWatch,
 };
 use imperifex_bench_domain::report::Report;
 use imperifex_domain::ports::Clock;
@@ -53,6 +53,7 @@ pub trait Adapters {
     type Gpu: GpuProbe;
     type Machine: MachineProbe;
     type Desktop: Desktop;
+    type Screen: ScreenWatch;
 
     fn clock(&self) -> Self::Clock;
     /// The output of the terminal the program runs in.
@@ -64,6 +65,7 @@ pub trait Adapters {
     fn gpu(&self) -> Result<Self::Gpu, String>;
     fn machine(&self) -> Self::Machine;
     fn desktop(&self) -> Self::Desktop;
+    fn screen(&self) -> Self::Screen;
 }
 
 /// What the command line asks for.

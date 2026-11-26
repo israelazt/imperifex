@@ -90,9 +90,7 @@ pub fn startup_report<A: Adapters>(
             desktop: adapters.desktop(),
             processes: adapters.processes(),
         };
-        StartupService::new(ports)
-            .run(&ready, runs, cold, &home)
-            .map(|measurement| vec![measurement])
+        StartupService::new(ports, adapters.screen()).run(&ready, runs, cold, &home)
     })
 }
 

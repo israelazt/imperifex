@@ -55,6 +55,8 @@ impl Load {
 pub enum Metric {
     StartupCold,
     StartupWarm,
+    StartupColdDrawn,
+    StartupWarmDrawn,
     KeyLatency,
     OutputConsumed(Load),
     OutputSeen(Load),
@@ -137,6 +139,12 @@ impl Metric {
                 Ms,
                 "Arranque en caliente, hasta la ventana visible",
             ),
+            Self::StartupColdDrawn => (Startup, Ms, "Arranque en frío, hasta la ventana dibujada"),
+            Self::StartupWarmDrawn => (
+                Startup,
+                Ms,
+                "Arranque en caliente, hasta la ventana dibujada",
+            ),
             Self::KeyLatency => (Key, Ms, "Latencia de tecla"),
             Self::OutputConsumed(_) => (Output, MbPerS, "Salida consumida"),
             Self::OutputSeen(_) => (Output, Ms, "Salida vista"),
@@ -186,6 +194,8 @@ mod tests {
         let mut all = vec![
             Metric::StartupCold,
             Metric::StartupWarm,
+            Metric::StartupColdDrawn,
+            Metric::StartupWarmDrawn,
             Metric::KeyLatency,
             Metric::MemoryIdlePrivate,
             Metric::MemoryIdleWorkingSet,

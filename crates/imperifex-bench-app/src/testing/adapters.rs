@@ -8,6 +8,7 @@ use imperifex_bench_domain::report::Machine;
 
 use super::desktop::{Behaviour, FakeDesktop};
 use super::processes_of::DesktopProcesses;
+use super::screen::FakeScreen;
 use super::system::FakeGpu;
 use super::{Events, FakeClock, FakeFiles, FakeOutput};
 use crate::command::Adapters;
@@ -18,17 +19,21 @@ pub struct FakeAdapters {
     /// Why there is no console, if there is none.
     pub no_console: Option<String>,
     pub version: Result<String, String>,
+    /// Every clock handed out tells the same time as this one.
+    pub clock: FakeClock,
     pub events: Events,
     pub desktop: FakeDesktop,
 }
 
 impl Default for FakeAdapters {
     fn default() -> Self {
+        let events = Events::default();
         Self {
             files: FakeFiles::default(),
+            clock: FakeClock::ticking(100, &events),
             no_console: None,
             version: Ok("v9".into()),
-            events: Events::default(),
+            events,
             desktop: FakeDesktop::new(vec![], Behaviour::default()),
         }
     }
@@ -73,11 +78,12 @@ impl Adapters for FakeAdapters {
     type Output = FakeOutput;
     type Processes = DesktopProcesses;
     type Desktop = FakeDesktop;
+    type Screen = FakeScreen;
     type Gpu = FakeGpu;
     type Machine = FakeMachine;
 
     fn clock(&self) -> FakeClock {
-        FakeClock::ticking(100, &self.events)
+        self.clock.clone()
     }
 
     fn terminal_output(&self) -> Result<FakeOutput, String> {
@@ -103,6 +109,10 @@ impl Adapters for FakeAdapters {
 
     fn desktop(&self) -> FakeDesktop {
         self.desktop.clone()
+    }
+
+    fn screen(&self) -> FakeScreen {
+        FakeScreen::new(&self.clock)
     }
 
     fn gpu(&self) -> Result<FakeGpu, String> {

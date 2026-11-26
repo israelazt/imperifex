@@ -1,17 +1,26 @@
+use std::time::Duration;
+
 use super::*;
 use crate::testing::desktop::{home, rig, Behaviour, FakeDesktop, Rig, FIRST_PID};
 use crate::testing::processes_of::DesktopProcesses;
+use crate::testing::screen::{picture, FakeScreen};
 use crate::testing::system::warp;
 use crate::testing::FakeClock;
 
-type Service = StartupService<FakeClock, FakeDesktop, DesktopProcesses>;
+type Service = StartupService<FakeClock, FakeDesktop, DesktopProcesses, FakeScreen>;
 
-fn service(rig: &Rig) -> Service {
-    StartupService::new(rig.ports.clone())
+fn service(rig: &Rig) -> (Service, FakeScreen) {
+    let screen = FakeScreen::new(&rig.ports.clock);
+    (
+        StartupService::new(rig.ports.clone(), screen.clone()),
+        screen,
+    )
 }
 
+/// The measurement of the time until the window is visible.
 fn measure(rig: &Rig, runs: u32, cold: bool) -> Result<Measurement, String> {
-    service(rig).run(&warp(), runs, cold, home())
+    let mut all = service(rig).0.run(&warp(), runs, cold, home())?;
+    Ok(all.remove(0))
 }
 
 #[test]
@@ -150,4 +159,35 @@ fn the_notes_say_what_each_window_left_and_how_long_it_was_waited_for() {
         measurement.notes[1],
         "Procesos que quedaban de cada ventana cerrada, y espera: 0 en 2 s; 0 en 2 s."
     );
+}
+
+#[test]
+fn the_drawn_time_is_the_last_big_change_of_the_window() {
+    let rig = rig(Behaviour::default(), true);
+    let (service, screen) = service(&rig);
+    for (at, lit) in [(20, 0), (100, 4000), (300, 8000)] {
+        screen.show(picture(Duration::from_millis(at), lit));
+    }
+    let all = service.run(&warp(), 1, false, home()).unwrap();
+    assert_eq!(all[1].metric, Metric::StartupWarmDrawn);
+    assert_eq!(all[1].samples, [300.0]);
+    assert_eq!(all[0].samples, [0.0]);
+    let watched = screen.shown.borrow().watched.clone();
+    assert_eq!((watched[0].w, watched[0].h), (1280, 800), "where it opened");
+}
+
+#[test]
+fn a_window_that_cannot_be_watched_is_noted_and_the_visible_time_stays() {
+    let rig = rig(Behaviour::default(), true);
+    let (service, screen) = service(&rig);
+    screen.shown.borrow_mut().refusal = Some("entre dos monitores".into());
+    let all = service.run(&warp(), 2, false, home()).unwrap();
+    assert_eq!(all.len(), 1);
+    assert_eq!(all[0].summary.count, 2);
+    let notes = all[0].notes.join(" ");
+    assert!(
+        notes.contains("Tanda 2 sin ventana dibujada: entre dos monitores"),
+        "{notes}"
+    );
+    assert_eq!(rig.asked().len(), 4, "both windows were closed");
 }
