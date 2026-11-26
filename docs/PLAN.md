@@ -641,29 +641,31 @@ Un programa propio que repite cada tecla, para medir la tecla dentro de un progr
 
 ### B.1 🖥 Dónde abre Warp la ventana nueva, y si «lista» vuelve a bajar (D24, D26)
 
-Lo lanza **el autor**, como la 7.3: hay que cerrar Warp del todo, también la sesión de Claude Code. Unos 30 minutos.
+Lo lanza **el autor**, como la 7.3: hay que cerrar Warp del todo, también la sesión de Claude Code. Unos 30 minutos. Primero se busca con **una sola ventana** una colocación en la que las nuevas abran enteras en el principal; sin ella `startup` solo da «visible» y las tandas largas no dirían nada de «lista». (Corregido el 2026-11-26.)
 
-1. Cerrar Warp del todo y abrirlo: una ventana, una pestaña, en el prompt, **en el monitor secundario**. Desde un PowerShell fuera de Warp, también en el secundario: `startup warp --runs 10 --out <home>\b1-a.json`. No tocar el PC.
-2. Sin reiniciar Warp, otra vez: `startup warp --runs 10 --out <home>\b1-b.json`.
-3. Si en el paso 1 las ventanas **no** abrieron enteras en el principal (el informe lo dice: «la ventana no cabe entera en el monitor principal: abrió en …»), cerrar Warp, abrirlo, **minimizar** su ventana y `startup warp --runs 3 --out <home>\b1-c.json`.
-4. Quien programa anota en «Hechos medidos» dónde abrieron (el informe da la posición solo cuando no caben; cuando caben, lo dice el autor, que las ve abrir) y las muestras de «lista» en orden de las tres órdenes.
+1. Cerrar Warp del todo y abrirlo: una ventana, una pestaña, en el prompt, **en el monitor secundario**. Desde un PowerShell fuera de Warp, también en el secundario: `startup warp --runs 1 --out <home>1-colocacion-1.json`. Anotar dónde abrió la nueva.
+2. Solo si no abrió entera en el principal (el informe lo dice: «la ventana no cabe entera en el monitor principal: abrió en …»): cerrar Warp, abrirlo, **minimizar** su ventana y `startup warp --runs 1 --out <home>1-colocacion-2.json`. Si tampoco, **Bloqueo** y no se sigue.
+3. Con la colocación que haya servido: cerrar Warp del todo, abrirlo así otra vez, y `startup warp --runs 10 --out <home>1-a.json`. No tocar el PC.
+4. Sin reiniciar Warp, otra vez: `startup warp --runs 10 --out <home>1-b.json`.
+5. Quien programa anota en «Hechos medidos» dónde abrieron (el informe da la posición solo cuando no caben; cuando caben, lo dice el autor, que las ve abrir) y las muestras de «lista» en orden de `b1-a` y `b1-b`.
 
 **Qué decide cada resultado (lo dejó escrito el planificador; el autor puede decir otra cosa):**
-- **D24.** Si en el paso 1 abren enteras en el principal: D23 se queda como está y D24 queda cerrada. Si no, pero en el paso 3 sí, y sin tapar nada de Warp: D23 pasa a «la ventana de Warp, minimizada». Si ninguna de las dos: **Bloqueo**, y el planificador lo replantea con los datos (la única opción que queda es medir con una ventana nueva encima de un Warp quieto en el prompt, sin comprobar que eso detecte el primer contenido).
-- **D26.** Si la primera tanda del paso 1 sale cerca de 1,8 s y sube como el 2026-11-26, y el paso 2 empieza donde terminó el 1: es de Warp y la 7.3 reinicia Warp antes de cada tanda. Si el paso 1 ya empieza alto (cerca de 3 a 4 s) con Warp recién abierto: no es de Warp, **Bloqueo** y no se corre la 7.3.
+- **D24.** Si sirve el paso 1: D23 se queda como está y D24 queda cerrada. Si sirve el paso 2, sin tapar nada de Warp: D23 pasa a «la ventana de Warp, minimizada». Si ninguno: **Bloqueo**, y el planificador lo replantea con los datos (la única opción que queda es medir con una ventana nueva encima de un Warp quieto en el prompt, sin comprobar que eso detecte el primer contenido).
+- **D26.** Si `b1-a` empieza cerca de 1,8 s y sube como el 2026-11-26, y `b1-b` empieza donde terminó `b1-a`: es de Warp y la 7.3 reinicia Warp antes de cada tanda. Si `b1-a` ya empieza alto (cerca de 3 a 4 s) con Warp recién abierto: no es de Warp, **Bloqueo** y no se corre la 7.3. **Cualquier otro resultado** (un comienzo intermedio, que no suba, o que `b1-b` no siga desde donde terminó `b1-a`): se anota y es **Bloqueo**; decide el planificador. Las ventanas de los pasos 1 y 2 no cuentan (cada tanda empieza tras reiniciar Warp).
 
-**Hecho cuando:** los tres JSON (o dos) están en `home`, lo de arriba está anotado y D24 y D26 tienen su resultado en «Estado».
+**Hecho cuando:** hay una colocación (o el Bloqueo), `b1-a` y `b1-b` están en `home`, lo de arriba está anotado y D24 y D26 tienen su resultado en «Estado».
 
 ### B.2 La tecla solo cuenta en su zona (D27, D28)
 
 1. `change.rs`: `ChangeDetector::changed_area(&self, before, after) -> Option<Rect>`: el rectángulo que encierra los píxeles cambiados no enmascarados, en coordenadas de la región; `None` si no llega a `min_pixels`. Pruebas.
 2. `LatencyService`, tras aprender la máscara:
-   - **5 pulsaciones previas** con el mismo ciclo que las medidas (pausa, calma, tecla, cambio, retroceso, vuelta), **que no cuentan**. La zona de la tecla es la unión de sus `changed_area`, ampliada 24 px por cada lado y recortada a la región.
-   - Si la zona ocupa más del 10 % de la región, o alguna previa no cambia nada: la orden para («la tecla no cambia siempre el mismo sitio: …»), sin medir.
+   - **5 pulsaciones previas** con el mismo ciclo que las medidas (pausa, calma, tecla, cambio, retroceso, vuelta), **que no cuentan**. Las 5 `changed_area` tienen que **coincidir** (cada borde a 4 px o menos del de la primera): la tecla va y vuelve al mismo sitio, y una que traiga otro cambio, como el contador de Warp, no puede ensanchar la zona. La zona de la tecla es su unión, ampliada 24 px por cada lado y recortada a la región.
+   - Si las 5 no coinciden, la zona ocupa más del 10 % de la región, o alguna previa no cambia nada: la orden para («la tecla no cambia siempre el mismo sitio: …»), sin medir.
    - Desde ahí, base e imágenes se **recortan a la zona** (`ScreenFrame::crop`, ya existe) y se aprende otra vez la máscara 2 s sobre el recorte. Lo de fuera de la zona no cuenta, ni para la calma ni para la muestra.
 3. `notes`: el tamaño y la posición de la zona; y, para cada muestra de más de 4 veces el p50, su número y cuántos segundos llevaba la medida.
-4. Pruebas con falsos: un contador que cambia otra parte de la ventana 1 ms después de la tecla no da muestra, y la muestra es la de la letra; las 5 previas no cuentan en `n`; una previa sin cambio para; una zona demasiado grande para; las muestras lentas salen en las notas.
+4. Pruebas con falsos: un contador que cambia otra parte de la ventana 1 ms después de la tecla no da muestra, y la muestra es la de la letra; las 5 previas no cuentan en `n`; un contador que cambia durante una previa para, diciendo que no coinciden; una previa sin cambio para; una zona demasiado grande para; las muestras lentas salen en las notas.
 5. README: la tecla se mide en su zona, que aprenden 5 pulsaciones previas.
+6. 🖥 Antes de la 7.3, con permiso del autor: `latency warp` en los dos modos una vez con esto. Los falsos no dicen si en Warp las 5 zonas coinciden; si la orden para, se ve antes y no a mitad de la línea base.
 
 **Commit:** `fix(bench): a key counts only where it shows`
 
