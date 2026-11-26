@@ -9,12 +9,18 @@ use imperifex_bench_domain::ports::{Desktop, Keyboard, ProcessProbe, ScreenWatch
 use imperifex_bench_domain::profile::TerminalProfile;
 use imperifex_bench_domain::report::Measurement;
 use imperifex_bench_domain::tree::{new_since, terminal_processes};
+use imperifex_domain::log_info;
 use imperifex_domain::ports::Clock;
 
 use crate::measure_window::{settle_now, then_close};
 use crate::output_seen::OutputService;
 use crate::window_session::{running, wait_for, WindowSession};
 
+/// How long nothing is opened before measuring, for what earlier windows left
+/// to be gone (D20): their processes stay about a minute, and one that ended
+/// halfway would falsify the differences. Which ones they are cannot be told
+/// without a picture from before they were opened.
+const QUIET_BEFORE: Duration = Duration::from_secs(90);
 /// A million lines of the ASCII load, 82 bytes each, are 78.2 MiB.
 const HISTORY_MIB: usize = 79;
 const TABS: u32 = 3;
@@ -73,6 +79,11 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
             .as_deref()
             .map(parse_chord)
             .transpose()?;
+        log_info!(
+            "esperando {} s sin abrir nada, para que salga lo que dejaran otras ventanas",
+            QUIET_BEFORE.as_secs()
+        );
+        self.output.ports.session.clock.sleep(QUIET_BEFORE);
         let window = WindowSession::open(&self.output.ports.session, profile, dir)?;
         let (measured, _) = then_close(window, |window| self.measure(window, profile, keys))?;
         Ok(measured)

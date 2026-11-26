@@ -7,6 +7,7 @@
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::time::Duration;
 
 use imperifex_bench_domain::desktop::{Rect, WindowEntry};
 use imperifex_bench_domain::ports::Desktop;
@@ -66,6 +67,9 @@ pub struct State {
     pub asked: Vec<String>,
     /// The folder of each launch.
     pub dirs: Vec<PathBuf>,
+    /// The time of each launch, on the rig's clock.
+    pub launched_at: Vec<Duration>,
+    clock: Option<FakeClock>,
     /// The windows opened by launches that are still there.
     pub opened: Vec<WindowEntry>,
     waiting: Vec<(usize, WindowEntry)>,
@@ -147,6 +151,8 @@ impl Desktop for FakeDesktop {
         state.launches += 1;
         state.asked.push(format!("launch {}", exe.display()));
         state.dirs.push(dir.to_path_buf());
+        let now = state.clock.as_ref().map(FakeClock::now);
+        state.launched_at.extend(now);
         state.alive.push(pid);
         state.reshown |= self.behaviour.reshows_hidden;
         if let Some(looks) = self.behaviour.looks_to_show {
@@ -248,9 +254,11 @@ pub fn rig(behaviour: Behaviour, authors_terminal: bool) -> Rig {
     };
     let desktop = FakeDesktop::new(before, behaviour);
     let processes = DesktopProcesses::new(&desktop, &author);
+    let clock = FakeClock::ticking(0, &Events::default());
+    desktop.state.borrow_mut().clock = Some(clock.clone());
     Rig {
         ports: SessionPorts {
-            clock: FakeClock::ticking(0, &Events::default()),
+            clock,
             desktop,
             processes,
         },

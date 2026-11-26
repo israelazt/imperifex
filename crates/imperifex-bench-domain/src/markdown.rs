@@ -86,7 +86,7 @@ fn group_section(group: Group, reports: &[Report]) -> String {
         return rows;
     }
     format!(
-        "\n## {}\n\n| Medida | Tanda | n | p50 | p95 | p99 | Dispersión |\n|---|---|---|---|---|---|---|\n{rows}",
+        "\n## {}\n\n| Medida | Tanda | n | Media | p50 | p95 | p99 | Dispersión |\n|---|---|---|---|---|---|---|---|\n{rows}",
         group.label()
     )
 }
@@ -96,9 +96,10 @@ fn row(run: usize, measurement: &Measurement) -> String {
     let unit = measurement.metric.unit().symbol();
     let value = |v: f64| format!("{v:.1} {unit}");
     format!(
-        "| {} | {run} | {} | {} | {} | {} | {} |\n",
+        "| {} | {run} | {} | {} | {} | {} | {} | {} |\n",
         measurement.metric.label(),
         summary.count,
+        value(summary.mean),
         value(summary.p50),
         value(summary.p95),
         value(summary.p99),
@@ -167,23 +168,23 @@ mod tests {
 
 ## Arranque
 
-| Medida | Tanda | n | p50 | p95 | p99 | Dispersión |
-|---|---|---|---|---|---|---|
-| Arranque en caliente, hasta la ventana visible | 1 | 2 | 100.0 ms | 300.0 ms | 300.0 ms | 50.0 % |
-| Arranque en caliente, hasta la ventana visible | 2 | 1 | 120.0 ms | 120.0 ms | 120.0 ms | 0.0 % |
+| Medida | Tanda | n | Media | p50 | p95 | p99 | Dispersión |
+|---|---|---|---|---|---|---|---|
+| Arranque en caliente, hasta la ventana visible | 1 | 2 | 200.0 ms | 100.0 ms | 300.0 ms | 300.0 ms | 50.0 % |
+| Arranque en caliente, hasta la ventana visible | 2 | 1 | 120.0 ms | 120.0 ms | 120.0 ms | 120.0 ms | 0.0 % |
 
 ## Salida
 
-| Medida | Tanda | n | p50 | p95 | p99 | Dispersión |
-|---|---|---|---|---|---|---|
-| Salida consumida (ascii) | 2 | 1 | 55.2 MB/s | 55.2 MB/s | 55.2 MB/s | 0.0 % |
+| Medida | Tanda | n | Media | p50 | p95 | p99 | Dispersión |
+|---|---|---|---|---|---|---|---|
+| Salida consumida (ascii) | 2 | 1 | 55.2 MB/s | 55.2 MB/s | 55.2 MB/s | 55.2 MB/s | 0.0 % |
 
 ## CPU y GPU
 
-| Medida | Tanda | n | p50 | p95 | p99 | Dispersión |
-|---|---|---|---|---|---|---|
-| GPU en reposo | 1 | 2 | 0.0 % | 0.0 % | 0.0 % | — |
-| CPU en reposo | 2 | 1 | 4.5 % de un núcleo | 4.5 % de un núcleo | 4.5 % de un núcleo | 0.0 % |
+| Medida | Tanda | n | Media | p50 | p95 | p99 | Dispersión |
+|---|---|---|---|---|---|---|---|
+| GPU en reposo | 1 | 2 | 0.0 % | 0.0 % | 0.0 % | 0.0 % | — |
+| CPU en reposo | 2 | 1 | 4.5 % de un núcleo | 4.5 % de un núcleo | 4.5 % de un núcleo | 4.5 % de un núcleo | 0.0 % |
 ";
 
     #[test]

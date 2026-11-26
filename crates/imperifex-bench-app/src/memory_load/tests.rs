@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::time::Duration;
 
 use super::*;
 use crate::testing::desktop::{home, rig, Behaviour};
@@ -71,6 +72,21 @@ fn the_history_is_the_difference_and_each_tab_its_share_of_the_rise() {
 }
 
 #[test]
+fn the_window_opens_only_after_90_seconds_of_nothing() {
+    let emit = with_tabs(Behaviour::default(), 0);
+    run(&emit, &[100.0, 160.0], &warp()).unwrap();
+    let launched = emit
+        .ports
+        .session
+        .desktop
+        .state
+        .borrow()
+        .launched_at
+        .clone();
+    assert_eq!(launched, [Duration::from_secs(90)]);
+}
+
+#[test]
 fn keys_that_open_no_tab_leave_the_tabs_out_and_say_so() {
     let emit = with_tabs(Behaviour::default(), 0);
     let measured = run(&emit, &[100.0, 160.0], &with_keys()).unwrap();
@@ -107,6 +123,7 @@ fn keys_that_cannot_be_read_open_nothing() {
     };
     assert!(run(&emit, &[], &profile).unwrap_err().contains("Super"));
     assert!(emit.ports.session.desktop.state.borrow().asked.is_empty());
+    assert_eq!(emit.ports.session.clock.now(), Duration::ZERO, "no wait");
 }
 
 #[test]
