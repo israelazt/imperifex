@@ -16,6 +16,8 @@ pub struct DesktopProcesses {
     state: Rc<RefCell<State>>,
     images: Rc<RefCell<HashMap<u32, String>>>,
     calls: Rc<Cell<usize>>,
+    /// The processor time every process says it has used, in 100 ns ticks.
+    pub busy_100ns: Rc<Cell<u64>>,
 }
 
 impl DesktopProcesses {
@@ -25,6 +27,7 @@ impl DesktopProcesses {
             state: Rc::clone(&desktop.state),
             images: Rc::default(),
             calls: Rc::default(),
+            busy_100ns: Rc::default(),
         }
     }
 
@@ -68,6 +71,9 @@ impl ProcessProbe for DesktopProcesses {
     }
 
     fn usage(&self, _pid: u32) -> Result<ProcessUsage, String> {
-        Ok(ProcessUsage::default())
+        Ok(ProcessUsage {
+            cpu_100ns: self.busy_100ns.get(),
+            ..Default::default()
+        })
     }
 }

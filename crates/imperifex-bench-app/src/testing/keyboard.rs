@@ -44,15 +44,19 @@ impl Script {
     }
 }
 
-#[derive(Debug, Default)]
+/// Something that happens when a line is run.
+type OnEnter = Rc<dyn Fn(&str)>;
+
+#[derive(Default)]
 struct Typed {
+    on_enter: Option<OnEnter>,
     log: Vec<String>,
     targets: Vec<u64>,
     lit: usize,
     letters: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FakeKeyboard {
     clock: FakeClock,
     desktop: FakeDesktop,
@@ -61,7 +65,29 @@ pub struct FakeKeyboard {
     typed: Rc<RefCell<Typed>>,
 }
 
+impl std::fmt::Debug for FakeKeyboard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FakeKeyboard").finish_non_exhaustive()
+    }
+}
+
 impl FakeKeyboard {
+    /// Does `then` with the last text typed each time Enter is pressed.
+    pub fn on_enter(&self, then: impl Fn(&str) + 'static) {
+        self.typed.borrow_mut().on_enter = Some(Rc::new(then));
+    }
+
+    fn run_line(&self) {
+        let (then, line) = {
+            let typed = self.typed.borrow();
+            let line = typed.log.iter().rev().find_map(|t| t.strip_prefix("text "));
+            (typed.on_enter.clone(), line.map(str::to_string))
+        };
+        if let (Some(then), Some(line)) = (then, line) {
+            then(&line);
+        }
+    }
+
     pub fn typed(&self) -> Vec<String> {
         self.typed.borrow().log.clone()
     }
@@ -147,6 +173,10 @@ impl Keyboard for FakeKeyboard {
         match key {
             Key::Char('a') => self.letter(),
             Key::Backspace => self.erase(),
+            Key::Enter => {
+                self.line();
+                self.run_line();
+            }
             _ => self.line(),
         }
         Ok(())

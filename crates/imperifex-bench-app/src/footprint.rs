@@ -1,7 +1,6 @@
 //! What it costs to have a terminal open: its memory, and the processor and the
 //! graphics card it uses, sampled over some time. It only reads.
 
-use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use imperifex_bench_domain::emit::BYTES_PER_MB;
@@ -10,20 +9,12 @@ use imperifex_bench_domain::ports::{GpuProbe, ProcessProbe};
 use imperifex_bench_domain::process::ProcessUsage;
 use imperifex_bench_domain::profile::TerminalProfile;
 use imperifex_bench_domain::report::Measurement;
-use imperifex_bench_domain::tree::terminal_processes;
-use imperifex_bench_domain::usage::cpu_percent_of_core;
 use imperifex_domain::ports::Clock;
+
+use crate::usage_reading::{cpu_between, read, Reading};
 
 const SHORT_LIVED: &str = "No se cuenta la CPU que un proceso gastó entre su última lectura y su \
     salida: los de vida corta pueden quedar fuera en parte o del todo.";
-
-/// The terminal's processes at one moment.
-struct Reading {
-    at: Duration,
-    /// Every one of the terminal's, whether it could be read or not.
-    listed: HashSet<u32>,
-    used: HashMap<u32, ProcessUsage>,
-}
 
 /// The samples taken so far, and what could not be read.
 #[derive(Default)]
@@ -44,7 +35,8 @@ impl Samples {
         };
         self.private_mb.push(sum(|u| u.private_bytes));
         self.working_set_mb.push(sum(|u| u.working_set_bytes));
-        self.cpu.push(cpu_between(before, now));
+        let wall = now.at.saturating_sub(before.at);
+        self.cpu.push(cpu_between(before, now, wall));
         self.gpu.push(gpu);
         self.processes.push(now.used.len());
     }
@@ -80,24 +72,6 @@ impl Samples {
         })
         .collect()
     }
-}
-
-/// The percent of one core used between two readings. A process that was not
-/// there before spent all its time since then; one that was there but could not
-/// be read is left out, as there is nothing to take its time from.
-fn cpu_between(before: &Reading, now: &Reading) -> f64 {
-    let wall = now.at.saturating_sub(before.at);
-    now.used
-        .iter()
-        .filter_map(|(pid, usage)| {
-            let from = match before.used.get(pid) {
-                Some(earlier) => earlier.cpu_100ns,
-                None if !before.listed.contains(pid) => 0,
-                None => return None,
-            };
-            Some(cpu_percent_of_core(from, usage.cpu_100ns, wall))
-        })
-        .sum()
 }
 
 pub struct FootprintService<C, P, G> {
@@ -142,29 +116,10 @@ impl<C: Clock, P: ProcessProbe, G: GpuProbe> FootprintService<C, P, G> {
     }
 
     fn read(&self, profile: &TerminalProfile, samples: &mut Samples) -> Result<Reading, String> {
-        let entries = self.processes.processes()?;
-        let mut reading = Reading {
-            at: self.clock.monotonic(),
-            listed: HashSet::new(),
-            used: HashMap::new(),
-        };
-        for pid in terminal_processes(&entries, profile) {
-            reading.listed.insert(pid);
-            match self.processes.usage(pid) {
-                Ok(usage) => {
-                    reading.used.insert(pid, usage);
-                }
-                Err(error) => {
-                    samples.missed += 1;
-                    samples.last_error = error;
-                }
-            }
-        }
-        if reading.used.is_empty() {
-            return Err(format!(
-                "no hay ningún proceso de {} que se pueda leer: ábrela antes de medir y no la cierres",
-                profile.name
-            ));
+        let reading = read(&self.clock, &self.processes, profile)?;
+        if reading.missed > 0 {
+            samples.missed += reading.missed;
+            samples.last_error.clone_from(&reading.last_error);
         }
         Ok(reading)
     }
