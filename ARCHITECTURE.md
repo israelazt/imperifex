@@ -101,7 +101,7 @@ El autor trabaja **dentro** de la terminal que se mide. Estas reglas no se rompe
 - [x] Bloque 2 · El motor de medidas: estadística, métricas, informe y su tabla, cambio en pantalla y asentamiento (dominio puro, sin probar todavía con datos reales).
 - [x] Bloque 3 · Las cargas y la orden `emit`: seis cargas fijas, el servicio, los adaptadores de consola y archivos, y una primera medida real en Warp.
 - [x] Bloque 4 · Huella: memoria, CPU y GPU, con la orden `footprint` y una primera medida de Warp en reposo (no es un Warp limpio).
-- [ ] Bloque 5 · Ventanas y arranque
+- [ ] Bloque 5 · Ventanas y arranque: la guarda que solo toca ventanas adoptadas, la apertura y el cierre, la carpeta fija, el adaptador y la orden `startup`. **Falta la medida (5.7).**
 - [ ] Bloque 6 · Pantalla y teclado: latencia y salida vista. Programado y probado con dobles; **falta correrlo en el PC real** (6.10), incluida la comprobación de que la captura de pantalla entrega imágenes.
 - [ ] Bloque 7 · Línea base. Las órdenes `all` y `report` están programadas y probadas con dobles; **las dos tandas (7.3) no se han corrido**.
 

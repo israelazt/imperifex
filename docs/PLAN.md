@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **en curso: bloques 1 a 4 hechos; bloques 5 y 6 revisados por el planificador con los hechos medidos (2026-11-25)**. Siguiente: 5.1. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **todo lo que no es 🖥 está programado (2026-11-25)**. Falta correr en el PC real, con permiso del autor: 5.7 (arranque), 6.10 (latencia, salida y memoria) y 7.3 (las dos tandas). Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -740,3 +740,5 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 **Adaptador DXGI (6.2), 2026-11-25, sin verificar con imágenes:** en el PC real abre la duplicación y rechaza una región fuera de los monitores. `measure_watching_a_window_sized_region` no recibió ningún frame en 5 s, y la sonda 1.1, que antes funcionaba, tampoco: el PC estaba bloqueado (`LogonUI` en marcha, unos 20 minutos sin entrada). **Pendiente:** repetir la medida con la pantalla desbloqueada, antes de la 6.10.
 
 **Memoria (6.9), 2026-11-25, dos puntos para el planificador:** (a) **sin programar el paso 1** («esperar los restos de ventanas anteriores antes de abrir»): al arrancar no hay foto con la que saber qué es un resto, y no se inventó otra regla. Cada `close` del banco ya espera los suyos, así que dentro de `all` queda cubierto; lanzada sola justo después de otra orden que se detuvo, no. (b) El plan dice «1 millón de líneas (~82 MiB)»: un millón de líneas de 82 bytes son 78,2 MiB; se emiten 79 MiB.
+
+**Adaptador DXGI (6.2), comprobado con imágenes el 2026-11-25 a las 18:38, con la pantalla desbloqueada:** `measure_watching_a_window_sized_region` en release, región de 1280×680 en (100, 140), 5 s: 89 imágenes (ninguna juntaba varias presentaciones); de presentada a leída p50 1,46 ms y p95 9,20 ms. No se controló qué había en pantalla. Queda resuelto lo pendiente de la nota anterior. La latencia usa el instante de presentación, así que este retraso no entra en las muestras.
