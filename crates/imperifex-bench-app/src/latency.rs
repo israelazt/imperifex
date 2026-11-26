@@ -22,8 +22,10 @@ mod presses;
 /// Typed before measuring at the prompt, and not measured: it makes no word, so
 /// the history has nothing to suggest after it (probe 1.4 saw a suggestion).
 const NONSENSE: &str = "zqxj";
-/// Presses that do not count, to learn where the key shows (D27).
-const TO_FIND_THE_ZONE: u32 = 5;
+/// How many presses that do not count have to change the same place for it to
+/// be where the key shows (D27), and in how many at the most.
+const TO_AGREE: usize = 5;
+const MOST_TO_AGREE: usize = 10;
 
 /// Where the key is typed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,6 +33,23 @@ pub enum LatencyMode {
     Prompt,
     /// Into the bench's echo program, running in the window.
     Program,
+}
+
+/// Where the key shows, and the presses it took to learn it.
+struct Zone {
+    area: Rect,
+    pressed: usize,
+}
+
+impl Zone {
+    fn note(&self) -> String {
+        let Rect { x, y, w, h } = self.area;
+        format!(
+            "Zona de la tecla: {w}x{h} en ({x}, {y}) de la región vigilada. Lo de fuera no cuenta. Pulsaciones previas, que no cuentan: {}; de ellas, descartadas por cambiar otro sitio: {}.",
+            self.pressed,
+            self.pressed - TO_AGREE
+        )
+    }
 }
 
 pub struct LatencyService<C, D, P, S, K> {
@@ -67,10 +86,7 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
             LatencyMode::Program => Metric::KeyLatencyProgram,
         };
         let mut notes = timed.notes();
-        notes.push(format!(
-            "Zona de la tecla: {}x{} en ({}, {}) de la región vigilada, aprendida con {TO_FIND_THE_ZONE} pulsaciones previas que no cuentan. Lo de fuera no cuenta.",
-            zone.w, zone.h, zone.x, zone.y
-        ));
+        notes.push(zone.note());
         notes.push(ready_note);
         Measurement::new(metric, timed.samples_ms, notes)
             .ok_or_else(|| "ninguna pulsación dio una muestra".to_string())
@@ -82,7 +98,7 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
         watch: &mut dyn Watch,
         presses: u32,
         mode: LatencyMode,
-    ) -> Result<(presses::Timed, Rect), String> {
+    ) -> Result<(presses::Timed, Zone), String> {
         let latest = self.get_ready(window, watch, mode)?;
         let mut screen = presses::Screen::new(watch, latest)?;
         let zone = self.find_zone(window, &mut screen)?;
@@ -122,16 +138,19 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
         &self,
         window: &WindowSession<'_, C, D, P>,
         screen: &mut presses::Screen<'_>,
-    ) -> Result<Rect, String> {
+    ) -> Result<Zone, String> {
         let clock = &self.ports.session.clock;
         screen.learn(clock)?;
-        let areas = presses::areas(&self.ports, window, screen, TO_FIND_THE_ZONE)?;
+        let found = presses::areas(&self.ports, window, screen, TO_AGREE, MOST_TO_AGREE)?;
         let (width, height) = screen.size();
         let side = |length: usize| i32::try_from(length).map_err(|e| e.to_string());
-        let zone = key_zone(&areas, side(width)?, side(height)?)?;
+        let zone = key_zone(&found.areas, side(width)?, side(height)?)?;
         screen.narrow(zone)?;
         screen.learn(clock)?;
-        Ok(zone)
+        Ok(Zone {
+            area: zone,
+            pressed: found.pressed,
+        })
     }
 }
 

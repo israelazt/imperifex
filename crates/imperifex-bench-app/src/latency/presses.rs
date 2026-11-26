@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use imperifex_bench_domain::change::{ChangeDetector, DEFAULT_MIN_PIXELS};
 use imperifex_bench_domain::desktop::Rect;
+use imperifex_bench_domain::key_zone::{agreeing, no_agreement};
 use imperifex_bench_domain::keys::Key;
 use imperifex_bench_domain::loads::XorShift64;
 use imperifex_bench_domain::ports::{Desktop, Keyboard, ProcessProbe, ScreenWatch, Watch};
@@ -278,27 +279,42 @@ fn one<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>(
     Ok(())
 }
 
-/// The areas that `count` presses changed, none of them timed.
+/// The areas that say where the key shows, and how many presses it took.
+pub(super) struct Found {
+    pub(super) areas: Vec<Rect>,
+    pub(super) pressed: usize,
+}
+
+/// Presses, timing none, until `needed` of them changed the same place, in
+/// `most` at the most.
 pub(super) fn areas<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>(
     ports: &TypingPorts<C, D, P, S, K>,
     window: &WindowSession<'_, C, D, P>,
     screen: &mut Screen<'_>,
-    count: u32,
-) -> Result<Vec<Rect>, String> {
+    needed: usize,
+    most: usize,
+) -> Result<Found, String> {
     let mut pauses = XorShift64::new(PAUSE_SEED);
-    (1..=count)
-        .map(|number| {
-            if !screen.calm(&ports.session.clock, pause(&mut pauses))? {
-                return Err(format!(
-                    "antes de la pulsación previa {number} la pantalla no se calmó"
-                ));
-            }
-            let (_, change) = press_and_take_back(ports, window, screen)?;
-            change
-                .and_then(|c| screen.detector.changed_area(&c.before, &c.after.bgra))
-                .ok_or_else(|| {
-                    format!("la tecla no cambia siempre el mismo sitio: la pulsación previa {number} no cambió nada en 1 s")
-                })
-        })
-        .collect()
+    let mut areas = Vec::new();
+    for number in 1..=most {
+        if !screen.calm(&ports.session.clock, pause(&mut pauses))? {
+            return Err(format!(
+                "antes de la pulsación previa {number} la pantalla no se calmó"
+            ));
+        }
+        let (_, change) = press_and_take_back(ports, window, screen)?;
+        let area = change
+            .and_then(|c| screen.detector.changed_area(&c.before, &c.after.bgra))
+            .ok_or_else(|| {
+                format!("la tecla no cambia siempre el mismo sitio: la pulsación previa {number} no cambió nada en 1 s")
+            })?;
+        areas.push(area);
+        if let Some(there) = agreeing(&areas, needed) {
+            return Ok(Found {
+                areas: there,
+                pressed: number,
+            });
+        }
+    }
+    Err(no_agreement(&areas, needed))
 }

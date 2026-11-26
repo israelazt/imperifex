@@ -170,12 +170,39 @@ fn the_presses_that_find_the_zone_are_not_samples() {
 }
 
 #[test]
-fn a_clock_that_changes_during_a_press_that_finds_the_zone_stops_it() {
+fn a_clock_that_changes_during_a_press_that_finds_the_zone_costs_one_more_press() {
     let script = Script {
         clock_ticks: vec![3],
         ..Script::showing_after(20)
     };
-    stopped_finding_the_zone(script, "no coinciden");
+    let (result, ports) = run(script, 3, LatencyMode::Prompt);
+    let measurement = result.unwrap();
+    assert_eq!(measurement.samples, [20.0; 3]);
+    let typed = ports.keyboard.typed();
+    assert_eq!(
+        typed.iter().filter(|t| *t == "a").count(),
+        BEFORE_COUNTING + 1 + 3
+    );
+    let note = &measurement.notes[4];
+    // The zone is the letter's: the clock did not widen it.
+    assert!(
+        note.starts_with("Zona de la tecla: 32x") && note.ends_with("otro sitio: 1."),
+        "{note}"
+    );
+}
+
+#[test]
+fn a_key_that_never_shows_in_the_same_place_stops_it_after_ten_presses() {
+    let script = Script {
+        never_erases: true,
+        ..Script::showing_after(5)
+    };
+    let (result, ports) = run(script, 10, LatencyMode::Prompt);
+    let error = result.unwrap_err();
+    assert!(error.contains("de 10 pulsaciones previas"), "{error}");
+    let typed = ports.keyboard.typed();
+    assert_eq!(typed.iter().filter(|t| *t == "a").count(), 10, "{typed:?}");
+    assert!(closed(&ports));
 }
 
 #[test]

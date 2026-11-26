@@ -54,6 +54,8 @@ pub struct Script {
     pub clock_ticks: Vec<usize>,
     /// Presses of `a` that take another time to show, in milliseconds.
     pub slow: Vec<(usize, u64)>,
+    /// Backspace leaves the letter, so each one shows somewhere else.
+    pub never_erases: bool,
     /// How many pixels a letter lights up, if not the usual.
     pub letter_pixels: Option<usize>,
     /// After this many presses of `a`, another window takes the front.
@@ -210,7 +212,11 @@ impl FakeKeyboard {
     }
 
     fn erase(&self) {
-        let size = self.letter_size();
+        let size = if self.script.never_erases {
+            0
+        } else {
+            self.letter_size()
+        };
         let lit = self.light(|lit| lit.saturating_sub(size));
         self.show(self.script.delay_ms, lit);
         let counting = self.typed.borrow().letters > BEFORE_COUNTING;

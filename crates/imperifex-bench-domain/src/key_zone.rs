@@ -19,17 +19,44 @@ fn shown(area: Rect) -> String {
     format!("{}x{} en ({}, {})", area.w, area.h, area.x, area.y)
 }
 
+fn same_place(a: Rect, b: Rect) -> bool {
+    edges(a)
+        .iter()
+        .zip(edges(b))
+        .all(|(a, b)| (a - b).abs() <= SAME_PLACE)
+}
+
+/// `needed` of these areas that are all where one of them is, if there are that
+/// many. One that is somewhere else, because something changed along with the
+/// key or instead of it, is left out.
+pub fn agreeing(areas: &[Rect], needed: usize) -> Option<Vec<Rect>> {
+    areas.iter().find_map(|&reference| {
+        let there: Vec<Rect> = areas
+            .iter()
+            .copied()
+            .filter(|&area| same_place(reference, area))
+            .take(needed)
+            .collect();
+        (there.len() == needed).then_some(there)
+    })
+}
+
+/// Why there is no zone, with what each press changed.
+pub fn no_agreement(areas: &[Rect], needed: usize) -> String {
+    let each: Vec<String> = areas.iter().map(|&a| shown(a)).collect();
+    format!(
+        "{NOT_ONE_PLACE}: de {} pulsaciones previas no coinciden {needed}; cambiaron {}",
+        areas.len(),
+        each.join("; ")
+    )
+}
+
 /// The zone of the key, from the areas that presses of it changed in a region of
 /// this size. Every area has to be where the first one is: one that brought some
 /// other change with it must not widen the zone.
 pub fn key_zone(areas: &[Rect], width: i32, height: i32) -> Result<Rect, String> {
     let first = *areas.first().ok_or("no hay pulsaciones previas")?;
-    let apart = |area: &Rect| {
-        edges(first)
-            .iter()
-            .zip(edges(*area))
-            .any(|(a, b)| (a - b).abs() > SAME_PLACE)
-    };
+    let apart = |area: &Rect| !same_place(first, *area);
     if let Some((number, other)) = (1..).zip(areas).find(|(_, area)| apart(area)) {
         return Err(format!(
             "{NOT_ONE_PLACE}: las pulsaciones previas no coinciden (la 1 cambió {}; la {number}, {})",
@@ -97,6 +124,24 @@ mod tests {
         let areas = [area(24, 24, 52, 52)];
         assert!(key_zone(&areas, 100, 1000).is_ok());
         assert!(key_zone(&areas, 100, 999).unwrap_err().contains("10 %"));
+    }
+
+    #[test]
+    fn the_areas_that_agree_are_found_whichever_came_first() {
+        let letter = area(100, 200, 10, 20);
+        let odd = area(100, 150, 200, 70);
+        let areas = [odd, letter, letter, letter];
+        assert_eq!(agreeing(&areas, 3), Some(vec![letter; 3]));
+        assert_eq!(agreeing(&areas, 4), None);
+    }
+
+    #[test]
+    fn without_agreement_every_area_is_told() {
+        let told = no_agreement(&[area(1, 2, 3, 4), area(5, 6, 7, 8)], 5);
+        assert!(
+            told.contains("3x4 en (1, 2); 7x8 en (5, 6)") && told.contains("de 2 "),
+            "{told}"
+        );
     }
 
     #[test]
