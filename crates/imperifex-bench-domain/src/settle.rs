@@ -2,6 +2,12 @@
 
 use std::time::Duration;
 
+/// For the screen to count as having changed, while waiting for it to settle,
+/// at least this share of the region's pixels must differ (D17): in 1280x680,
+/// 4352. A blinking cursor and a single letter stay under it; a screen of
+/// output goes well over.
+pub const SETTLE_SHARE: f64 = 0.005;
+
 /// `changes` are the moments, in order, at which the screen changed; those
 /// outside `start..=end` are not looked at. The answer is the last change that
 /// was followed by `quiet` without another one before `end`; `None` if there

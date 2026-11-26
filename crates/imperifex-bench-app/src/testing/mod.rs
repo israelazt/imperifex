@@ -4,6 +4,7 @@
 pub mod adapters;
 pub mod desktop;
 pub mod processes_of;
+pub mod screen;
 pub mod system;
 
 use std::cell::{Cell, RefCell};
@@ -29,7 +30,8 @@ pub type Events = Rc<RefCell<Vec<Event>>>;
 #[derive(Debug, Clone)]
 pub struct FakeClock {
     step_ms: u64,
-    now_ms: Cell<u64>,
+    /// In microseconds, and shared by the clones: they all tell the same time.
+    now_us: Rc<Cell<u64>>,
     events: Events,
 }
 
@@ -37,23 +39,33 @@ impl FakeClock {
     pub fn ticking(step_ms: u64, events: &Events) -> Self {
         Self {
             step_ms,
-            now_ms: Cell::new(0),
+            now_us: Rc::default(),
             events: Rc::clone(events),
         }
+    }
+
+    /// The time, without it counting as a reading.
+    pub fn now(&self) -> Duration {
+        Duration::from_micros(self.now_us.get())
+    }
+
+    /// Time never goes back.
+    pub fn advance_to(&self, time: Duration) {
+        let micros = u64::try_from(time.as_micros()).unwrap_or(u64::MAX);
+        self.now_us.set(self.now_us.get().max(micros));
     }
 }
 
 impl Clock for FakeClock {
     fn monotonic(&self) -> Duration {
         self.events.borrow_mut().push(Event::ClockRead);
-        let now = self.now_ms.get();
-        self.now_ms.set(now + self.step_ms);
-        Duration::from_millis(now)
+        let now = self.now();
+        self.advance_to(now + Duration::from_millis(self.step_ms));
+        now
     }
 
     fn sleep(&self, time: Duration) {
-        let waited = u64::try_from(time.as_millis()).unwrap_or(u64::MAX);
-        self.now_ms.set(self.now_ms.get().saturating_add(waited));
+        self.advance_to(self.now() + time);
     }
 }
 

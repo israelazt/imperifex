@@ -7,6 +7,7 @@ pub mod command;
 pub mod emit;
 pub mod footprint;
 pub mod reports;
+pub mod screen_wait;
 pub mod startup;
 #[cfg(test)]
 mod testing;
