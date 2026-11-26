@@ -50,6 +50,7 @@ type OnEnter = Rc<dyn Fn(&str)>;
 #[derive(Default)]
 struct Typed {
     on_enter: Option<OnEnter>,
+    on_chord: Option<Rc<dyn Fn()>>,
     log: Vec<String>,
     targets: Vec<u64>,
     lit: usize,
@@ -75,6 +76,18 @@ impl FakeKeyboard {
     /// Does `then` with the last text typed each time Enter is pressed.
     pub fn on_enter(&self, then: impl Fn(&str) + 'static) {
         self.typed.borrow_mut().on_enter = Some(Rc::new(then));
+    }
+
+    /// Does `then` each time a chord is pressed.
+    pub fn on_chord(&self, then: impl Fn() + 'static) {
+        self.typed.borrow_mut().on_chord = Some(Rc::new(then));
+    }
+
+    fn run_chord(&self) {
+        let then = self.typed.borrow().on_chord.clone();
+        if let Some(then) = then {
+            then();
+        }
     }
 
     fn run_line(&self) {
@@ -176,6 +189,10 @@ impl Keyboard for FakeKeyboard {
             Key::Enter => {
                 self.line();
                 self.run_line();
+            }
+            Key::Chord(_) => {
+                self.line();
+                self.run_chord();
             }
             _ => self.line(),
         }

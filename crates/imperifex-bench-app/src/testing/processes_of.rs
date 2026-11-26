@@ -15,6 +15,7 @@ pub struct DesktopProcesses {
     author: Vec<u32>,
     state: Rc<RefCell<State>>,
     images: Rc<RefCell<HashMap<u32, String>>>,
+    parents: Rc<RefCell<HashMap<u32, u32>>>,
     calls: Rc<Cell<usize>>,
     /// The processor time every process says it has used, in 100 ns ticks.
     pub busy_100ns: Rc<Cell<u64>>,
@@ -26,6 +27,7 @@ impl DesktopProcesses {
             author: author.to_vec(),
             state: Rc::clone(&desktop.state),
             images: Rc::default(),
+            parents: Rc::default(),
             calls: Rc::default(),
             busy_100ns: Rc::default(),
         }
@@ -33,6 +35,10 @@ impl DesktopProcesses {
 
     pub fn rename(&self, pid: u32, image: &str) {
         self.images.borrow_mut().insert(pid, image.into());
+    }
+
+    pub fn child_of(&self, pid: u32, parent: u32) {
+        self.parents.borrow_mut().insert(pid, parent);
     }
 
     /// How many times the list was asked for.
@@ -64,7 +70,7 @@ impl ProcessProbe for DesktopProcesses {
             .chain(&state.alive)
             .map(|&pid| ProcessEntry {
                 pid,
-                parent: 0,
+                parent: self.parents.borrow().get(&pid).copied().unwrap_or(0),
                 image: images.get(&pid).map_or("warp.exe", String::as_str).into(),
             })
             .collect())
