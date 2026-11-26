@@ -864,3 +864,13 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - El primer marco cambia solo un 13 % porque lo de detrás también era oscuro. Cuánto cambie depende del fondo.
 - **A decidir:** si «dibujada» es el primer contenido de Warp (aquí, entre 1,2 y 1,3 s) o la sesión lista (entre 2,3 y 2,4 s, que incluye el arranque de PowerShell), y con qué regla se detecta. Son dos números distintos y podrían medirse los dos.
 - Límites: una sola muestra; las fotos pueden perder cambios que duren menos que su separación; la sonda (listar procesos cada ~60 ms) y las fotos cargan el PC mientras Warp arranca.
+
+### Primera apertura con el autor mirando (5.7), 2026-11-26 13:37
+
+`startup warp --runs 1`, en caliente, release de `8b3b737`, lanzado desde la raíz del repo. Un observador de solo lectura anotó cada 250 ms las ventanas visibles de `warp.exe`. **Una sola muestra: no es un resultado.**
+
+- Visible 109 ms, primer contenido 942 ms, lista 2129 ms (la imagen de «lista» juntaba varias presentaciones). Al cerrar la ventana no quedó ningún proceso a los 60 s.
+- La ventana del autor estaba en el **principal**, en x=324, y=86, de 1280x801. La nueva abrió en el principal, **en el mismo sitio y con el mismo tamaño**, tapándola entera. No se sabe si Warp copia la posición de la última ventana o usa una guardada.
+- La imagen previa de ese sitio era la ventana del autor con el texto de una sesión de Claude Code. El banco detectó el cambio; **sin probar** con una ventana de Warp quieta en el prompt debajo, y no se ha comprobado a ojo que los dos tiempos correspondan a lo que se ve.
+- El autor vio abrirse la ventana y nada raro. No se fijó en la carpeta: **sin confirmar** en esta prueba.
+- Para D24: mientras Warp abra encima, «que no se solapen» no se cumple moviendo la ventana ya abierta dentro del principal.
