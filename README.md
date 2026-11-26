@@ -38,7 +38,7 @@ Antes de cada commit: `powershell -File tools/check.ps1` (formato, clippy sin av
 Se pueden lanzar desde cualquier carpeta, también desde la del repo. La ventana nueva abre siempre en `$env:TEMP\imperifex-bench\home` (el banco la crea), para que todas las tandas se midan en la misma carpeta, sin Git. El banco solo se niega si esa carpeta queda dentro de un repositorio.
 
 ```
-.	argetelease\imperifex-bench.exe startup warp --out "$env:TEMP\imperifex-bench\startup-warm.json"
+.\target\release\imperifex-bench.exe startup warp --out "$env:TEMP\imperifex-bench\startup-warm.json"
 ```
 
 Mientras corren no se toca el PC. Cada ventana cerrada deja sus procesos cerca de un minuto y el banco los espera (hasta 90 s), así que 10 tandas llevan unos 10 minutos. Nunca fuerza el cierre de nada; si Warp pide confirmar un cierre, se detiene.
@@ -52,7 +52,7 @@ Necesita que la terminal no esté abierta, así que no se puede lanzar desde ell
 3. Abre PowerShell desde el menú Inicio.
 4. Corre la orden con la ruta completa y no toques el PC hasta que termine:
    ```
-   & "<carpeta del repo>	argetelease\imperifex-bench.exe" startup warp --cold --runs 10 --out "$env:TEMP\imperifex-bench\startup-cold.json"
+   & "<carpeta del repo>\target\release\imperifex-bench.exe" startup warp --cold --runs 10 --out "$env:TEMP\imperifex-bench\startup-cold.json"
    ```
 5. Vuelve a abrir Warp.
 
