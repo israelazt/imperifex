@@ -180,6 +180,21 @@ mod tests {
         assert!(WindowsDesktop.close(nobody).is_err());
     }
 
+    /// Reading changes nothing. A hosted runner may have no windows to read.
+    #[test]
+    fn the_windows_of_the_desktop_are_read_with_their_class() {
+        if std::env::var_os("IMPERIFEX_NO_HARDWARE").is_some() {
+            return;
+        }
+        let all = WindowsDesktop.windows().unwrap();
+        assert!(
+            all.iter().any(|w| !w.class.is_empty()),
+            "{} read",
+            all.len()
+        );
+        assert!(all.iter().any(|w| !w.visible), "hidden ones too");
+    }
+
     /// `cargo test --release -p imperifex-bench-platform measure_reading_the_windows -- --ignored --nocapture`
     #[test]
     #[ignore = "a measurement, run by hand on a real desktop"]

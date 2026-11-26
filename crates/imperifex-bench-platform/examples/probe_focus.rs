@@ -5,10 +5,6 @@
 //! `cargo run --release -p imperifex-bench-platform --example probe_focus -- <folder for pictures>`
 
 #[cfg(windows)]
-#[path = "common/desktop.rs"]
-mod desktop;
-
-#[cfg(windows)]
 #[path = "common/processes.rs"]
 mod processes;
 
@@ -26,7 +22,10 @@ mod run {
     use std::path::{Path, PathBuf};
     use std::time::Duration;
 
-    use crate::{desktop, input, warp};
+    use imperifex_bench_domain::ports::Desktop;
+    use imperifex_bench_platform::WindowsDesktop;
+
+    use crate::{input, warp};
 
     const OPENING: Duration = Duration::from_secs(8);
     const CLOSING: Duration = Duration::from_secs(5);
@@ -51,7 +50,7 @@ mod run {
     }
 
     /// A picture of the foreground window, only while it is `target`.
-    fn picture(target: isize, to: &Path) -> Result<(), String> {
+    fn picture(target: u64, to: &Path) -> Result<(), String> {
         if input::foreground() != target {
             return Err("el primer plano cambió: no se hace la foto".into());
         }
@@ -65,7 +64,7 @@ mod run {
         Ok(())
     }
 
-    fn type_and_erase(target: isize, folder: &Path) -> Result<(), String> {
+    fn type_and_erase(target: u64, folder: &Path) -> Result<(), String> {
         std::thread::sleep(SHOWN);
         picture(target, &folder.join("1-antes.png"))?;
         input::type_char(target, u16::from(b'a'))?;
@@ -78,7 +77,7 @@ mod run {
         picture(target, &folder.join("3-borrada.png"))
     }
 
-    fn focus_and_type(a: isize, b: isize, folder: &Path) -> Result<(), String> {
+    fn focus_and_type(a: u64, b: u64, folder: &Path) -> Result<(), String> {
         let own = HashSet::from([a, b]);
         if input::foreground() == a {
             return Err("A ya está en primer plano: no hay nada que probar".into());
@@ -125,7 +124,7 @@ mod run {
             }
         }
         let end = input::foreground();
-        let known = desktop::windows()?.iter().any(|w| w.hwnd == end);
+        let known = WindowsDesktop.windows()?.iter().any(|w| w.hwnd == end);
         println!(
             "primer plano al terminar: {end:#x} (¿el del principio?: {}, ¿existe?: {known})",
             end == start

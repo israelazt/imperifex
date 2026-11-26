@@ -4,10 +4,6 @@
 //! `cargo run --release -p imperifex-bench-platform --example probe_warp_window`
 
 #[cfg(windows)]
-#[path = "common/desktop.rs"]
-mod desktop;
-
-#[cfg(windows)]
 #[path = "common/processes.rs"]
 mod processes;
 
@@ -30,7 +26,7 @@ fn main() -> Result<(), String> {
     let mut opened = warp::open_new_window(OPENING)?;
     println!(
         "la ventana nueva es {:#x}, del pid {} ({}x{})",
-        opened.window.hwnd, opened.window.pid, opened.window.width, opened.window.height
+        opened.window.hwnd, opened.window.pid, opened.window.rect.w, opened.window.rect.h
     );
     for process in warp::survivors(&opened.seen)? {
         println!(

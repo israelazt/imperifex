@@ -3,34 +3,37 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
+use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::{
     GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow,
 };
 
-use crate::desktop::handle;
-
 /// How long the system is given to move the foreground.
 const SETTLE: Duration = Duration::from_millis(300);
 
-pub fn foreground() -> isize {
-    // SAFETY: no arguments; it may answer with no window.
-    unsafe { GetForegroundWindow() }.0 as isize
+fn handle(hwnd: u64) -> HWND {
+    HWND(hwnd as usize as *mut core::ffi::c_void)
 }
 
-fn thread_of(hwnd: isize) -> u32 {
+pub fn foreground() -> u64 {
+    // SAFETY: no arguments; it may answer with no window.
+    unsafe { GetForegroundWindow() }.0 as usize as u64
+}
+
+fn thread_of(hwnd: u64) -> u32 {
     // SAFETY: a window that is gone is answered with 0.
     unsafe { GetWindowThreadProcessId(handle(hwnd), None) }
 }
 
-fn set_foreground(hwnd: isize) {
+fn set_foreground(hwnd: u64) {
     // SAFETY: the system refuses what it does not allow; the result is read back.
     let accepted = unsafe { SetForegroundWindow(handle(hwnd)) }.as_bool();
     println!("  SetForegroundWindow respondió {accepted}");
 }
 
-fn arrived(hwnd: isize) -> bool {
+fn arrived(hwnd: u64) -> bool {
     std::thread::sleep(SETTLE);
     foreground() == hwnd
 }
@@ -40,7 +43,7 @@ fn attach(from: u32, to: u32, on: bool) -> bool {
     unsafe { AttachThreadInput(from, to, on) }.as_bool()
 }
 
-fn with_attached_threads(hwnd: isize) {
+fn with_attached_threads(hwnd: u64) {
     let current = foreground();
     let (holder, target) = (thread_of(current), thread_of(hwnd));
     println!("  hilo en primer plano {holder}, hilo de la ventana pedida {target}");
@@ -90,14 +93,14 @@ fn send(events: &[INPUT]) -> Result<(), String> {
 }
 
 /// S3: keys go out only while `target` is in the foreground.
-fn send_to(target: isize, events: &[INPUT]) -> Result<(), String> {
+fn send_to(target: u64, events: &[INPUT]) -> Result<(), String> {
     if foreground() != target {
         return Err("el primer plano ya no es la ventana propia: no se pulsa nada".into());
     }
     send(events)
 }
 
-pub fn type_char(target: isize, c: u16) -> Result<(), String> {
+pub fn type_char(target: u64, c: u16) -> Result<(), String> {
     let none = VIRTUAL_KEY(0);
     send_to(
         target,
@@ -108,7 +111,7 @@ pub fn type_char(target: isize, c: u16) -> Result<(), String> {
     )
 }
 
-pub fn press_backspace(target: isize) -> Result<(), String> {
+pub fn press_backspace(target: u64) -> Result<(), String> {
     send_to(
         target,
         &[
@@ -120,7 +123,7 @@ pub fn press_backspace(target: isize) -> Result<(), String> {
 
 /// `Alt` goes to whatever is in the foreground, so it is pressed only when that
 /// is one of the probe's own windows.
-fn with_alt(hwnd: isize, own: &HashSet<isize>) -> Result<(), String> {
+fn with_alt(hwnd: u64, own: &HashSet<u64>) -> Result<(), String> {
     let current = foreground();
     if !own.contains(&current) {
         return Err("el primer plano no es una ventana propia: no se pulsa Alt".into());
@@ -137,7 +140,7 @@ fn with_alt(hwnd: isize, own: &HashSet<isize>) -> Result<(), String> {
 }
 
 /// Tries the three ways in order and names the first that worked.
-pub fn take_foreground(hwnd: isize, own: &HashSet<isize>) -> Result<&'static str, String> {
+pub fn take_foreground(hwnd: u64, own: &HashSet<u64>) -> Result<&'static str, String> {
     println!("método 1: SetForegroundWindow");
     set_foreground(hwnd);
     if arrived(hwnd) {

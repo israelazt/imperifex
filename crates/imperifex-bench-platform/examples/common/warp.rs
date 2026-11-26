@@ -3,18 +3,19 @@
 
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashSet};
-use std::process::{Command, Stdio};
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use imperifex_bench_domain::desktop::WindowEntry;
+use imperifex_bench_domain::ports::Desktop;
 use imperifex_bench_domain::profile::{expand_env, find, parse_profiles};
+use imperifex_bench_domain::windows::MIN_WINDOW;
+use imperifex_bench_platform::WindowsDesktop;
 
-use crate::desktop::{self, Window};
 use crate::processes::{processes, Process};
 
 const PROFILES: &str = include_str!("../../../../bench/terminals.json");
 const IMAGE: &str = "warp.exe";
-/// A smaller new window is a popup or a notice, not a terminal window.
-const SMALLEST: (i32, i32) = (400, 300);
 const EVERY: Duration = Duration::from_millis(50);
 
 /// How a new window is asked for.
@@ -27,13 +28,13 @@ enum Launch {
 /// What existed before the launch. Nothing in it is ever touched.
 pub struct Photo {
     pids: HashSet<u32>,
-    windows: HashSet<isize>,
-    hidden: HashSet<isize>,
+    windows: HashSet<u64>,
+    hidden: HashSet<u64>,
 }
 
 impl Photo {
     pub fn take() -> Result<Self, String> {
-        let windows = desktop::windows()?;
+        let windows = WindowsDesktop.windows()?;
         Ok(Self {
             pids: processes()?.iter().map(|p| p.pid).collect(),
             hidden: windows
@@ -47,28 +48,22 @@ impl Photo {
 }
 
 fn start(launch: Launch) -> Result<(), String> {
-    let mut command = match launch {
+    let (exe, args) = match launch {
         Launch::Program => {
             let profiles = parse_profiles(PROFILES)?;
             let warp = find(&profiles, "warp")?;
             let exe = expand_env(&warp.exe, &|name| std::env::var(name).ok())?;
-            let mut command = Command::new(exe);
-            command.args(&warp.new_window_args);
-            command
+            (PathBuf::from(exe), warp.new_window_args.clone())
         }
         Launch::Uri => {
-            let mut command = Command::new("cmd");
-            command.args(["/c", "start", "", "warp://action/new_window"]);
-            command
+            let args = ["/c", "start", "", "warp://action/new_window"];
+            (PathBuf::from("cmd"), args.map(String::from).to_vec())
         }
     };
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map(|child| println!("lanzado ({launch:?}), pid {}", child.id()))
-        .map_err(|error| format!("no se pudo lanzar ({launch:?}): {error}"))
+    let here = std::env::current_dir().map_err(|error| format!("sin carpeta actual: {error}"))?;
+    let pid = WindowsDesktop.launch(&exe, &args, &here)?;
+    println!("lanzado ({launch:?}), pid {pid}");
+    Ok(())
 }
 
 /// What appeared while watching.
@@ -77,8 +72,8 @@ pub struct Seen {
     pub processes: BTreeMap<u32, Process>,
     pub exited: HashSet<u32>,
     /// Windows that did not exist before and were visible at some moment.
-    pub windows: BTreeMap<isize, Window>,
-    shown_again: HashSet<isize>,
+    pub windows: BTreeMap<u64, WindowEntry>,
+    shown_again: HashSet<u64>,
 }
 
 impl Seen {
@@ -101,13 +96,13 @@ impl Seen {
                 println!("{:>6} ms · terminó el pid {pid}", at.as_millis());
             }
         }
-        for window in desktop::windows()?.into_iter().filter(|w| w.visible) {
+        for window in WindowsDesktop.windows()?.into_iter().filter(|w| w.visible) {
             self.note(photo, window, at);
         }
         Ok(())
     }
 
-    fn note(&mut self, photo: &Photo, window: Window, at: Duration) {
+    fn note(&mut self, photo: &Photo, window: WindowEntry, at: Duration) {
         if photo.windows.contains(&window.hwnd) {
             if photo.hidden.contains(&window.hwnd) && self.shown_again.insert(window.hwnd) {
                 println!(
@@ -124,8 +119,8 @@ impl Seen {
                 window.hwnd,
                 window.pid,
                 window.class,
-                window.width,
-                window.height,
+                window.rect.w,
+                window.rect.h,
                 window.title
             );
             slot.insert(window);
@@ -143,22 +138,23 @@ pub fn watch(photo: &Photo, time: Duration, seen: &mut Seen) -> Result<(), Strin
 }
 
 /// Warp's new windows of a terminal's size that are still on screen.
-fn candidates(photo: &Photo) -> Result<Vec<Window>, String> {
+fn candidates(photo: &Photo) -> Result<Vec<WindowEntry>, String> {
     let warp: HashSet<u32> = processes()?
         .iter()
         .filter(|p| p.is(IMAGE))
         .map(|p| p.pid)
         .collect();
-    Ok(desktop::windows()?
+    Ok(WindowsDesktop
+        .windows()?
         .into_iter()
         .filter(|w| w.visible && !photo.windows.contains(&w.hwnd) && warp.contains(&w.pid))
-        .filter(|w| w.width >= SMALLEST.0 && w.height >= SMALLEST.1)
+        .filter(|w| w.rect.w >= MIN_WINDOW.0 && w.rect.h >= MIN_WINDOW.1)
         .collect())
 }
 
 pub struct Opened {
     pub photo: Photo,
-    pub window: Window,
+    pub window: WindowEntry,
     pub seen: Seen,
 }
 
@@ -226,10 +222,11 @@ pub fn close_window(opened: &mut Opened, time: Duration) -> Result<bool, String>
     if !candidates(&opened.photo)?.iter().any(|w| w.hwnd == hwnd) {
         return Err("la ventana ya no está o no es de las nuevas: no se toca".into());
     }
-    desktop::ask_to_close(hwnd)?;
+    WindowsDesktop.close(hwnd)?;
     println!("WM_CLOSE enviado a {hwnd:#x}");
     watch(&opened.photo, time, &mut opened.seen)?;
-    let gone = !desktop::windows()?
+    let gone = !WindowsDesktop
+        .windows()?
         .iter()
         .any(|w| w.hwnd == hwnd && w.visible);
     Ok(gone)
