@@ -14,6 +14,10 @@ mod files;
 mod gpu;
 #[cfg(any(windows, test))]
 mod gpu_instance;
+#[cfg(any(windows, test))]
+mod key_events;
+#[cfg(windows)]
+mod keyboard;
 #[cfg(windows)]
 mod machine;
 #[cfg(windows)]
@@ -34,6 +38,8 @@ pub use dpi::use_physical_pixels;
 pub use files::DiskFiles;
 #[cfg(windows)]
 pub use gpu::GpuCounters;
+#[cfg(windows)]
+pub use keyboard::WindowsKeyboard;
 #[cfg(windows)]
 pub use machine::WindowsMachine;
 #[cfg(windows)]

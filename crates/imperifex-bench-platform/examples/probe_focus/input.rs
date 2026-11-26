@@ -3,6 +3,10 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
+use imperifex_bench_domain::keys::Key;
+use imperifex_bench_domain::ports::Keyboard;
+use imperifex_bench_platform::WindowsKeyboard;
+
 use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
@@ -92,33 +96,13 @@ fn send(events: &[INPUT]) -> Result<(), String> {
     }
 }
 
-/// S3: keys go out only while `target` is in the foreground.
-fn send_to(target: u64, events: &[INPUT]) -> Result<(), String> {
-    if foreground() != target {
-        return Err("el primer plano ya no es la ventana propia: no se pulsa nada".into());
-    }
-    send(events)
-}
-
-pub fn type_char(target: u64, c: u16) -> Result<(), String> {
-    let none = VIRTUAL_KEY(0);
-    send_to(
-        target,
-        &[
-            key(none, c, KEYEVENTF_UNICODE),
-            key(none, c, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP),
-        ],
-    )
+/// The adapter itself refuses unless `target` is in the foreground (S3).
+pub fn type_char(target: u64, c: char) -> Result<(), String> {
+    WindowsKeyboard.press(target, Key::Char(c))
 }
 
 pub fn press_backspace(target: u64) -> Result<(), String> {
-    send_to(
-        target,
-        &[
-            key(VK_BACK, 0, KEYBD_EVENT_FLAGS(0)),
-            key(VK_BACK, 0, KEYEVENTF_KEYUP),
-        ],
-    )
+    WindowsKeyboard.press(target, Key::Backspace)
 }
 
 /// `Alt` goes to whatever is in the foreground, so it is pressed only when that
@@ -128,13 +112,10 @@ fn with_alt(hwnd: u64, own: &HashSet<u64>) -> Result<(), String> {
     if !own.contains(&current) {
         return Err("el primer plano no es una ventana propia: no se pulsa Alt".into());
     }
-    send_to(
-        current,
-        &[
-            key(VK_MENU, 0, KEYBD_EVENT_FLAGS(0)),
-            key(VK_MENU, 0, KEYEVENTF_KEYUP),
-        ],
-    )?;
+    send(&[
+        key(VK_MENU, 0, KEYBD_EVENT_FLAGS(0)),
+        key(VK_MENU, 0, KEYEVENTF_KEYUP),
+    ])?;
     set_foreground(hwnd);
     Ok(())
 }

@@ -67,7 +67,7 @@ mod run {
     fn type_and_erase(target: u64, folder: &Path) -> Result<(), String> {
         std::thread::sleep(SHOWN);
         picture(target, &folder.join("1-antes.png"))?;
-        input::type_char(target, u16::from(b'a'))?;
+        input::type_char(target, 'a')?;
         println!("pulsada «a»");
         std::thread::sleep(SHOWN);
         picture(target, &folder.join("2-con-a.png"))?;
