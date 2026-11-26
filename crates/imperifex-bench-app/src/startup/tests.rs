@@ -82,7 +82,10 @@ fn a_cold_start_stops_if_processes_stay() {
     };
     let rig = rig(lingering, false);
     let error = measure(&rig, 3, true).unwrap_err();
-    assert!(error.contains("quedan procesos"), "{error}");
+    assert!(
+        error.contains("no salió") && error.contains("S2"),
+        "{error}"
+    );
     assert_eq!(rig.asked().len(), 2, "{:?}", rig.asked());
 }
 
@@ -134,4 +137,17 @@ fn a_new_window_of_another_program_is_not_taken_for_the_terminals() {
 #[test]
 fn no_runs_is_an_error() {
     assert!(measure(&rig(Behaviour::default(), false), 0, false).is_err());
+}
+
+#[test]
+fn the_notes_say_what_each_window_left_and_how_long_it_was_waited_for() {
+    let lingers = Behaviour {
+        lingers_for: 2,
+        ..Default::default()
+    };
+    let measurement = measure(&rig(lingers, true), 2, false).unwrap();
+    assert_eq!(
+        measurement.notes[1],
+        "Procesos que quedaban de cada ventana cerrada, y espera: 0 en 2 s; 0 en 2 s."
+    );
 }

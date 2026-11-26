@@ -131,8 +131,12 @@ impl Metric {
         use Unit::{MbPerS, Ms, Percent, PercentOfCore};
         const MB: Unit = Unit::Mb;
         let (group, unit, name) = match self {
-            Self::StartupCold => (Startup, Ms, "Arranque en frío"),
-            Self::StartupWarm => (Startup, Ms, "Arranque en caliente"),
+            Self::StartupCold => (Startup, Ms, "Arranque en frío, hasta la ventana visible"),
+            Self::StartupWarm => (
+                Startup,
+                Ms,
+                "Arranque en caliente, hasta la ventana visible",
+            ),
             Self::KeyLatency => (Key, Ms, "Latencia de tecla"),
             Self::OutputConsumed(_) => (Output, MbPerS, "Salida consumida"),
             Self::OutputSeen(_) => (Output, Ms, "Salida vista"),

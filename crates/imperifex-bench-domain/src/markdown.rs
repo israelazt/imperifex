@@ -163,8 +163,8 @@ mod tests {
 
 | Medida | Tanda | n | p50 | p95 | p99 | Dispersión |
 |---|---|---|---|---|---|---|
-| Arranque en caliente | 1 | 2 | 100.0 ms | 300.0 ms | 300.0 ms | 50.0 % |
-| Arranque en caliente | 2 | 1 | 120.0 ms | 120.0 ms | 120.0 ms | 0.0 % |
+| Arranque en caliente, hasta la ventana visible | 1 | 2 | 100.0 ms | 300.0 ms | 300.0 ms | 50.0 % |
+| Arranque en caliente, hasta la ventana visible | 2 | 1 | 120.0 ms | 120.0 ms | 120.0 ms | 0.0 % |
 
 ## Salida
 
