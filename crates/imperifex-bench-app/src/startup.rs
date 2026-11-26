@@ -11,10 +11,8 @@ use imperifex_bench_domain::profile::TerminalProfile;
 use imperifex_bench_domain::report::Measurement;
 use imperifex_domain::ports::Clock;
 
+use crate::ready_window::{look_before, watch_window, Drawn, Moment};
 use crate::window_session::{running, wait_for, Closed, SessionPorts, WindowSession};
-use drawn::{look_before, watch_window, Drawn, Moment};
-
-mod drawn;
 
 const EVERY_SECOND: Duration = Duration::from_secs(1);
 const BETWEEN_RUNS: Duration = Duration::from_secs(2);

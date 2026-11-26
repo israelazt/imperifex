@@ -13,6 +13,7 @@ pub mod latency;
 pub mod measure_window;
 pub mod memory_load;
 pub mod output_seen;
+mod ready_window;
 pub mod reports;
 pub mod screen_wait;
 pub mod startup;

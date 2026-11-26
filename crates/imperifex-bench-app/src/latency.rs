@@ -54,13 +54,19 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
         mode: LatencyMode,
         dir: &Path,
     ) -> Result<Measurement, String> {
+        let before = self.ports.look()?;
         let window = WindowSession::open(&self.ports.session, profile, dir)?;
-        let (timed, _) = then_close(window, |window| self.timed(window, presses, mode))?;
+        let ((timed, ready_note), _) = then_close(window, |window| {
+            let mut prepared = self.ports.prepare(window, before)?;
+            let timed = self.timed(window, prepared.watch.as_mut(), presses, mode)?;
+            Ok((timed, prepared.ready_note()))
+        })?;
         let metric = match mode {
             LatencyMode::Prompt => Metric::KeyLatencyPrompt,
             LatencyMode::Program => Metric::KeyLatencyProgram,
         };
-        let notes = timed.notes();
+        let mut notes = timed.notes();
+        notes.push(ready_note);
         Measurement::new(metric, timed.samples_ms, notes)
             .ok_or_else(|| "ninguna pulsación dio una muestra".to_string())
     }
@@ -68,12 +74,12 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
     fn timed(
         &self,
         window: &WindowSession<'_, C, D, P>,
+        watch: &mut dyn Watch,
         presses: u32,
         mode: LatencyMode,
     ) -> Result<presses::Timed, String> {
-        let mut watch = self.ports.prepare(window)?;
-        let latest = self.get_ready(window, watch.as_mut(), mode)?;
-        let mut screen = self.learn(watch.as_mut(), latest)?;
+        let latest = self.get_ready(window, watch, mode)?;
+        let mut screen = self.learn(watch, latest)?;
         let timed = presses::time(&self.ports, window, &mut screen, presses)?;
         if mode == LatencyMode::Program {
             self.ports.press(window, Key::Char('q'))?;

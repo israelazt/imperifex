@@ -3,6 +3,7 @@
 
 use std::path::PathBuf;
 
+use imperifex_bench_domain::desktop::Rect;
 use imperifex_bench_domain::metric::{Load, Metric};
 use imperifex_bench_domain::ports::MachineProbe;
 use imperifex_bench_domain::profile::TerminalProfile;
@@ -62,12 +63,19 @@ type Typing<A> = TypingPorts<
     <A as Adapters>::Keyboard,
 >;
 
-fn typing<A: Adapters>(adapters: &A) -> Typing<A> {
-    TypingPorts {
+/// The whole of the primary monitor.
+fn primary(machine: &impl MachineProbe) -> Result<Rect, String> {
+    primary_area(&machine.machine()?.monitors)
+        .ok_or_else(|| "no se sabe cuál es el monitor principal ni cuánto mide".to_string())
+}
+
+fn typing<A: Adapters>(adapters: &A, machine: &A::Machine) -> Result<Typing<A>, String> {
+    Ok(TypingPorts {
         session: session(adapters),
         screen: adapters.screen(),
         keyboard: adapters.keyboard(),
-    }
+        primary: primary(machine)?,
+    })
 }
 
 pub fn startup_report<A: Adapters>(
@@ -79,9 +87,7 @@ pub fn startup_report<A: Adapters>(
     report(terminal, adapters, |profile, machine| {
         let what = format!("{runs} ventanas, cerca de un minuto cada una");
         let (profile, home) = ready(profile, machine, adapters, &what)?;
-        let primary = primary_area(&machine.machine()?.monitors)
-            .ok_or("no se sabe cuál es el monitor principal ni cuánto mide")?;
-        StartupService::new(session(adapters), adapters.screen(), primary)
+        StartupService::new(session(adapters), adapters.screen(), primary(machine)?)
             .run(&profile, runs, cold, &home)
     })
 }
@@ -95,7 +101,7 @@ pub fn latency_report<A: Adapters>(
     report(terminal, adapters, |profile, machine| {
         let what = format!("{presses} pulsaciones por modo en una ventana propia");
         let (profile, home) = ready(profile, machine, adapters, &what)?;
-        let service = LatencyService::new(typing(adapters), adapters.current_exe()?);
+        let service = LatencyService::new(typing(adapters, machine)?, adapters.current_exe()?);
         modes
             .iter()
             .map(|&mode| service.run(&profile, presses, mode, &home))
@@ -112,9 +118,12 @@ type Output<'a, A> = OutputService<
     <A as Adapters>::Keyboard,
 >;
 
-fn output_service<A: Adapters>(adapters: &A) -> Result<Output<'_, A>, String> {
+fn output_service<'a, A: Adapters>(
+    adapters: &'a A,
+    machine: &A::Machine,
+) -> Result<Output<'a, A>, String> {
     Ok(OutputService {
-        ports: typing(adapters),
+        ports: typing(adapters, machine)?,
         files: adapters.files(),
         bench_exe: adapters.current_exe()?,
     })
@@ -129,7 +138,7 @@ pub fn output_report<A: Adapters>(
     report(terminal, adapters, |profile, machine| {
         let what = format!("{} cargas, {repeats} veces cada una", loads.len());
         let (profile, home) = ready(profile, machine, adapters, &what)?;
-        let service = output_service(adapters)?;
+        let service = output_service(adapters, machine)?;
         let mut measured = Vec::new();
         for &load in loads {
             measured.extend(service.run(&profile, load, default_mib(load), repeats, &home)?);
@@ -156,7 +165,7 @@ pub fn memory_report<A: Adapters>(terminal: &str, adapters: &A) -> Result<Report
         let (profile, home) = ready(profile, machine, adapters, what)?;
         let reading = || private_mb(&profile, adapters);
         MemoryService {
-            output: output_service(adapters)?,
+            output: output_service(adapters, machine)?,
             private_mb: &reading,
         }
         .run(&profile, &home)

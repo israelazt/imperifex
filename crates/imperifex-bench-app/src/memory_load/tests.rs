@@ -83,7 +83,8 @@ fn the_window_opens_only_after_90_seconds_of_nothing() {
         .borrow()
         .launched_at
         .clone();
-    assert_eq!(launched, [Duration::from_secs(90)]);
+    // And the second of calm of the look before the launch.
+    assert_eq!(launched, [Duration::from_secs(91)]);
 }
 
 #[test]

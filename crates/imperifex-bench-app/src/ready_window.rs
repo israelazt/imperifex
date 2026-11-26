@@ -1,6 +1,6 @@
 //! When a new window showed its first content and when it was ready (D19),
 //! told from the screen: against a picture of the primary monitor taken before
-//! the launch.
+//! the launch. `startup` times it; what types into a window waits for it (D25).
 
 use std::cell::Cell;
 use std::time::Duration;

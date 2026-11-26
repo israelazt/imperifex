@@ -50,7 +50,7 @@ fn in_a_program_the_echo_is_run_first_and_left_with_q() {
 #[test]
 fn the_region_watched_is_the_placed_window_without_its_top() {
     let (_, ports) = run(Script::showing_after(5), 1, LatencyMode::Prompt);
-    let region = ports.screen.shown.borrow().watched[0];
+    let region = ports.screen.shown.borrow().watched[1];
     assert_eq!(
         (region.x, region.y, region.w, region.h),
         (100, 140, 1280, 680)

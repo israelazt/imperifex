@@ -8,6 +8,7 @@ use imperifex_bench_domain::keys::Key;
 use imperifex_bench_domain::ports::{Desktop, Keyboard, ProcessProbe, ScreenWatch, Watch};
 use imperifex_domain::ports::Clock;
 
+use crate::ready_window::{look_before, watch_window, Before};
 use crate::screen_wait::{settle, Settled};
 use crate::window_session::{Closed, SessionPorts, WindowSession};
 
@@ -29,6 +30,27 @@ pub struct TypingPorts<C, D, P, S, K> {
     pub session: SessionPorts<C, D, P>,
     pub screen: S,
     pub keyboard: K,
+    /// The whole of the primary monitor, where a window has to open for the
+    /// bench to see it get ready.
+    pub primary: Rect,
+}
+
+/// A window that may be typed into.
+pub struct Prepared {
+    /// Watching the window where it was put.
+    pub watch: Box<dyn Watch>,
+    /// From the launch until the window was ready.
+    ready: Duration,
+}
+
+impl Prepared {
+    /// For the report: the number itself is what `startup` measures.
+    pub fn ready_note(&self) -> String {
+        format!(
+            "La ventana estuvo lista {:.1} s después de lanzarla; hasta entonces no se escribió nada.",
+            self.ready.as_secs_f64()
+        )
+    }
 }
 
 /// Waits for the screen to be still, counting from now.
@@ -52,9 +74,32 @@ pub fn then_close<C: Clock, D: Desktop, P: ProcessProbe, T>(
 impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
     TypingPorts<C, D, P, S, K>
 {
-    /// Places the window, starts watching it, waits for it to be still and
-    /// brings it to the front.
-    pub fn prepare(&self, window: &WindowSession<'_, C, D, P>) -> Result<Box<dyn Watch>, String> {
+    /// The primary monitor before the launch: without this picture there is no
+    /// telling when the window is ready, so none is to be opened.
+    pub fn look(&self) -> Result<Before, String> {
+        look_before(&self.screen, &self.session.clock, self.primary)
+            .map_err(|error| format!("{error}; no se abre ninguna ventana"))
+    }
+
+    /// Waits for the window to be ready where it opened (D25). Then places it,
+    /// starts watching it, waits for it to be still and brings it to the front.
+    pub fn prepare(
+        &self,
+        window: &WindowSession<'_, C, D, P>,
+        before: Before,
+    ) -> Result<Prepared, String> {
+        // It takes `before`, and with it lets go of the monitor before the
+        // window's own watch asks for it.
+        let ready = watch_window(
+            before,
+            &self.session.clock,
+            window.window().rect,
+            window.started_at,
+            window.visible_at,
+        )
+        .ready
+        .map_err(|why| format!("la ventana no llegó a estar lista: {why}; no se escribe nada"))?
+        .time;
         window.place(PLACE)?;
         let rect = window.rect_now()?;
         let mut watch = self.screen.watch(Rect {
@@ -64,7 +109,7 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
         })?;
         settle_now(watch.as_mut(), &self.session.clock)?;
         window.focus()?;
-        Ok(watch)
+        Ok(Prepared { watch, ready })
     }
 
     pub fn type_text(&self, window: &WindowSession<'_, C, D, P>, text: &str) -> Result<(), String> {
@@ -85,3 +130,6 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
         self.press(window, Key::Enter)
     }
 }
+
+#[cfg(test)]
+mod tests;

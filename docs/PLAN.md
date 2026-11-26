@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **bloques 0 a 7 programados salvo las pruebas 🖥; el planificador revisó el arranque y la línea base (2026-11-25)**. A.1 a A.4 hechos. Siguen, con permiso del autor, la 5.7; el ajuste A.5 (sin ventanas) antes de la 6.10; la 6.10 y la 7.3. Queda abierta la decisión D24 (en qué monitor abre la ventana), que responde el autor. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **bloques 0 a 7 programados salvo las pruebas 🖥; el planificador revisó el arranque y la línea base (2026-11-25)**. A.1 a A.5 hechos. Siguen, con permiso del autor, la 5.7, la 6.10 y la 7.3. Queda abierta la decisión D24 (en qué monitor abre la ventana), que responde el autor. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -789,7 +789,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - [x] 6.1 (2026-11-25) · [x] 6.2 (2026-11-25) · [x] 6.3 (2026-11-25) · [x] 6.4 (2026-11-25) · [x] 6.5 (2026-11-25) · [x] 6.6 (2026-11-25) · [x] 6.7 (2026-11-25) · [x] 6.8 (2026-11-25) · [x] 6.9 (2026-11-25) · [ ] 6.10
 - Pendiente de la 6.10 (2026-11-25): las órdenes `latency`, `output` y `memory` están programadas y subidas, **sin ejecutar ninguna vez en el PC real**: faltan el permiso del autor, las medidas y los puntos del paso 3. Antes, A.5. (La comprobación de la 6.2 con la pantalla desbloqueada ya se hizo: 18:38, abajo.)
 - [x] 7.1 (2026-11-25) · [x] 7.2 (2026-11-25) · [ ] 7.3
-- 2026-11-26, el planificador relee el plan contra el código: las órdenes que escriben empezarían antes de que Warp esté listo (D25, ajuste A.5, antes de la 6.10); queda abierta D24 (monitor de la ventana en la línea base); textos viejos corregidos (cabecera, 5.7, 6.5, 6.9, 6.10). [ ] A.5
+- 2026-11-26, el planificador relee el plan contra el código: las órdenes que escriben empezarían antes de que Warp esté listo (D25, ajuste A.5, antes de la 6.10); queda abierta D24 (monitor de la ventana en la línea base); textos viejos corregidos (cabecera, 5.7, 6.5, 6.9, 6.10). [x] A.5 (2026-11-26: probado solo con falsos; `look_before` y `watch_window` viven en `app/ready_window.rs`)
 
 **Primera medida de salida (M3, consumida), 2026-11-25:** el autor corrió `emit ascii` (release, 100 MiB, semilla 1) en una pestaña de Warp: 5,229 s, 19,1 MB/s (1 MB = 1 048 576 bytes). Es **una sola muestra**, no es la línea base: no se anotó el tamaño de la ventana ni qué más hacía el PC (había una sesión de Claude Code en el mismo Warp). «Consumida» es el tiempo hasta que la consola aceptó los bytes, no hasta que se vieron (eso lo medirá la 6.5). Sin comprobar: en qué trozos entrega la biblioteca estándar de Rust esos bytes a la consola y cuánto cuesta; es igual para todas las terminales que se midan con esta herramienta.
 

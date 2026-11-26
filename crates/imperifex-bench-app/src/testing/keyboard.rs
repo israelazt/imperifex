@@ -7,6 +7,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 
+use imperifex_bench_domain::desktop::Rect;
 use imperifex_bench_domain::keys::Key;
 use imperifex_bench_domain::ports::{Desktop, Keyboard};
 
@@ -19,6 +20,16 @@ use crate::measure_window::TypingPorts;
 /// How many pixels typed text, and a single letter, light up.
 const A_LINE: usize = 2000;
 const A_LETTER: usize = 8;
+/// The primary monitor of the typing fakes, with room for the fake windows.
+const PRIMARY: Rect = Rect {
+    x: 0,
+    y: 0,
+    w: 1920,
+    h: 1080,
+};
+/// A window that shows its content 100 ms after the launch, which comes once
+/// the monitor has been calm for a second.
+const OPENS_AT_ONCE: [(u64, usize); 2] = [(0, 0), (1100, 60_000)];
 
 /// How the screen answers to the keys.
 #[derive(Debug, Clone, Default)]
@@ -53,6 +64,7 @@ struct Typed {
     on_chord: Option<Rc<dyn Fn()>>,
     log: Vec<String>,
     targets: Vec<u64>,
+    times: Vec<Duration>,
     lit: usize,
     letters: usize,
 }
@@ -110,6 +122,11 @@ impl FakeKeyboard {
         self.typed.borrow().targets.clone()
     }
 
+    /// When each thing was typed.
+    pub fn times(&self) -> Vec<Duration> {
+        self.typed.borrow().times.clone()
+    }
+
     fn accept(&self, hwnd: u64, what: String) -> Result<(), String> {
         assert!(
             hwnd != AUTHORS_WINDOW && hwnd != AUTHORS_HIDDEN,
@@ -121,6 +138,7 @@ impl FakeKeyboard {
         let mut typed = self.typed.borrow_mut();
         typed.log.push(what);
         typed.targets.push(hwnd);
+        typed.times.push(self.clock.now());
         Ok(())
     }
 
@@ -206,6 +224,7 @@ pub type FakeTyping =
 /// A desktop with a screen and a keyboard that answers to the script.
 pub fn typing(rig: Rig, script: Script) -> FakeTyping {
     let screen = FakeScreen::new(&rig.ports.clock);
+    screen.shown.borrow_mut().opening = OPENS_AT_ONCE.to_vec();
     let keyboard = FakeKeyboard {
         clock: rig.ports.clock.clone(),
         desktop: rig.ports.desktop.clone(),
@@ -217,5 +236,6 @@ pub fn typing(rig: Rig, script: Script) -> FakeTyping {
         session: rig.ports,
         screen,
         keyboard,
+        primary: PRIMARY,
     }
 }

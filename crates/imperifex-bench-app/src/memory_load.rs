@@ -84,25 +84,33 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
             QUIET_BEFORE.as_secs()
         );
         self.output.ports.session.clock.sleep(QUIET_BEFORE);
+        let before = self.output.ports.look()?;
         let window = WindowSession::open(&self.output.ports.session, profile, dir)?;
-        let (measured, _) = then_close(window, |window| self.measure(window, profile, keys))?;
+        let (measured, _) = then_close(window, |window| {
+            let mut prepared = self.output.ports.prepare(window, before)?;
+            let mut measured = self.measure(window, prepared.watch.as_mut(), profile, keys)?;
+            if let Some(history) = measured.first_mut() {
+                history.notes.push(prepared.ready_note());
+            }
+            Ok(measured)
+        })?;
         Ok(measured)
     }
 
     fn measure(
         &self,
         window: &WindowSession<'_, C, D, P>,
+        watch: &mut dyn Watch,
         profile: &TerminalProfile,
         keys: Option<Chord>,
     ) -> Result<Vec<Measurement>, String> {
-        let mut watch = self.output.ports.prepare(window)?;
         let before = (self.private_mb)()?;
         self.output
-            .emit_and_wait(window, watch.as_mut(), Load::Ascii, HISTORY_MIB, || Ok(()))?;
+            .emit_and_wait(window, watch, Load::Ascii, HISTORY_MIB, || Ok(()))?;
         let full = (self.private_mb)()?;
         let mut notes = vec![SCROLLBACK_NOTE.to_string()];
         let tabs = match keys {
-            Some(keys) => self.tabs(window, watch.as_mut(), profile, keys)?,
+            Some(keys) => self.tabs(window, watch, profile, keys)?,
             None => None,
         };
         if tabs.is_none() {

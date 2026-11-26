@@ -81,20 +81,26 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
         repeats: u32,
         dir: &Path,
     ) -> Result<Vec<Measurement>, String> {
+        let before = self.ports.look()?;
         let window = WindowSession::open(&self.ports.session, profile, dir)?;
-        let (shown, _) = then_close(window, |window| {
-            let mut watch = self.ports.prepare(window)?;
+        let ((shown, ready_note), _) = then_close(window, |window| {
+            let mut prepared = self.ports.prepare(window, before)?;
+            let watch = prepared.watch.as_mut();
             let mut shown = Vec::new();
             for number in 0..repeats {
                 if number > 0 {
                     self.ports.enter_line(window, "cls")?;
-                    settle_now(watch.as_mut(), &self.ports.session.clock)?;
+                    settle_now(watch, &self.ports.session.clock)?;
                 }
-                shown.push(self.emit_once(window, watch.as_mut(), profile, load, mib)?);
+                shown.push(self.emit_once(window, watch, profile, load, mib)?);
             }
-            Ok(shown)
+            Ok((shown, prepared.ready_note()))
         })?;
-        measurements(load, &shown)
+        let mut measured = measurements(load, &shown)?;
+        if let Some(seen) = measured.first_mut() {
+            seen.notes.push(ready_note);
+        }
+        Ok(measured)
     }
 
     /// Runs one `emit` in the window and waits for it to be over and shown.

@@ -55,6 +55,9 @@ pub struct Shown {
     pub watched: Vec<Rect>,
     /// Why watching fails, if it does.
     pub refusal: Option<String>,
+    /// What watching a whole monitor shows: pictures with so many pixels lit,
+    /// each so long after the watch began. The same for every such watch.
+    pub opening: Vec<(u64, usize)>,
 }
 
 #[derive(Debug, Clone)]
@@ -106,9 +109,20 @@ impl ScreenWatch for FakeScreen {
     fn watch(&self, region: Rect) -> Result<Box<dyn Watch>, String> {
         let mut shown = self.shown.borrow_mut();
         shown.watched.push(region);
-        match &shown.refusal {
-            Some(why) => Err(why.clone()),
-            None => Ok(Box::new(self.watching())),
+        if let Some(why) = &shown.refusal {
+            return Err(why.clone());
         }
+        let opening = shown.opening.clone();
+        drop(shown);
+        // Only a whole monitor starts where the desktop counts from.
+        if (region.x, region.y) == (0, 0) {
+            let size = (region.w as usize, region.h as usize);
+            let began = self.clock.now();
+            for (after, lit) in opening {
+                let at = began + Duration::from_millis(after);
+                self.show(monitor(at, size, 0, lit));
+            }
+        }
+        Ok(Box::new(self.watching()))
     }
 }

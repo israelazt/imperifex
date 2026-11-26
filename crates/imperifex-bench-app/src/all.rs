@@ -20,7 +20,9 @@ const STARTUP_RUNS: u32 = 10;
 const PRESSES: u32 = 200;
 const REPEATS: u32 = 3;
 /// A guess from how long each wait can take: the orders have not been timed.
-const ESTIMATE: &str = "unos 37 minutos (estimación sin medir)";
+/// It counts, for each of the 9 windows typed into, up to 10 s of calm before
+/// the launch and 15 s until the window is ready (in Warp, about 6 s in all).
+const ESTIMATE: &str = "unos 41 minutos (estimación sin medir)";
 const REPORT_FILE: &str = "report.json";
 
 /// One part of the baseline: what it is called and how it is measured.
