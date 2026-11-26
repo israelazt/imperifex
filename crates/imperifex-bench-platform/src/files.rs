@@ -42,6 +42,14 @@ impl FileStore for DiskFiles {
     fn temp_dir(&self) -> Result<PathBuf, String> {
         Ok(std::env::temp_dir().join("imperifex-bench"))
     }
+
+    fn exists(&self, path: &Path) -> bool {
+        path.exists()
+    }
+
+    fn make_dir(&self, path: &Path) -> Result<(), String> {
+        fs::create_dir_all(path).map_err(failed("crear la carpeta", path))
+    }
 }
 
 #[cfg(test)]
@@ -73,6 +81,16 @@ mod tests {
         assert_eq!(DiskFiles.read(&path), Ok(Some(b"second".to_vec())));
         let left: Vec<_> = fs::read_dir(path.parent().unwrap()).unwrap().collect();
         assert_eq!(left.len(), 1, "no temporary file stays");
+    }
+
+    #[test]
+    fn a_folder_is_made_with_those_above_it_and_then_it_exists() {
+        let scratch = Scratch::new("folders");
+        let folder = scratch.0.join("a").join("b");
+        assert!(!DiskFiles.exists(&folder));
+        DiskFiles.make_dir(&folder).unwrap();
+        DiskFiles.make_dir(&folder).unwrap();
+        assert!(DiskFiles.exists(&folder));
     }
 
     #[test]

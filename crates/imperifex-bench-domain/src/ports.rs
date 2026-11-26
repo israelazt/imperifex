@@ -26,6 +26,11 @@ pub trait FileStore {
     fn read(&self, path: &Path) -> Result<Option<Vec<u8>>, String>;
     /// A folder for the bench's passing files. It may not exist yet.
     fn temp_dir(&self) -> Result<PathBuf, String>;
+    /// Whether there is a file or a folder there; one that cannot be looked at
+    /// counts as not there.
+    fn exists(&self, path: &Path) -> bool;
+    /// Makes the folder and those above it. One that is already there is fine.
+    fn make_dir(&self, path: &Path) -> Result<(), String>;
 }
 
 /// The processes of the system. Reading them changes nothing.

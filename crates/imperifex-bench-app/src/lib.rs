@@ -11,6 +11,7 @@ pub mod startup;
 #[cfg(test)]
 mod testing;
 pub mod window_session;
+pub mod workdir;
 
 pub use command::{Adapters, Command, Output};
 pub use emit::EmitService;

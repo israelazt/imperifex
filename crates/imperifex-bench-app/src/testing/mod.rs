@@ -7,7 +7,7 @@ pub mod processes_of;
 pub mod system;
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::Duration;
@@ -95,6 +95,7 @@ impl Output for FakeOutput {
 #[derive(Default)]
 pub struct FakeFiles {
     pub files: RefCell<HashMap<PathBuf, Vec<u8>>>,
+    pub folders: RefCell<HashSet<PathBuf>>,
     pub failure: Option<String>,
 }
 
@@ -115,5 +116,17 @@ impl FileStore for FakeFiles {
 
     fn temp_dir(&self) -> Result<PathBuf, String> {
         Ok(PathBuf::from("temp"))
+    }
+
+    fn exists(&self, path: &Path) -> bool {
+        self.files.borrow().contains_key(path) || self.folders.borrow().contains(path)
+    }
+
+    fn make_dir(&self, path: &Path) -> Result<(), String> {
+        if let Some(reason) = &self.failure {
+            return Err(reason.clone());
+        }
+        self.folders.borrow_mut().insert(path.to_path_buf());
+        Ok(())
     }
 }

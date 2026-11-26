@@ -19,3 +19,4 @@ pub mod stats;
 pub mod tree;
 pub mod usage;
 pub mod windows;
+pub mod workdir;
