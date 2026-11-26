@@ -325,3 +325,33 @@ fn a_screen_that_cannot_be_watched_is_noted_and_the_visible_time_stays() {
     );
     assert_eq!(rig.asked().len(), 4, "both windows were closed");
 }
+
+#[test]
+fn how_much_a_time_moved_is_told_whether_it_rose_or_fell() {
+    assert_eq!(
+        moved("Lista", &[1761.9, 1500.0, 2777.4]).unwrap(),
+        "Lista: de 1762 a 2777 ms de la primera a la última muestra, +1015 ms."
+    );
+    let fell = moved("Visible", &[84.0, 70.0]).unwrap();
+    assert!(fell.ends_with("-14 ms."), "{fell}");
+}
+
+#[test]
+fn with_a_single_sample_there_is_nothing_to_compare() {
+    assert_eq!(moved("Lista", &[1.0]), None);
+    assert_eq!(moved("Lista", &[]), None);
+}
+
+#[test]
+fn each_of_the_three_times_says_how_much_it_moved() {
+    let rig = rig(Behaviour::default(), true);
+    let (service, screen) = service(&rig);
+    // The same start twice over, the second one slower to be ready.
+    screen.shown.borrow_mut().opening = vec![(0, 0), (1100, 60_000)];
+    let all = service.run(&warp(), 2, false, home()).unwrap();
+    assert_eq!(all.len(), 3, "{:?}", samples(&all));
+    for (measured, what) in all.iter().zip(["Visible", "Primer contenido", "Lista"]) {
+        let last = measured.notes.last().unwrap();
+        assert!(last.starts_with(&format!("{what}: de ")), "{last}");
+    }
+}

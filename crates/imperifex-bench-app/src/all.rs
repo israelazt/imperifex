@@ -19,10 +19,9 @@ const FOOTPRINT_SECONDS: u64 = 60;
 const STARTUP_RUNS: u32 = 10;
 const PRESSES: u32 = 200;
 const REPEATS: u32 = 3;
-/// A guess from how long each wait can take: the orders have not been timed.
-/// It counts, for each of the 9 windows typed into, up to 10 s of calm before
-/// the launch and 15 s until the window is ready (in Warp, about 6 s in all).
-const ESTIMATE: &str = "unos 41 minutos (estimación sin medir)";
+/// The sum of its parts as Warp took them, each run on its own: the footprint
+/// 1 min, ten starts 11, both latencies 5, the six loads 8 and the memory 4.
+const ESTIMATE: &str = "unos 30 minutos (medidos por partes el 2026-11-26)";
 const REPORT_FILE: &str = "report.json";
 
 /// One part of the baseline: what it is called and how it is measured.

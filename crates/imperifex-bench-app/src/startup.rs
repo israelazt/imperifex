@@ -66,6 +66,18 @@ fn ms(time: Duration) -> f64 {
     time.as_secs_f64() * 1000.0
 }
 
+/// How much a time moved from the first sample to the last, if there are two to
+/// compare (D26). Warp's ready window got slower with each run.
+fn moved(what: &str, samples: &[f64]) -> Option<String> {
+    let [first, .., last] = samples else {
+        return None;
+    };
+    Some(format!(
+        "{what}: de {first:.0} a {last:.0} ms de la primera a la última muestra, {:+.0} ms.",
+        last.round() - first.round()
+    ))
+}
+
 /// One of the screen's times over the runs; `None` if none gave it.
 fn seen_on_screen(
     runs: &[Run],
@@ -115,9 +127,21 @@ fn measurements(runs: &[Run], cold: bool) -> Result<Vec<Measurement>, String> {
         seen_on_screen(runs, content, content_of, WHAT_IS_CONTENT),
         seen_on_screen(runs, ready, ready_of, WHAT_IS_READY),
     ];
-    Ok(std::iter::once(first)
+    let mut all: Vec<Measurement> = std::iter::once(first)
         .chain(rest.into_iter().flatten())
-        .collect())
+        .collect();
+    for measured in &mut all {
+        let what = if measured.metric == visible {
+            "Visible"
+        } else if measured.metric == content {
+            "Primer contenido"
+        } else {
+            "Lista"
+        };
+        let note = moved(what, &measured.samples);
+        measured.notes.extend(note);
+    }
+    Ok(all)
 }
 
 pub struct StartupService<C, D, P, S> {

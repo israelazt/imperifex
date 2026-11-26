@@ -177,7 +177,7 @@ Uso:
   Todas admiten --out <archivo.json>.
 
   imperifex-bench all <terminal> [--out-dir <carpeta>]
-      TODA LA LÍNEA BASE, unos 41 minutos (sin medir) sin tocar el PC. Deja
+      TODA LA LÍNEA BASE, unos 30 minutos (medido por partes) sin tocar el PC. Deja
       report.json; sin --out-dir, en bench/results/<fecha>-<terminal>-<n> de la
       carpeta actual.
   imperifex-bench report <carpeta>... --md <archivo.md>
