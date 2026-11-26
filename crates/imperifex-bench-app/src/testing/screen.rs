@@ -28,6 +28,25 @@ pub fn picture(at: Duration, lit: usize) -> ScreenFrame {
     }
 }
 
+/// A picture of a whole monitor, black but for `pixels` white ones from the
+/// start of row `row`.
+pub fn monitor(
+    at: Duration,
+    (width, height): (usize, usize),
+    row: usize,
+    pixels: usize,
+) -> ScreenFrame {
+    let mut bgra = vec![0; width * height * 4];
+    bgra[row * width * 4..(row * width + pixels) * 4].fill(255);
+    ScreenFrame {
+        at,
+        accumulated: 1,
+        width,
+        height,
+        bgra,
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Shown {
     /// Pictures yet to come, in order of time.

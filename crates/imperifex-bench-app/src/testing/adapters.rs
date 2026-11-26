@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use imperifex_bench_domain::ports::{FileStore, MachineProbe};
-use imperifex_bench_domain::report::Machine;
+use imperifex_bench_domain::report::{Machine, Monitor};
 
 use super::desktop::{rig, Behaviour, FakeDesktop};
 use super::keyboard::{typing, FakeKeyboard, Script};
@@ -60,6 +60,13 @@ impl MachineProbe for FakeMachine {
     fn machine(&self) -> Result<Machine, String> {
         Ok(Machine {
             os: "os falso".into(),
+            monitors: vec![Monitor {
+                name: "falso".into(),
+                width: 1920,
+                height: 1080,
+                hz: 144,
+                primary: true,
+            }],
             ..Default::default()
         })
     }

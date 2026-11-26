@@ -1,18 +1,32 @@
 use std::time::Duration;
 
+use imperifex_bench_domain::screen::ScreenFrame;
+
 use super::*;
 use crate::testing::desktop::{home, rig, Behaviour, FakeDesktop, Rig, FIRST_PID};
 use crate::testing::processes_of::DesktopProcesses;
-use crate::testing::screen::{picture, FakeScreen};
+use crate::testing::screen::{monitor, FakeScreen};
 use crate::testing::system::warp;
 use crate::testing::FakeClock;
+
+/// A monitor with room for the fake windows, 1280x800 at its corner, and some
+/// to spare below them.
+const MONITOR: (usize, usize) = (1920, 1080);
+const PRIMARY: Rect = Rect {
+    x: 0,
+    y: 0,
+    w: 1920,
+    h: 1080,
+};
+/// A row below the windows.
+const UNDER_THE_WINDOW: usize = 900;
 
 type Service = StartupService<FakeClock, FakeDesktop, DesktopProcesses, FakeScreen>;
 
 fn service(rig: &Rig) -> (Service, FakeScreen) {
     let screen = FakeScreen::new(&rig.ports.clock);
     (
-        StartupService::new(rig.ports.clone(), screen.clone()),
+        StartupService::new(rig.ports.clone(), screen.clone(), PRIMARY),
         screen,
     )
 }
@@ -161,32 +175,152 @@ fn the_notes_say_what_each_window_left_and_how_long_it_was_waited_for() {
     );
 }
 
-#[test]
-fn the_drawn_time_is_the_last_big_change_of_the_window() {
+/// A monitor with `pixels` lit from the top, presented at `ms`. The screen is
+/// found calm 1000 ms after the first of them, and the launch comes then.
+fn at(ms: u64, pixels: usize) -> ScreenFrame {
+    monitor(Duration::from_millis(ms), MONITOR, 0, pixels)
+}
+
+/// What one warm start measures with these pictures.
+fn watched(pictures: impl IntoIterator<Item = ScreenFrame>) -> Vec<Measurement> {
     let rig = rig(Behaviour::default(), true);
     let (service, screen) = service(&rig);
-    for (at, lit) in [(20, 0), (100, 4000), (300, 8000)] {
-        screen.show(picture(Duration::from_millis(at), lit));
+    for picture in pictures {
+        screen.show(picture);
     }
     let all = service.run(&warp(), 1, false, home()).unwrap();
-    assert_eq!(all[1].metric, Metric::StartupWarmDrawn);
-    assert_eq!(all[1].samples, [300.0]);
-    assert_eq!(all[0].samples, [0.0]);
-    let watched = screen.shown.borrow().watched.clone();
-    assert_eq!((watched[0].w, watched[0].h), (1280, 800), "where it opened");
+    assert_eq!(rig.asked().len(), 2, "the window was closed");
+    all
+}
+
+fn samples(all: &[Measurement]) -> Vec<(Metric, &[f64])> {
+    all.iter()
+        .map(|m| (m.metric, m.samples.as_slice()))
+        .collect()
+}
+
+fn notes(all: &[Measurement]) -> String {
+    all[0].notes.join(" ")
 }
 
 #[test]
-fn a_window_that_cannot_be_watched_is_noted_and_the_visible_time_stays() {
+fn content_a_pause_and_a_second_change_give_both_times() {
+    let all = watched([at(10, 0), at(2300, 20_000), at(3500, 60_000)]);
+    assert_eq!(
+        samples(&all),
+        [
+            (Metric::StartupWarm, [0.0].as_slice()),
+            (Metric::StartupWarmContent, [1300.0].as_slice()),
+            (Metric::StartupWarmReady, [2500.0].as_slice()),
+        ]
+    );
+}
+
+#[test]
+fn a_window_drawn_by_the_first_picture_after_it_shows_has_its_content_there() {
+    let all = watched([at(10, 0), at(1001, 60_000)]);
+    assert_eq!(all[1].samples, [1.0]);
+    assert_eq!(all[2].samples, [1.0]);
+}
+
+#[test]
+fn a_change_outside_the_window_is_not_its_content() {
+    let elsewhere = monitor(
+        Duration::from_millis(1500),
+        MONITOR,
+        UNDER_THE_WINDOW,
+        60_000,
+    );
+    let all = watched([at(10, 0), elsewhere]);
+    assert_eq!(all.len(), 1, "{:?}", samples(&all));
+}
+
+#[test]
+fn with_no_change_there_is_neither_time_and_the_visible_one_stays() {
+    let all = watched([at(10, 0)]);
+    assert_eq!(all.len(), 1);
+    assert_eq!(all[0].samples, [0.0]);
+    let notes = notes(&all);
+    assert!(
+        notes.contains("Tanda 1 sin primer contenido: la ventana no cambió")
+            && notes.contains("Tanda 1 sin ventana lista"),
+        "{notes}"
+    );
+}
+
+#[test]
+fn a_window_that_never_stays_still_keeps_its_first_content() {
+    let blinking = (0..40).map(|n| at(1500 + n * 500, (n as usize % 2) * 30_000 + 20_000));
+    let all = watched(std::iter::once(at(10, 0)).chain(blinking));
+    assert_eq!(
+        all.iter().map(|m| m.metric).collect::<Vec<_>>(),
+        [Metric::StartupWarm, Metric::StartupWarmContent]
+    );
+    let notes = notes(&all);
+    assert!(
+        notes.contains("sin ventana lista: la pantalla no se asentó"),
+        "{notes}"
+    );
+}
+
+#[test]
+fn a_screen_that_is_not_calm_before_the_launch_gives_only_the_visible_time() {
+    let busy = (0..30).map(|n| at(10 + n * 500, (n as usize % 2) * 60_000));
+    let all = watched(busy);
+    assert_eq!(all.len(), 1);
+    let notes = notes(&all);
+    assert!(
+        notes.contains("antes de lanzar, la pantalla no se asentó"),
+        "{notes}"
+    );
+}
+
+#[test]
+fn a_window_that_does_not_fit_on_the_primary_monitor_is_told_where_it_opened() {
+    let rig = rig(Behaviour::default(), true);
+    let screen = FakeScreen::new(&rig.ports.clock);
+    screen.show(monitor(Duration::from_millis(10), (1000, 700), 0, 0));
+    let small = Rect {
+        w: 1000,
+        h: 700,
+        ..PRIMARY
+    };
+    let service = StartupService::new(rig.ports, screen, small);
+    let all = service.run(&warp(), 1, false, home()).unwrap();
+    assert_eq!(all.len(), 1);
+    let notes = notes(&all);
+    assert!(notes.contains("abrió en (0, 0), de 1280x800"), "{notes}");
+}
+
+#[test]
+fn the_whole_primary_monitor_is_watched_from_before_the_launch() {
     let rig = rig(Behaviour::default(), true);
     let (service, screen) = service(&rig);
-    screen.shown.borrow_mut().refusal = Some("entre dos monitores".into());
+    service.run(&warp(), 1, false, home()).unwrap();
+    assert_eq!(screen.shown.borrow().watched, [PRIMARY]);
+}
+
+#[test]
+fn a_time_from_a_picture_that_adds_up_several_is_noted() {
+    let mut joined = at(2300, 60_000);
+    joined.accumulated = 3;
+    let all = watched([at(10, 0), joined]);
+    for measured in &all[1..] {
+        assert!(measured.notes[1].ends_with(": 1."), "{:?}", measured.notes);
+    }
+}
+
+#[test]
+fn a_screen_that_cannot_be_watched_is_noted_and_the_visible_time_stays() {
+    let rig = rig(Behaviour::default(), true);
+    let (service, screen) = service(&rig);
+    screen.shown.borrow_mut().refusal = Some("sin duplicación".into());
     let all = service.run(&warp(), 2, false, home()).unwrap();
     assert_eq!(all.len(), 1);
     assert_eq!(all[0].summary.count, 2);
-    let notes = all[0].notes.join(" ");
+    let notes = notes(&all);
     assert!(
-        notes.contains("Tanda 2 sin ventana dibujada: entre dos monitores"),
+        notes.contains("Tanda 2 sin primer contenido: sin duplicación"),
         "{notes}"
     );
     assert_eq!(rig.asked().len(), 4, "both windows were closed");

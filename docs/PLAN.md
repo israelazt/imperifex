@@ -758,7 +758,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - **Bloqueo (2026-11-25), 5.7 y 6.5:** en la primera prueba de `startup` la ventana de Warp contó como visible a los 91 ms y no mostraba nada en pantalla; la regla de 6.5 («500 ms sin cambios» desde que es visible) la dio por **dibujada** en el mismo instante y la cerró. «Dibujada» así no mide nada, y la carpeta en que abre no se pudo ver. Lo decide el planificador (ver «Hechos medidos»). La 5.7 sigue sin marcar.
 - 2026-11-25 22:05: medido cuándo aparece el contenido (ver «Cuándo aparece el contenido de Warp»): primer marco entre 1,2 y 1,3 s tras ser visible, sesión lista entre 2,3 y 2,4 s, y la ventana abre en `home`. El bloqueo sigue hasta que el planificador defina «dibujada».
 - 2026-11-25, el planificador cierra el bloqueo de 5.7 y 6.5 y los dos puntos de la 6.9, por encargo del autor: decisiones D13 y D15 (cambiadas) y D19 a D23, y ajustes A.1 a A.4.
-- [x] A.1 (2026-11-25) · [x] A.2 (2026-11-25) · [ ] A.3 · [ ] A.4
+- [x] A.1 (2026-11-25) · [x] A.2 (2026-11-25) · [x] A.3 (2026-11-25: la imagen inicial llega sin cambiar el adaptador; ver «Primera imagen de una duplicación nueva») · [ ] A.4
 - [x] 6.1 (2026-11-25) · [x] 6.2 (2026-11-25) · [x] 6.3 (2026-11-25) · [x] 6.4 (2026-11-25) · [x] 6.5 (2026-11-25) · [x] 6.6 (2026-11-25) · [x] 6.7 (2026-11-25) · [x] 6.8 (2026-11-25) · [x] 6.9 (2026-11-25) · [ ] 6.10
 - Pendiente de la 6.10 (2026-11-25): las órdenes `latency`, `output` y `memory` están programadas y subidas, **sin ejecutar ninguna vez en el PC real**: faltan el permiso del autor, las medidas y los puntos del paso 3. Antes, repetir la comprobación de la 6.2 con la pantalla desbloqueada.
 - [x] 7.1 (2026-11-25) · [x] 7.2 (2026-11-25) · [ ] 7.3
@@ -796,6 +796,15 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 **Memoria (6.9), 2026-11-25, dos puntos para el planificador:** (a) **sin programar el paso 1** («esperar los restos de ventanas anteriores antes de abrir»): al arrancar no hay foto con la que saber qué es un resto, y no se inventó otra regla. Cada `close` del banco ya espera los suyos, así que dentro de `all` queda cubierto; lanzada sola justo después de otra orden que se detuvo, no. (b) El plan dice «1 millón de líneas (~82 MiB)»: un millón de líneas de 82 bytes son 78,2 MiB; se emiten 79 MiB.
 
 **Adaptador DXGI (6.2), comprobado con imágenes el 2026-11-25 a las 18:38, con la pantalla desbloqueada:** `measure_watching_a_window_sized_region` en release, región de 1280×680 en (100, 140), 5 s: 89 imágenes (ninguna juntaba varias presentaciones); de presentada a leída p50 1,46 ms y p95 9,20 ms. No se controló qué había en pantalla. Queda resuelto lo pendiente de la nota anterior. La latencia usa el instante de presentación, así que este retraso no entra en las muestras.
+
+### Primera imagen de una duplicación nueva (A.3, paso 1), 2026-11-25 23:50
+
+`measure_the_first_updates_of_a_new_duplication` (en `platform/src/screen`), en release: tres duplicaciones nuevas del monitor entero por monitor, 2 s cada una, anotando los avisos antes de filtrarlos. Solo lee.
+
+- **El primer aviso llega con `LastPresentTime = 0` y la imagen negra entera** (0 píxeles distintos de negro, en las 18 duplicaciones de las tres tandas): no sirve de imagen inicial. La condición del paso 1 («si llega con 0, se entrega») no se da, y el adaptador lo sigue descartando.
+- **Con la pantalla quieta llega enseguida la imagen completa como aviso normal:** en el principal, 3 de 3, exactamente dos avisos en 2 s; el segundo, con `LastPresentTime` 9 a 12 ms después de creada la duplicación, se leyó 19 a 31 ms después. El adaptador **no necesita cambios** y no hay Bloqueo. Se midió con la sesión de Claude Code parada (tanda lanzada en segundo plano tras terminar su turno). El secundario tenía algo en movimiento (287 avisos en 2 s) y no prueba nada sobre pantalla quieta.
+- Crear el dispositivo y la duplicación tarda 220 a 300 ms; `startup` lo hace antes de lanzar, así que no entra en las muestras.
+- **Sin medir:** cuánto cuesta copiar y comparar el monitor entero (1920×1080) mientras Warp arranca. No cambia los instantes (son los de presentación), pero si el banco lee despacio habrá más muestras que junten presentaciones; cada informe dice cuántas.
 
 ### Primera prueba de `startup` con el diseño revisado (5.7), 2026-11-25 18:51
 

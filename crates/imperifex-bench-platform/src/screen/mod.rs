@@ -172,6 +172,64 @@ mod tests {
         assert!(error.contains("-100000"), "{error}");
     }
 
+    /// What a new duplication hands over before anything is filtered out, on
+    /// each monitor: whether a still screen gives a first picture to compare
+    /// against.
+    /// `cargo test --release -p imperifex-bench-platform measure_the_first -- --ignored --nocapture`
+    #[test]
+    #[ignore = "a measurement, run by hand on a real screen"]
+    fn measure_the_first_updates_of_a_new_duplication() {
+        use imperifex_domain::ports::Clock;
+
+        let clock = crate::QpcClock::new();
+        for (monitor, x) in [("primary", 0), ("secondary", 1920)] {
+            let region = Rect {
+                x,
+                y: 0,
+                w: 1920,
+                h: 1080,
+            };
+            for round in 1..=3 {
+                let asked = clock.monotonic();
+                let watch = DxgiWatch::new(region).unwrap();
+                let made = clock.monotonic();
+                let duplication = watch.duplication.as_ref().unwrap();
+                let start = Instant::now();
+                let mut seen = 0;
+                while start.elapsed() < Duration::from_secs(2) {
+                    let Ok(held) = dxgi::acquire(duplication, 200) else {
+                        continue;
+                    };
+                    seen += 1;
+                    if seen > 4 {
+                        continue;
+                    }
+                    let presented = held.info.LastPresentTime;
+                    let at = qpc_to_duration(presented, watch.frequency);
+                    let pixels = watch.staging.read(&held.picture().unwrap()).unwrap();
+                    let lit = pixels.chunks(4).filter(|p| p[..3] != [0, 0, 0]).count();
+                    println!(
+                        "{monitor} {round} · update {seen} after {:?}: {}, joined {}, {lit} pixels not black",
+                        start.elapsed(),
+                        if presented == 0 {
+                            "LastPresentTime 0".to_string()
+                        } else {
+                            format!(
+                                "presented {:.1} ms from the duplication",
+                                (at.as_secs_f64() - made.as_secs_f64()) * 1000.0
+                            )
+                        },
+                        held.info.AccumulatedFrames
+                    );
+                }
+                println!(
+                    "{monitor} {round} · {seen} updates in 2 s; making the duplication took {:?}",
+                    made - asked
+                );
+            }
+        }
+    }
+
     /// `cargo test --release -p imperifex-bench-platform measure_watching -- --ignored --nocapture`
     #[test]
     #[ignore = "a measurement, run by hand on a real screen"]

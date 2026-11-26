@@ -160,10 +160,11 @@ Uso:
       muestra por segundo durante 60 s. Solo lee: no abre ni cierra nada.
       Para medirla en reposo, no la uses mientras corre.
   imperifex-bench startup <terminal> [--runs N] [--cold] [--out <archivo.json>]
-      ABRE Y CIERRA VENTANAS de la terminal, 10 veces, y mide cuánto tarda en
-      verse cada una. No uses el PC mientras corre: cerca de un minuto por vez,
-      por la espera de lo que deja cada ventana. Con --cold la terminal tiene
-      que estar cerrada del todo (README).
+      ABRE Y CIERRA VENTANAS de la terminal, 10 veces, y mide cuánto tarda
+      cada una en verse, en mostrar contenido y en estar lista. No uses el PC
+      mientras corre: cerca de un minuto por vez, por la espera de lo que deja
+      cada ventana. Con --cold la terminal tiene que estar cerrada del todo
+      (README).
 
   Las tres que siguen ABREN UNA VENTANA Y ESCRIBEN EN ELLA. No toques el
   teclado ni el ratón mientras corren.

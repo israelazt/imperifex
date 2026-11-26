@@ -4,8 +4,10 @@
 use std::path::PathBuf;
 
 use imperifex_bench_domain::metric::{Load, Metric};
+use imperifex_bench_domain::ports::MachineProbe;
 use imperifex_bench_domain::profile::TerminalProfile;
 use imperifex_bench_domain::report::{Measurement, Report};
+use imperifex_bench_domain::screen::primary_area;
 use imperifex_domain::log_info;
 
 use super::{expanded_exe, report};
@@ -77,7 +79,10 @@ pub fn startup_report<A: Adapters>(
     report(terminal, adapters, |profile, machine| {
         let what = format!("{runs} ventanas, cerca de un minuto cada una");
         let (profile, home) = ready(profile, machine, adapters, &what)?;
-        StartupService::new(session(adapters), adapters.screen()).run(&profile, runs, cold, &home)
+        let primary = primary_area(&machine.machine()?.monitors)
+            .ok_or("no se sabe cuál es el monitor principal ni cuánto mide")?;
+        StartupService::new(session(adapters), adapters.screen(), primary)
+            .run(&profile, runs, cold, &home)
     })
 }
 

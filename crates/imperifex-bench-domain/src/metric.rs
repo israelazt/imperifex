@@ -55,8 +55,10 @@ impl Load {
 pub enum Metric {
     StartupCold,
     StartupWarm,
-    StartupColdDrawn,
-    StartupWarmDrawn,
+    StartupColdContent,
+    StartupWarmContent,
+    StartupColdReady,
+    StartupWarmReady,
     KeyLatencyPrompt,
     KeyLatencyProgram,
     OutputConsumed(Load),
@@ -140,12 +142,16 @@ impl Metric {
                 Ms,
                 "Arranque en caliente, hasta la ventana visible",
             ),
-            Self::StartupColdDrawn => (Startup, Ms, "Arranque en frío, hasta la ventana dibujada"),
-            Self::StartupWarmDrawn => (
+            Self::StartupColdContent => {
+                (Startup, Ms, "Arranque en frío, hasta el primer contenido")
+            }
+            Self::StartupWarmContent => (
                 Startup,
                 Ms,
-                "Arranque en caliente, hasta la ventana dibujada",
+                "Arranque en caliente, hasta el primer contenido",
             ),
+            Self::StartupColdReady => (Startup, Ms, "Arranque en frío, hasta la ventana lista"),
+            Self::StartupWarmReady => (Startup, Ms, "Arranque en caliente, hasta la ventana lista"),
             Self::KeyLatencyPrompt => (Key, Ms, "Tecla en el prompt"),
             Self::KeyLatencyProgram => (Key, Ms, "Tecla en un programa"),
             Self::OutputConsumed(_) => (Output, MbPerS, "Salida consumida"),
@@ -196,8 +202,10 @@ mod tests {
         let mut all = vec![
             Metric::StartupCold,
             Metric::StartupWarm,
-            Metric::StartupColdDrawn,
-            Metric::StartupWarmDrawn,
+            Metric::StartupColdContent,
+            Metric::StartupWarmContent,
+            Metric::StartupColdReady,
+            Metric::StartupWarmReady,
             Metric::KeyLatencyPrompt,
             Metric::KeyLatencyProgram,
             Metric::MemoryIdlePrivate,
