@@ -56,6 +56,19 @@ fn report<A: Adapters>(
     })
 }
 
+/// The variables whose folders say who the author is.
+const PERSONAL_FOLDERS: [&str; 3] = ["TEMP", "LOCALAPPDATA", "USERPROFILE"];
+
+/// The JSON of a report as it may be published. Every report leaves the bench
+/// through here (D22).
+pub fn public_json(report: &Report, machine: &impl MachineProbe) -> String {
+    let folders: Vec<(String, String)> = PERSONAL_FOLDERS
+        .iter()
+        .filter_map(|name| Some((machine.env_var(name)?, format!("%{name}%"))))
+        .collect();
+    report.without_folders(&folders).to_json()
+}
+
 /// The report of a terminal with nothing measured yet.
 pub fn empty_report<A: Adapters>(terminal: &str, adapters: &A) -> Result<Report, String> {
     report(terminal, adapters, |_, _| Ok(Vec::new()))

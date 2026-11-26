@@ -11,7 +11,8 @@ use imperifex_domain::log_info;
 use crate::command::Adapters;
 use crate::latency::LatencyMode;
 use crate::reports::{
-    empty_report, footprint_report, latency_report, memory_report, output_report, startup_report,
+    empty_report, footprint_report, latency_report, memory_report, output_report, public_json,
+    startup_report,
 };
 
 const FOOTPRINT_SECONDS: u64 = 60;
@@ -112,7 +113,10 @@ pub fn run_all<A: Adapters>(
         "toda la línea base de {terminal}: {ESTIMATE}. No toques el PC hasta que termine; el informe queda en {}",
         file.display()
     );
-    let save = |report: &Report| adapters.files().write(&file, report.to_json().as_bytes());
+    let save = |report: &Report| {
+        let json = public_json(report, &adapters.machine());
+        adapters.files().write(&file, json.as_bytes())
+    };
     // Written before anything is measured: a folder that cannot be written is
     // found out now, and not after half an hour.
     save(&report)?;

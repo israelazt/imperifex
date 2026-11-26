@@ -38,6 +38,19 @@ fn the_report_is_left_in_the_folder_asked_for() {
 }
 
 #[test]
+fn a_failure_with_a_personal_path_is_saved_without_it() {
+    let adapters = FakeAdapters {
+        no_gpu: Some("no se abre LOCAL/Temp/gpu.log".into()),
+        ..Default::default()
+    };
+    let all = run(&adapters, Some(Path::new("out"))).unwrap();
+    let saved = adapters.files.read(&all.file).unwrap().unwrap();
+    let saved = Report::from_json(&String::from_utf8(saved).unwrap()).unwrap();
+    let note = &saved.notes[0];
+    assert!(note.ends_with("no se abre %TEMP%/gpu.log"), "{note}");
+}
+
+#[test]
 fn without_a_folder_each_run_gets_a_new_numbered_one() {
     let adapters = FakeAdapters::default();
     let results = Path::new("elsewhere").join("bench").join("results");

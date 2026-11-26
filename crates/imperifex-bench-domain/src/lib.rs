@@ -12,6 +12,7 @@ pub mod loads;
 pub mod markdown;
 pub mod metric;
 pub mod ports;
+pub mod private_paths;
 pub mod process;
 pub mod profile;
 pub mod qpc;

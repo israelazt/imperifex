@@ -5,6 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::metric::Metric;
+use crate::private_paths::hide_folders;
 use crate::stats::{summarize, Summary};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -71,6 +72,20 @@ pub struct Report {
 }
 
 impl Report {
+    /// The same report with every note, its own and each measurement's, free of
+    /// the folders given (see [`hide_folders`]).
+    pub fn without_folders(&self, folders: &[(String, String)]) -> Self {
+        let mut report = self.clone();
+        let notes = report
+            .measurements
+            .iter_mut()
+            .flat_map(|measurement| &mut measurement.notes);
+        for note in notes.chain(&mut report.notes) {
+            *note = hide_folders(note, folders);
+        }
+        report
+    }
+
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(self).unwrap_or_else(|_| "{}".into())
     }

@@ -24,6 +24,8 @@ pub struct FakeAdapters {
     pub clock: FakeClock,
     pub events: Events,
     pub desktop: FakeDesktop,
+    /// Why the graphics card cannot be read, if it cannot.
+    pub no_gpu: Option<String>,
 }
 
 impl Default for FakeAdapters {
@@ -36,6 +38,7 @@ impl Default for FakeAdapters {
             version: Ok("v9".into()),
             events,
             desktop: FakeDesktop::new(vec![], Behaviour::default()),
+            no_gpu: None,
         }
     }
 }
@@ -70,7 +73,11 @@ impl MachineProbe for FakeMachine {
     }
 
     fn env_var(&self, name: &str) -> Option<String> {
-        (name == "LOCALAPPDATA").then(|| "local".into())
+        match name {
+            "LOCALAPPDATA" => Some("local".into()),
+            "TEMP" => Some(r"local\Temp".into()),
+            _ => None,
+        }
     }
 }
 
@@ -132,6 +139,9 @@ impl Adapters for FakeAdapters {
     }
 
     fn gpu(&self) -> Result<FakeGpu, String> {
+        if let Some(why) = &self.no_gpu {
+            return Err(why.clone());
+        }
         Ok(FakeGpu::new(&[0.0], &Rc::default()))
     }
 

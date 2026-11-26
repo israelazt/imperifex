@@ -18,7 +18,7 @@ use crate::echo::run_echo;
 use crate::emit::EmitService;
 use crate::latency::LatencyMode;
 use crate::reports::{
-    footprint_report, latency_report, memory_report, output_report, startup_report,
+    footprint_report, latency_report, memory_report, output_report, public_json, startup_report,
 };
 
 mod parse;
@@ -277,12 +277,13 @@ fn deliver(
     out: Option<&Path>,
     adapters: &impl Adapters,
 ) -> Result<String, String> {
+    let json = public_json(report, &adapters.machine());
     match out {
         Some(path) => {
-            adapters.files().write(path, report.to_json().as_bytes())?;
+            adapters.files().write(path, json.as_bytes())?;
             Ok(format!("{}\nInforme: {}", report.to_text(), path.display()))
         }
-        None => Ok(report.to_json()),
+        None => Ok(json),
     }
 }
 
