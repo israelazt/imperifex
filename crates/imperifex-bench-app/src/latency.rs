@@ -2,9 +2,9 @@
 //! program (D14).
 
 use std::path::Path;
-use std::time::Duration;
 
-use imperifex_bench_domain::change::{ChangeDetector, DEFAULT_MIN_PIXELS};
+use imperifex_bench_domain::desktop::Rect;
+use imperifex_bench_domain::key_zone::key_zone;
 use imperifex_bench_domain::keys::Key;
 use imperifex_bench_domain::metric::Metric;
 use imperifex_bench_domain::ports::{Desktop, Keyboard, ProcessProbe, ScreenWatch, Watch};
@@ -22,7 +22,8 @@ mod presses;
 /// Typed before measuring at the prompt, and not measured: it makes no word, so
 /// the history has nothing to suggest after it (probe 1.4 saw a suggestion).
 const NONSENSE: &str = "zqxj";
-const LEARNING: Duration = Duration::from_secs(2);
+/// Presses that do not count, to learn where the key shows (D27).
+const TO_FIND_THE_ZONE: u32 = 5;
 
 /// Where the key is typed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,7 +57,7 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
     ) -> Result<Measurement, String> {
         let before = self.ports.look()?;
         let window = WindowSession::open(&self.ports.session, profile, dir)?;
-        let ((timed, ready_note), _) = then_close(window, |window| {
+        let (((timed, zone), ready_note), _) = then_close(window, |window| {
             let mut prepared = self.ports.prepare(window, before)?;
             let timed = self.timed(window, prepared.watch.as_mut(), presses, mode)?;
             Ok((timed, prepared.ready_note()))
@@ -66,6 +67,10 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
             LatencyMode::Program => Metric::KeyLatencyProgram,
         };
         let mut notes = timed.notes();
+        notes.push(format!(
+            "Zona de la tecla: {}x{} en ({}, {}) de la región vigilada, aprendida con {TO_FIND_THE_ZONE} pulsaciones previas que no cuentan. Lo de fuera no cuenta.",
+            zone.w, zone.h, zone.x, zone.y
+        ));
         notes.push(ready_note);
         Measurement::new(metric, timed.samples_ms, notes)
             .ok_or_else(|| "ninguna pulsación dio una muestra".to_string())
@@ -77,15 +82,16 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
         watch: &mut dyn Watch,
         presses: u32,
         mode: LatencyMode,
-    ) -> Result<presses::Timed, String> {
+    ) -> Result<(presses::Timed, Rect), String> {
         let latest = self.get_ready(window, watch, mode)?;
-        let mut screen = self.learn(watch, latest)?;
+        let mut screen = presses::Screen::new(watch, latest)?;
+        let zone = self.find_zone(window, &mut screen)?;
         let timed = presses::time(&self.ports, window, &mut screen, presses)?;
         if mode == LatencyMode::Program {
             self.ports.press(window, Key::Char('q'))?;
-            settle_now(screen.watch, &self.ports.session.clock)?;
+            settle_now(screen.watch(), &self.ports.session.clock)?;
         }
-        Ok(timed)
+        Ok((timed, zone))
     }
 
     /// Leaves the cursor where the measured key will go, and gives the picture
@@ -110,30 +116,22 @@ impl<C: Clock, D: Desktop, P: ProcessProbe, S: ScreenWatch, K: Keyboard>
             })
     }
 
-    /// Watches for a while with nothing being typed, to leave out what changes
-    /// on its own.
-    fn learn<'a>(
+    /// Learns where the key shows and leaves the screen narrowed to it, with
+    /// what changes there on its own left out.
+    fn find_zone(
         &self,
-        watch: &'a mut dyn Watch,
-        latest: ScreenFrame,
-    ) -> Result<presses::Screen<'a>, String> {
-        let detector = ChangeDetector::learn(&[], latest.width, latest.height, DEFAULT_MIN_PIXELS)?;
-        let mut screen = presses::Screen {
-            watch,
-            detector,
-            latest,
-        };
+        window: &WindowSession<'_, C, D, P>,
+        screen: &mut presses::Screen<'_>,
+    ) -> Result<Rect, String> {
         let clock = &self.ports.session.clock;
-        let start = clock.monotonic();
-        while clock.monotonic().saturating_sub(start) < LEARNING {
-            if let Some(frame) = screen.watch.next(presses::POLL)? {
-                screen
-                    .detector
-                    .ignore_changes(&screen.latest.bgra, &frame.bgra);
-                screen.latest = frame;
-            }
-        }
-        Ok(screen)
+        screen.learn(clock)?;
+        let areas = presses::areas(&self.ports, window, screen, TO_FIND_THE_ZONE)?;
+        let (width, height) = screen.size();
+        let side = |length: usize| i32::try_from(length).map_err(|e| e.to_string());
+        let zone = key_zone(&areas, side(width)?, side(height)?)?;
+        screen.narrow(zone)?;
+        screen.learn(clock)?;
+        Ok(zone)
     }
 }
 

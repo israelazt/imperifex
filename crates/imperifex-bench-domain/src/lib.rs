@@ -7,6 +7,7 @@ pub mod change;
 pub mod desktop;
 pub mod echo;
 pub mod emit;
+pub mod key_zone;
 pub mod keys;
 pub mod loads;
 pub mod markdown;

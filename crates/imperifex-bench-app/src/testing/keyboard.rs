@@ -13,13 +13,20 @@ use imperifex_bench_domain::ports::{Desktop, Keyboard};
 
 use super::desktop::{FakeDesktop, Rig, AUTHORS_HIDDEN, AUTHORS_WINDOW};
 use super::processes_of::DesktopProcesses;
-use super::screen::{picture, FakeScreen};
+use super::screen::{picture_of, FakeScreen, KEY_SIDE};
 use super::FakeClock;
 use crate::measure_window::TypingPorts;
 
 /// How many pixels typed text, and a single letter, light up.
 const A_LINE: usize = 2000;
 const A_LETTER: usize = 8;
+/// The presses of `a` that come before the ones that count.
+pub const BEFORE_COUNTING: usize = 5;
+/// The rows of two other things that change: one close enough to the letters to
+/// be in their zone, and a clock far from them.
+const NEAR_ROW: usize = 15;
+const CLOCK_ROW: usize = 300;
+const A_MARK: usize = 40;
 /// The primary monitor of the typing fakes, with room for the fake windows.
 const PRIMARY: Rect = Rect {
     x: 0,
@@ -40,8 +47,15 @@ pub struct Script {
     pub blank: bool,
     /// The presses of `a`, counted from 1, that show nothing.
     pub unseen: Vec<usize>,
-    /// Something else changes this long after each backspace.
+    /// Something else changes near the letter this long after each backspace
+    /// of a press that counts.
     pub stray_after_erasing: Option<u64>,
+    /// The presses of `a` after which the clock changes, 1 ms later.
+    pub clock_ticks: Vec<usize>,
+    /// Presses of `a` that take another time to show, in milliseconds.
+    pub slow: Vec<(usize, u64)>,
+    /// How many pixels a letter lights up, if not the usual.
+    pub letter_pixels: Option<usize>,
     /// After this many presses of `a`, another window takes the front.
     pub focus_lost_after: Option<usize>,
 }
@@ -67,6 +81,8 @@ struct Typed {
     times: Vec<Duration>,
     lit: usize,
     letters: usize,
+    near: bool,
+    clock_on: bool,
 }
 
 #[derive(Clone)]
@@ -146,8 +162,21 @@ impl FakeKeyboard {
     fn show(&self, after_ms: u64, lit: usize) {
         if !self.script.blank {
             let at = self.clock.now() + Duration::from_millis(after_ms);
-            self.screen.show(picture(at, lit));
+            let mut frame = picture_of(KEY_SIDE, at, lit);
+            let typed = self.typed.borrow();
+            for (on, row) in [(typed.near, NEAR_ROW), (typed.clock_on, CLOCK_ROW)] {
+                if on {
+                    let from = row * KEY_SIDE * 4;
+                    frame.bgra[from..from + A_MARK * 4].fill(255);
+                }
+            }
+            drop(typed);
+            self.screen.show(frame);
         }
+    }
+
+    fn letter_size(&self) -> usize {
+        self.script.letter_pixels.unwrap_or(A_LETTER)
     }
 
     fn light(&self, change: impl FnOnce(usize) -> usize) -> usize {
@@ -163,9 +192,17 @@ impl FakeKeyboard {
             typed.letters += 1;
             typed.letters
         };
-        let lit = self.light(|lit| lit + A_LETTER);
+        if self.script.clock_ticks.contains(&number) {
+            let was = self.typed.borrow().lit;
+            let on = !self.typed.borrow().clock_on;
+            self.typed.borrow_mut().clock_on = on;
+            self.show(1, was);
+        }
+        let size = self.letter_size();
+        let lit = self.light(|lit| lit + size);
+        let slow = self.script.slow.iter().find(|(n, _)| *n == number);
         if !self.script.unseen.contains(&number) {
-            self.show(self.script.delay_ms, lit);
+            self.show(slow.map_or(self.script.delay_ms, |s| s.1), lit);
         }
         if self.script.focus_lost_after == Some(number) {
             self.desktop.state.borrow_mut().foreground_taken_by = Some(AUTHORS_WINDOW);
@@ -173,10 +210,13 @@ impl FakeKeyboard {
     }
 
     fn erase(&self) {
-        let lit = self.light(|lit| lit.saturating_sub(A_LETTER));
+        let size = self.letter_size();
+        let lit = self.light(|lit| lit.saturating_sub(size));
         self.show(self.script.delay_ms, lit);
-        if let Some(after) = self.script.stray_after_erasing {
-            let lit = self.light(|lit| lit + 100);
+        let counting = self.typed.borrow().letters > BEFORE_COUNTING;
+        if let Some(after) = self.script.stray_after_erasing.filter(|_| counting) {
+            let on = !self.typed.borrow().near;
+            self.typed.borrow_mut().near = on;
             self.show(after, lit);
         }
     }

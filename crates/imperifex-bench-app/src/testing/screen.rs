@@ -15,15 +15,23 @@ use super::FakeClock;
 /// The size of every fake picture.
 pub const SIDE: usize = 100;
 
+/// The size of the pictures of a window being typed into: big enough for the
+/// zone of one letter to be a small part of it.
+pub const KEY_SIDE: usize = 400;
+
 /// A picture with its first `lit` pixels white.
 pub fn picture(at: Duration, lit: usize) -> ScreenFrame {
-    let mut bgra = vec![0; SIDE * SIDE * 4];
+    picture_of(SIDE, at, lit)
+}
+
+pub fn picture_of(side: usize, at: Duration, lit: usize) -> ScreenFrame {
+    let mut bgra = vec![0; side * side * 4];
     bgra[..lit * 4].fill(255);
     ScreenFrame {
         at,
         accumulated: 1,
-        width: SIDE,
-        height: SIDE,
+        width: side,
+        height: side,
         bgra,
     }
 }

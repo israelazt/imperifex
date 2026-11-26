@@ -1,6 +1,8 @@
 //! Telling a real change on screen from something that blinks. Frames are BGRA,
 //! four bytes a pixel, row after row.
 
+use crate::desktop::Rect;
+
 /// A channel has to differ by more than this for a pixel to count as changed.
 const TOLERANCE: u8 = 8;
 
@@ -63,6 +65,32 @@ impl ChangeDetector {
     /// How many pixels are left out.
     pub fn masked(&self) -> usize {
         self.mask.iter().filter(|ignored| **ignored).count()
+    }
+
+    /// The smallest rectangle with every pixel outside the mask that differs,
+    /// counted from the frames' top left corner; `None` unless there are enough
+    /// of them to be a change. Both frames as for [`Self::changed`].
+    pub fn changed_area(&self, before: &[u8], after: &[u8]) -> Option<Rect> {
+        if !self.changed(before, after) {
+            return None;
+        }
+        let (mut left, mut top, mut right, mut bottom) = (self.width, self.height, 0, 0);
+        for (at, (ignored, (before, after))) in
+            self.mask.iter().zip(pixels(before, after)).enumerate()
+        {
+            if !ignored && differ(before, after) {
+                let (x, y) = (at % self.width, at / self.width);
+                (left, top) = (left.min(x), top.min(y));
+                (right, bottom) = (right.max(x + 1), bottom.max(y + 1));
+            }
+        }
+        let side = |length: usize| i32::try_from(length).ok();
+        Some(Rect {
+            x: side(left)?,
+            y: side(top)?,
+            w: side(right - left)?,
+            h: side(bottom - top)?,
+        })
     }
 
     /// Whether enough pixels outside the mask differ. Both frames must have the
@@ -132,6 +160,29 @@ mod tests {
         assert!(!detector.changed(&off, &on));
         let typed = frame(&[0, 1, 2, 3, 20, 21, 22, 23], 255);
         assert!(detector.changed(&off, &typed));
+    }
+
+    #[test]
+    fn the_area_of_a_change_holds_every_new_pixel_outside_the_mask() {
+        let black = frame(&[], 0);
+        let blink = frame(&[127], 255);
+        let detector = learned(&[&black, &blink]);
+        // Columns 2 to 5 of rows 1 and 2, and the masked last corner.
+        let after = frame(&[18, 19, 37, 34, 127], 255);
+        let expected = Rect {
+            x: 2,
+            y: 1,
+            w: 4,
+            h: 2,
+        };
+        assert_eq!(detector.changed_area(&black, &after), Some(expected));
+    }
+
+    #[test]
+    fn too_few_pixels_have_no_area() {
+        let black = frame(&[], 0);
+        let detector = learned(&[]);
+        assert_eq!(detector.changed_area(&black, &frame(&[1, 2, 3], 255)), None);
     }
 
     #[test]

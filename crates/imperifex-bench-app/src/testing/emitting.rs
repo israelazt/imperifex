@@ -12,7 +12,7 @@ use imperifex_bench_domain::ports::FileStore;
 
 use super::desktop::Rig;
 use super::keyboard::{typing, FakeTyping, Script};
-use super::screen::picture;
+use super::screen::{picture_of, KEY_SIDE};
 use super::{FakeClock, FakeFiles};
 
 /// A file and when it shows up.
@@ -97,8 +97,8 @@ pub fn emitting(rig: Rig, finishes: bool) -> Emitting {
         }
         let start = clock.now();
         let after = |ms| start + Duration::from_millis(ms);
-        screen.show(picture(after(200), 5000));
-        screen.show(picture(after(800), 9000));
+        screen.show(picture_of(KEY_SIDE, after(200), 5000));
+        screen.show(picture_of(KEY_SIDE, after(800), 9000));
         busy.set(busy.get() + 800_000);
         if finishes {
             let took = Duration::from_millis(100);
