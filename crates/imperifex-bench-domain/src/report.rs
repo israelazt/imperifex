@@ -124,7 +124,7 @@ mod tests {
             },
             bench_version: "0.1.0".into(),
             measurements: vec![
-                measurement(Metric::KeyLatency, vec![10.0, 12.0]),
+                measurement(Metric::KeyLatencyPrompt, vec![10.0, 12.0]),
                 measurement(Metric::OutputSeen(Load::LongLines), vec![300.0]),
             ],
         }
@@ -152,7 +152,7 @@ mod tests {
         assert_eq!(value["terminal"]["name"], "warp");
         assert_eq!(value["terminal"]["version"], "1");
         let first = &value["measurements"][0];
-        assert_eq!(first["metric"], "key_latency");
+        assert_eq!(first["metric"], "key_latency_prompt");
         assert_eq!(first["samples"][1], 12.0);
         assert!(first["notes"].as_array().unwrap().is_empty());
         for field in ["count", "min", "max", "mean", "stddev", "p50", "p95", "p99"] {
@@ -171,16 +171,19 @@ mod tests {
         assert_eq!(lines[0], "warp 1 · 2026-11-25 · os");
         assert_eq!(
             lines[1],
-            "Latencia de tecla: p50 10.0 ms · p95 12.0 ms · máx 12.0 ms (n = 2)"
+            "Tecla en el prompt: p50 10.0 ms · p95 12.0 ms · máx 12.0 ms (n = 2)"
         );
         assert_eq!(lines.len(), 3);
     }
 
     #[test]
     fn a_measurement_keeps_only_the_samples_json_can_hold() {
-        let m = Measurement::new(Metric::KeyLatency, vec![f64::NAN, 4.0], vec![]).unwrap();
+        let m = Measurement::new(Metric::KeyLatencyPrompt, vec![f64::NAN, 4.0], vec![]).unwrap();
         assert_eq!(m.samples, [4.0]);
-        assert_eq!(Measurement::new(Metric::KeyLatency, vec![], vec![]), None);
+        assert_eq!(
+            Measurement::new(Metric::KeyLatencyPrompt, vec![], vec![]),
+            None
+        );
     }
 
     #[test]

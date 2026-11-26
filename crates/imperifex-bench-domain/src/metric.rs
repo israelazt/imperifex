@@ -57,7 +57,8 @@ pub enum Metric {
     StartupWarm,
     StartupColdDrawn,
     StartupWarmDrawn,
-    KeyLatency,
+    KeyLatencyPrompt,
+    KeyLatencyProgram,
     OutputConsumed(Load),
     OutputSeen(Load),
     MemoryIdlePrivate,
@@ -145,7 +146,8 @@ impl Metric {
                 Ms,
                 "Arranque en caliente, hasta la ventana dibujada",
             ),
-            Self::KeyLatency => (Key, Ms, "Latencia de tecla"),
+            Self::KeyLatencyPrompt => (Key, Ms, "Tecla en el prompt"),
+            Self::KeyLatencyProgram => (Key, Ms, "Tecla en un programa"),
             Self::OutputConsumed(_) => (Output, MbPerS, "Salida consumida"),
             Self::OutputSeen(_) => (Output, Ms, "Salida vista"),
             Self::MemoryIdlePrivate => (Memory, MB, "Memoria privada en reposo"),
@@ -196,7 +198,8 @@ mod tests {
             Metric::StartupWarm,
             Metric::StartupColdDrawn,
             Metric::StartupWarmDrawn,
-            Metric::KeyLatency,
+            Metric::KeyLatencyPrompt,
+            Metric::KeyLatencyProgram,
             Metric::MemoryIdlePrivate,
             Metric::MemoryIdleWorkingSet,
             Metric::MemoryScrollbackPrivate,
@@ -227,7 +230,7 @@ mod tests {
 
     #[test]
     fn units_follow_what_is_measured() {
-        assert_eq!(Metric::KeyLatency.unit(), Unit::Ms);
+        assert_eq!(Metric::KeyLatencyPrompt.unit(), Unit::Ms);
         assert_eq!(Metric::OutputConsumed(Load::Ascii).unit(), Unit::MbPerS);
         assert_eq!(Metric::OutputSeen(Load::Ascii).unit(), Unit::Ms);
         assert_eq!(Metric::MemoryPerTabPrivate.unit(), Unit::Mb);

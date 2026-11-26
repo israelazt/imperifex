@@ -165,6 +165,30 @@ impl<'a, C: Clock, D: Desktop, P: ProcessProbe> WindowSession<'a, C, D, P> {
         Ok(self.window.hwnd)
     }
 
+    /// The handle for typing: adopted, and in the foreground right now (S3).
+    pub fn ready_to_type(&self) -> Result<u64, String> {
+        let hwnd = self.touch()?;
+        if self.ports.desktop.foreground()? == Some(hwnd) {
+            Ok(hwnd)
+        } else {
+            Err(format!(
+                "la ventana {hwnd:#x} ya no está en primer plano: no se pulsa nada (regla S3)"
+            ))
+        }
+    }
+
+    /// Where the window is now.
+    pub fn rect_now(&self) -> Result<Rect, String> {
+        let hwnd = self.window.hwnd;
+        self.ports
+            .desktop
+            .windows()?
+            .iter()
+            .find(|w| w.hwnd == hwnd)
+            .map(|w| w.rect)
+            .ok_or_else(|| format!("la ventana {hwnd:#x} ya no está"))
+    }
+
     pub fn place(&self, rect: Rect) -> Result<(), String> {
         self.ports.desktop.place(self.touch()?, rect)
     }

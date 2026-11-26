@@ -1,0 +1,174 @@
+//! A fake keyboard wired to the fake screen: what is typed shows up on it a
+//! while later. Like the real one it sends nothing unless the window is in the
+//! foreground, and like the fake desktop it fails the test if asked to type
+//! into the author's window.
+
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::time::Duration;
+
+use imperifex_bench_domain::keys::Key;
+use imperifex_bench_domain::ports::{Desktop, Keyboard};
+
+use super::desktop::{FakeDesktop, Rig, AUTHORS_HIDDEN, AUTHORS_WINDOW};
+use super::processes_of::DesktopProcesses;
+use super::screen::{picture, FakeScreen};
+use super::FakeClock;
+use crate::measure_window::TypingPorts;
+
+/// How many pixels typed text, and a single letter, light up.
+const A_LINE: usize = 2000;
+const A_LETTER: usize = 8;
+
+/// How the screen answers to the keys.
+#[derive(Debug, Clone, Default)]
+pub struct Script {
+    /// From a key to the picture that shows it, in milliseconds.
+    pub delay_ms: u64,
+    /// Nothing is ever presented.
+    pub blank: bool,
+    /// The presses of `a`, counted from 1, that show nothing.
+    pub unseen: Vec<usize>,
+    /// Something else changes this long after each backspace.
+    pub stray_after_erasing: Option<u64>,
+    /// After this many presses of `a`, another window takes the front.
+    pub focus_lost_after: Option<usize>,
+}
+
+impl Script {
+    pub fn showing_after(delay_ms: u64) -> Self {
+        Self {
+            delay_ms,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct Typed {
+    log: Vec<String>,
+    targets: Vec<u64>,
+    lit: usize,
+    letters: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct FakeKeyboard {
+    clock: FakeClock,
+    desktop: FakeDesktop,
+    screen: FakeScreen,
+    script: Script,
+    typed: Rc<RefCell<Typed>>,
+}
+
+impl FakeKeyboard {
+    pub fn typed(&self) -> Vec<String> {
+        self.typed.borrow().log.clone()
+    }
+
+    /// The windows each thing was typed into.
+    pub fn targets(&self) -> Vec<u64> {
+        self.typed.borrow().targets.clone()
+    }
+
+    fn accept(&self, hwnd: u64, what: String) -> Result<(), String> {
+        assert!(
+            hwnd != AUTHORS_WINDOW && hwnd != AUTHORS_HIDDEN,
+            "S1 broken: asked to type into the author's window"
+        );
+        if self.desktop.foreground()? != Some(hwnd) {
+            return Err("no está en primer plano (regla S3)".into());
+        }
+        let mut typed = self.typed.borrow_mut();
+        typed.log.push(what);
+        typed.targets.push(hwnd);
+        Ok(())
+    }
+
+    /// The screen will show `lit` pixels `after_ms` from now.
+    fn show(&self, after_ms: u64, lit: usize) {
+        if !self.script.blank {
+            let at = self.clock.now() + Duration::from_millis(after_ms);
+            self.screen.show(picture(at, lit));
+        }
+    }
+
+    fn light(&self, change: impl FnOnce(usize) -> usize) -> usize {
+        let mut typed = self.typed.borrow_mut();
+        // Kept within the picture, however much is typed.
+        typed.lit = change(typed.lit) % 9000;
+        typed.lit
+    }
+
+    fn letter(&self) {
+        let number = {
+            let mut typed = self.typed.borrow_mut();
+            typed.letters += 1;
+            typed.letters
+        };
+        let lit = self.light(|lit| lit + A_LETTER);
+        if !self.script.unseen.contains(&number) {
+            self.show(self.script.delay_ms, lit);
+        }
+        if self.script.focus_lost_after == Some(number) {
+            self.desktop.state.borrow_mut().foreground_taken_by = Some(AUTHORS_WINDOW);
+        }
+    }
+
+    fn erase(&self) {
+        let lit = self.light(|lit| lit.saturating_sub(A_LETTER));
+        self.show(self.script.delay_ms, lit);
+        if let Some(after) = self.script.stray_after_erasing {
+            let lit = self.light(|lit| lit + 100);
+            self.show(after, lit);
+        }
+    }
+
+    /// Text and other keys change much of the screen.
+    fn line(&self) {
+        let lit = self.light(|lit| lit + A_LINE);
+        self.show(self.script.delay_ms, lit);
+    }
+}
+
+impl Keyboard for FakeKeyboard {
+    fn type_text(&self, hwnd: u64, text: &str) -> Result<(), String> {
+        self.accept(hwnd, format!("text {text}"))?;
+        self.line();
+        Ok(())
+    }
+
+    fn press(&self, hwnd: u64, key: Key) -> Result<(), String> {
+        let name = match key {
+            Key::Char(c) => c.to_string(),
+            other => format!("{other:?}"),
+        };
+        self.accept(hwnd, name)?;
+        match key {
+            Key::Char('a') => self.letter(),
+            Key::Backspace => self.erase(),
+            _ => self.line(),
+        }
+        Ok(())
+    }
+}
+
+pub type FakeTyping =
+    TypingPorts<FakeClock, FakeDesktop, DesktopProcesses, FakeScreen, FakeKeyboard>;
+
+/// A desktop with a screen and a keyboard that answers to the script.
+pub fn typing(rig: Rig, script: Script) -> FakeTyping {
+    let screen = FakeScreen::new(&rig.ports.clock);
+    let keyboard = FakeKeyboard {
+        clock: rig.ports.clock.clone(),
+        desktop: rig.ports.desktop.clone(),
+        screen: screen.clone(),
+        script,
+        typed: Rc::default(),
+    };
+    TypingPorts {
+        session: rig.ports,
+        screen,
+        keyboard,
+    }
+}

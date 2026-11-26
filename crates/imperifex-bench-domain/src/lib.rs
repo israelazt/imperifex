@@ -19,6 +19,7 @@ pub mod report;
 pub mod safety;
 pub mod screen;
 pub mod settle;
+pub mod shell;
 pub mod stats;
 pub mod tree;
 pub mod usage;

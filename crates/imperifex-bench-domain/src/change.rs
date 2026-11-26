@@ -40,18 +40,29 @@ impl ChangeDetector {
                 frame.len()
             ));
         }
-        let mut mask = vec![false; width * height];
-        for pair in frames.windows(2) {
-            for (ignored, (before, after)) in mask.iter_mut().zip(pixels(pair[0], pair[1])) {
-                *ignored |= before != after;
-            }
-        }
-        Ok(Self {
-            mask,
+        let mut detector = Self {
+            mask: vec![false; width * height],
             width,
             height,
             min_pixels,
-        })
+        };
+        for pair in frames.windows(2) {
+            detector.ignore_changes(pair[0], pair[1]);
+        }
+        Ok(detector)
+    }
+
+    /// Leaves out from now on every pixel that differs between these two, for
+    /// learning from pictures as they come without keeping them all.
+    pub fn ignore_changes(&mut self, before: &[u8], after: &[u8]) {
+        for (ignored, (before, after)) in self.mask.iter_mut().zip(pixels(before, after)) {
+            *ignored |= before != after;
+        }
+    }
+
+    /// How many pixels are left out.
+    pub fn masked(&self) -> usize {
+        self.mask.iter().filter(|ignored| **ignored).count()
     }
 
     /// Whether enough pixels outside the mask differ. Both frames must have the
@@ -121,6 +132,16 @@ mod tests {
         assert!(!detector.changed(&off, &on));
         let typed = frame(&[0, 1, 2, 3, 20, 21, 22, 23], 255);
         assert!(detector.changed(&off, &typed));
+    }
+
+    #[test]
+    fn pictures_can_be_learned_from_one_pair_at_a_time() {
+        let off = frame(&[], 0);
+        let on = frame(&[0, 1], 255);
+        let mut detector = learned(&[]);
+        assert_eq!(detector.masked(), 0);
+        detector.ignore_changes(&off, &on);
+        assert_eq!(detector.masked(), 2);
     }
 
     #[test]

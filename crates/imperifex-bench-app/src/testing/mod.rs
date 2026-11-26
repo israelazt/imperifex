@@ -3,6 +3,7 @@
 
 pub mod adapters;
 pub mod desktop;
+pub mod keyboard;
 pub mod processes_of;
 pub mod screen;
 pub mod system;

@@ -7,6 +7,8 @@ pub mod command;
 pub mod echo;
 pub mod emit;
 pub mod footprint;
+pub mod latency;
+pub mod measure_window;
 pub mod reports;
 pub mod screen_wait;
 pub mod startup;
