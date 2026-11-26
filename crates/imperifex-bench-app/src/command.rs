@@ -162,11 +162,11 @@ Uso:
   imperifex-bench startup <terminal> [--runs N] [--cold] [--out <archivo.json>]
       ABRE Y CIERRA VENTANAS de la terminal, 10 veces, y mide cuánto tarda en
       verse cada una. No uses el PC mientras corre: cerca de un minuto por vez,
-      por la espera de lo que deja cada ventana. Se lanza desde una carpeta sin
-      Git. Con --cold la terminal tiene que estar cerrada del todo (README).
+      por la espera de lo que deja cada ventana. Con --cold la terminal tiene
+      que estar cerrada del todo (README).
 
   Las tres que siguen ABREN UNA VENTANA Y ESCRIBEN EN ELLA. No toques el
-  teclado ni el ratón mientras corren. Se lanzan desde una carpeta sin Git.
+  teclado ni el ratón mientras corren.
   imperifex-bench latency <terminal> [--presses 200] [--mode prompt|program|both]
       Cuánto tarda una tecla en verse, en el prompt y en un programa.
   imperifex-bench output <terminal> [--load <carga>|all] [--repeats 3]
@@ -178,7 +178,7 @@ Uso:
   imperifex-bench all <terminal> [--out-dir <carpeta>]
       TODA LA LÍNEA BASE, unos 35 minutos (sin medir) sin tocar el PC. Deja
       report.json; sin --out-dir, en bench/results/<fecha>-<terminal>-<n> de la
-      carpeta actual. Se lanza desde una carpeta sin Git.
+      carpeta actual.
   imperifex-bench report <carpeta>... --md <archivo.md>
       El documento de la línea base a partir de los report.json de esas carpetas.
 ";

@@ -1,5 +1,5 @@
 //! The reports of the orders that open windows. All of them launch from the
-//! measures' folder and refuse to run from inside a repository (D15).
+//! measures' folder, wherever the bench was started (D15).
 
 use std::path::PathBuf;
 
@@ -36,7 +36,7 @@ fn ready<A: Adapters>(
         exe: expanded_exe(profile, machine)?,
         ..profile.clone()
     };
-    let home = measure_home(adapters.files(), &adapters.current_dir()?)?;
+    let home = measure_home(adapters.files())?;
     log_info!(
         "{what}; {HANDS_OFF}; las ventanas se abren desde {}",
         home.display()
@@ -177,9 +177,17 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_startup_launches_from_the_measures_folder() {
+    fn with_a_repository(at: &str) -> FakeAdapters {
         let adapters = FakeAdapters::default();
+        let git = Path::new(at).join(".git");
+        adapters.files.folders.borrow_mut().insert(git);
+        adapters
+    }
+
+    #[test]
+    fn a_startup_launches_from_the_measures_folder_even_from_a_repository() {
+        // The fakes start the bench in `elsewhere`.
+        let adapters = with_a_repository("elsewhere");
         startup_report("warp", 1, false, &adapters).unwrap();
         let dirs = adapters.desktop.state.borrow().dirs.clone();
         assert_eq!(dirs, [Path::new("temp").join("home")]);
@@ -196,12 +204,10 @@ mod tests {
     }
 
     #[test]
-    fn from_inside_a_repository_no_order_opens_anything() {
-        let adapters = FakeAdapters::default();
-        let git = Path::new("elsewhere").join(".git");
-        adapters.files.folders.borrow_mut().insert(git);
+    fn with_the_measures_folder_in_a_repository_no_order_opens_anything() {
+        let adapters = with_a_repository("temp");
         for result in each_order(&adapters) {
-            assert!(result.unwrap_err().contains("sin Git"));
+            assert!(result.unwrap_err().contains("carpeta temporal"));
         }
         assert!(adapters.desktop.state.borrow().asked.is_empty());
     }
