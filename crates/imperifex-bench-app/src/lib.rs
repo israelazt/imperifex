@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 
 pub mod command;
+pub mod echo;
 pub mod emit;
 pub mod footprint;
 pub mod reports;

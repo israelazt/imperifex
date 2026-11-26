@@ -5,6 +5,7 @@
 
 pub mod change;
 pub mod desktop;
+pub mod echo;
 pub mod emit;
 pub mod keys;
 pub mod loads;

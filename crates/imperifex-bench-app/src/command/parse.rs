@@ -144,6 +144,10 @@ impl Command {
                 None => Ok(Self::Help),
                 Some(extra) => Err(format!("opción desconocida: {extra}")),
             },
+            Some("echo") => match args.next() {
+                None => Ok(Self::Echo),
+                Some(extra) => Err(format!("opción desconocida: {extra}")),
+            },
             Some("emit") => parse_emit(&mut args).map(Self::Emit),
             Some("footprint") => parse_footprint(&mut args).map(Self::Footprint),
             Some("startup") => parse_startup(&mut args).map(Self::Startup),

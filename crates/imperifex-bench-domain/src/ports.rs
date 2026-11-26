@@ -84,6 +84,12 @@ pub trait Keyboard {
     fn press(&self, hwnd: u64, key: Key) -> Result<(), String>;
 }
 
+/// The program's own input, as the terminal hands it over.
+pub trait KeyInput {
+    /// Waits for input and puts what there is in `buf`; 0 once it has ended.
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, String>;
+}
+
 /// What a report says about where and when it was taken.
 pub trait MachineProbe {
     /// The processor, the graphics card of the primary monitor, the system and

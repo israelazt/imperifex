@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use imperifex_bench_app::Adapters;
 use imperifex_bench_domain::ports::FileStore;
 use imperifex_bench_platform::{
-    ConsoleOut, DiskFiles, DxgiScreen, GpuCounters, QpcClock, WindowsDesktop, WindowsMachine,
-    WindowsProcesses,
+    ConsoleIn, ConsoleOut, DiskFiles, DxgiScreen, GpuCounters, QpcClock, WindowsDesktop,
+    WindowsMachine, WindowsProcesses,
 };
 
 #[derive(Default)]
@@ -22,6 +22,7 @@ impl Adapters for RealAdapters {
     type Machine = WindowsMachine;
     type Desktop = WindowsDesktop;
     type Screen = DxgiScreen;
+    type Input = ConsoleIn;
 
     fn clock(&self) -> QpcClock {
         QpcClock::new()
@@ -58,5 +59,9 @@ impl Adapters for RealAdapters {
 
     fn screen(&self) -> DxgiScreen {
         DxgiScreen
+    }
+
+    fn key_input(&self) -> Result<ConsoleIn, String> {
+        ConsoleIn::new()
     }
 }

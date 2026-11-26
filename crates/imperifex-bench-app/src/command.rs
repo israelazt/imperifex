@@ -6,11 +6,13 @@ use std::path::{Path, PathBuf};
 use imperifex_bench_domain::emit::BYTES_PER_MB;
 use imperifex_bench_domain::metric::Load;
 use imperifex_bench_domain::ports::{
-    Desktop, FileStore, GpuProbe, MachineProbe, Output as TerminalOutput, ProcessProbe, ScreenWatch,
+    Desktop, FileStore, GpuProbe, KeyInput, MachineProbe, Output as TerminalOutput, ProcessProbe,
+    ScreenWatch,
 };
 use imperifex_bench_domain::report::Report;
 use imperifex_domain::ports::Clock;
 
+use crate::echo::run_echo;
 use crate::emit::EmitService;
 use crate::reports::{footprint_report, startup_report};
 
@@ -54,6 +56,7 @@ pub trait Adapters {
     type Machine: MachineProbe;
     type Desktop: Desktop;
     type Screen: ScreenWatch;
+    type Input: KeyInput;
 
     fn clock(&self) -> Self::Clock;
     /// The output of the terminal the program runs in.
@@ -66,12 +69,15 @@ pub trait Adapters {
     fn machine(&self) -> Self::Machine;
     fn desktop(&self) -> Self::Desktop;
     fn screen(&self) -> Self::Screen;
+    /// The program's own input, key by key.
+    fn key_input(&self) -> Result<Self::Input, String>;
 }
 
 /// What the command line asks for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
     Help,
+    Echo,
     Emit(EmitOrder),
     Footprint(FootprintOrder),
     Startup(StartupOrder),
@@ -89,6 +95,8 @@ pub const HELP: &str =
 
 Uso:
   imperifex-bench help   Esta ayuda
+  imperifex-bench echo
+      Repite cada tecla hasta la «q». Lo usa la medida de latencia.
   imperifex-bench emit <carga> --out <archivo.json> [--mib N] [--seed S]
       Manda una carga a la terminal en la que corre y mide cuánto tarda en
       aceptarla. Cargas: ascii, long_lines, color, unicode, cursor, cargo.
@@ -109,6 +117,7 @@ impl Command {
     pub fn run(self, adapters: &impl Adapters) -> Output {
         let done = match self {
             Self::Help => Ok(HELP.to_string()),
+            Self::Echo => run_echo_order(adapters),
             Self::Emit(order) => run_emit(&order, adapters),
             Self::Footprint(order) => run_footprint(&order, adapters),
             Self::Startup(order) => run_startup(&order, adapters),
@@ -118,6 +127,12 @@ impl Command {
             Err(text) => Output { text, ok: false },
         }
     }
+}
+
+fn run_echo_order(adapters: &impl Adapters) -> Result<String, String> {
+    let mut input = adapters.key_input()?;
+    let mut out = adapters.terminal_output()?;
+    run_echo(&mut input, &mut out).map(|()| String::new())
 }
 
 /// The terminal's output is closed before anything is printed afterwards.

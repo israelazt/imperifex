@@ -2,6 +2,8 @@
 //! live in `#[cfg(windows)]` modules; decoding what it returns is plain code.
 
 #[cfg(windows)]
+mod console_in;
+#[cfg(windows)]
 mod console_out;
 #[cfg(any(windows, test))]
 mod decode;
@@ -29,6 +31,8 @@ mod screen;
 #[cfg(any(windows, test))]
 mod screen_region;
 
+#[cfg(windows)]
+pub use console_in::ConsoleIn;
 #[cfg(windows)]
 pub use console_out::ConsoleOut;
 #[cfg(windows)]

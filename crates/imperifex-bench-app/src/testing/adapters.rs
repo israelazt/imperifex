@@ -10,7 +10,7 @@ use super::desktop::{Behaviour, FakeDesktop};
 use super::processes_of::DesktopProcesses;
 use super::screen::FakeScreen;
 use super::system::FakeGpu;
-use super::{Events, FakeClock, FakeFiles, FakeOutput};
+use super::{Events, FakeClock, FakeFiles, FakeKeys, FakeOutput};
 use crate::command::Adapters;
 
 /// A machine with Warp running. Tests change what they care about.
@@ -79,6 +79,7 @@ impl Adapters for FakeAdapters {
     type Processes = DesktopProcesses;
     type Desktop = FakeDesktop;
     type Screen = FakeScreen;
+    type Input = FakeKeys;
     type Gpu = FakeGpu;
     type Machine = FakeMachine;
 
@@ -113,6 +114,10 @@ impl Adapters for FakeAdapters {
 
     fn screen(&self) -> FakeScreen {
         FakeScreen::new(&self.clock)
+    }
+
+    fn key_input(&self) -> Result<FakeKeys, String> {
+        Ok(FakeKeys::new(&[b"ab", b"q"]))
     }
 
     fn gpu(&self) -> Result<FakeGpu, String> {

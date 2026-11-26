@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::Duration;
 
-use imperifex_bench_domain::ports::{FileStore, Output};
+use imperifex_bench_domain::ports::{FileStore, KeyInput, Output};
 use imperifex_domain::ports::Clock;
 
 /// What happened, in order, to the fakes that share a log.
@@ -100,6 +100,23 @@ impl Output for FakeOutput {
     fn flush(&mut self) -> Result<(), String> {
         self.events.borrow_mut().push(Event::Flushed);
         Ok(())
+    }
+}
+
+/// An input that hands over one scripted read at a time, then ends.
+pub struct FakeKeys(std::collections::VecDeque<Vec<u8>>);
+
+impl FakeKeys {
+    pub fn new(reads: &[&[u8]]) -> Self {
+        Self(reads.iter().map(|r| r.to_vec()).collect())
+    }
+}
+
+impl KeyInput for FakeKeys {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, String> {
+        let next = self.0.pop_front().unwrap_or_default();
+        buf[..next.len()].copy_from_slice(&next);
+        Ok(next.len())
     }
 }
 

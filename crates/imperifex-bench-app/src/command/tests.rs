@@ -201,3 +201,12 @@ fn startup_reports_a_warm_start() {
     let report = Report::from_json(&out.text).unwrap();
     assert_eq!(report.measurements[0].metric, Metric::StartupWarm);
 }
+
+#[test]
+fn echo_takes_nothing_and_runs_on_the_terminal() {
+    assert_eq!(parse("echo"), Ok(Command::Echo));
+    assert!(parse("echo twice").unwrap_err().contains("twice"));
+    assert!(run_on(Command::Echo, FakeAdapters::default()).0.ok);
+    let console = FakeAdapters::without_console("sin consola");
+    assert!(!run_on(Command::Echo, console).0.ok);
+}
