@@ -92,7 +92,7 @@ CPU del principal: 4,5 % de un núcleo en 10 s mientras la sesión escribía; 4,
 
 | # | Pregunta | Por qué importa | Recomendación |
 |---|---|---|---|
-| D24 | **¿En qué monitor está la ventana de Warp ya abierta durante la línea base?** D23 la pone en el secundario | El primer contenido y la ventana lista solo se miden si la ventana nueva cabe entera en el principal (A.3), y `startup` no puede moverla sin falsear la medida. Si Warp abre las ventanas nuevas donde está la última, con D23 tal cual el arranque solo daría «visible». Las órdenes que escriben tampoco pueden esperar a «lista» fuera del principal (A.5) | Esperar al dato de la 5.7 (en qué monitor abre la ventana nueva, y en cuál estaba la del autor). Si abre junto a la última ventana de Warp: cambiar D23 para que la ventana de Warp quede en el **principal**, a un lado, y el PowerShell del banco en el secundario. Una ventana de Warp quieta en el prompt solo cambia el cursor (57 px, por debajo del 0,5 %) y la imagen previa la incluye |
+| D24 | **¿En qué monitor está la ventana de Warp ya abierta durante la línea base?** D23 la pone en el secundario | El primer contenido y la ventana lista solo se miden si la ventana nueva cabe entera en el principal (A.3), y `startup` no puede moverla sin falsear la medida. Si Warp abre las ventanas nuevas donde está la última, con D23 tal cual el arranque solo daría «visible». Las órdenes que escriben tampoco pueden esperar a «lista» fuera del principal (A.5) | Esperar al dato de la 5.7 (en qué monitor abre la ventana nueva, y en cuál estaba la del autor). Si abre junto a la última ventana de Warp: cambiar D23 para que la ventana de Warp quede en el **principal**, a un lado, y el PowerShell del banco en el secundario. Una ventana de Warp quieta en el prompt solo cambia el cursor (57 px, por debajo del 0,5 %) y la imagen previa la incluye. **En todo caso, la ventana nueva y la de Warp ya abierta no pueden solaparse:** el primer contenido se detecta contra la imagen previa de ese sitio, y un Warp sobre otro con el mismo tema puede no cambiar el 0,5 % o cambiarlo tarde, lo que afectaría también a «lista» (sin comprobar en pantalla). La ventana de las órdenes que escriben va de x = 100 a 1380 en un monitor de 1920: a su lado queda poco sitio |
 
 ## Fuera de esta fase
 
@@ -441,10 +441,10 @@ Features: `Win32_UI_WindowsAndMessaging`, `Win32_Graphics_Dwm`, `Win32_UI_HiDpi`
 ### 5.7 🖥 La orden `startup`
 1. `imperifex-bench startup <terminal> [--runs 10] [--cold] [--out archivo.json]`. Antes de empezar, en la consola: «no toques el PC; unos N minutos» (cada tanda puede esperar hasta 90 s los restos).
 2. Medir en caliente y anotar en «Estado».
-3. **Con el autor delante, una vez, lanzando el banco desde la raíz del repo:** que mire que la ventana nueva abre en `home` y sin avisos de Git (D15). Anotarlo en «Hechos medidos», y también en qué monitor abre la ventana nueva y en cuál estaba la ventana de Warp del autor (lo pide D24).
+3. **Con el autor delante, una vez, lanzando el banco desde la raíz del repo:** que mire que la ventana nueva abre en `home` y sin avisos de Git (D15). Anotarlo en «Hechos medidos», y también en qué monitor abre la ventana nueva y en cuál estaba la ventana de Warp del autor, y si las dos se solapaban (lo pide D24).
 4. README: cómo lanza el autor la medida en frío (D3): cerrar Warp del todo; PowerShell desde Inicio, en cualquier carpeta (A.2: la ventana abre en `home` de todos modos); la orden con la ruta completa; esperar; volver a Warp. Y que, si Warp no sale al cerrar su ventana, el banco para y no lo fuerza.
 
-**Hecho cuando:** hay números en caliente (visible, primer contenido y lista) y la carpeta y el monitor de la ventana están anotados. Si la ventana no abre en `home`, **Bloqueo**: el planificador decide. Si no abre en el principal, se anota y lo decide el autor con D24.
+**Hecho cuando:** hay números en caliente (visible, primer contenido y lista) y la carpeta y el monitor de la ventana están anotados. Si la ventana no abre en `home`, **Bloqueo**: el planificador decide. Si no abre en el principal, se anota y lo decide el autor con D24; entonces no hay primer contenido ni lista, y la 5.7 **sigue abierta** hasta decidir D24 y repetir la medida.
 **Commit:** `feat(bench): the startup order`
 
 **PAUSA.**
@@ -518,7 +518,7 @@ Un programa propio que repite cada tecla, para medir la tecla dentro de un progr
 ### 6.7 `app/latency.rs`
 1. `Metric::KeyLatency` pasa a `KeyLatencyPrompt` («Tecla en el prompt») y se añade `KeyLatencyProgram` («Tecla en un programa»).
 2. `LatencyService::run(profile, presses, mode: Prompt | Program, dir) -> Result<Measurement, String>`:
-   - `WindowSession::open`; `place` en el monitor principal en `(100, 100, 1280, 720)`; `settle` (500 ms, máximo 10 s); `focus`.
+   - `WindowSession::open`; `place` en el monitor principal en `(100, 100, 1280, 720)`; `settle` (500 ms, máximo 10 s); `focus`. (A.5 cambia esta preparación: antes mira el monitor y espera a que la ventana esté lista.)
    - `Program`: `type_text` de `& '<ruta del banco>' echo` (con `powershell_command`, abajo) y `Enter`; esperar a que se asiente.
    - `Prompt`: `type_text("zqxj")` sin medir; esperar a que se asiente.
    - Región: la ventana sin los 40 px de arriba. Aprender la máscara 2 s (`ChangeDetector::learn` con `DEFAULT_MIN_PIXELS`).
@@ -533,7 +533,7 @@ Un programa propio que repite cada tecla, para medir la tecla dentro de un progr
 
 ### 6.8 `app/output_seen.rs`
 1. `OutputService::run(profile, load, mib, repeats, dir) -> Result<Vec<Measurement>, String>`:
-   - Ventana como en 6.7 (abrir, colocar, asentar, foco).
+   - Ventana como en 6.7 (abrir, colocar, asentar, foco), con el cambio de A.5.
    - Por repetición: `type_text(powershell_command(banco, ["emit", load, "--mib", n, "--out", json]))`. Leer el uso de los procesos de la terminal (`cpu_100ns`). `t0` y `Enter`. Esperar a que exista el JSON (`FileStore::exists`, cada 50 ms, máximo 120 s) y a que la pantalla se asiente (500 ms; el `settle` empieza en `t0`). Volver a leer el uso.
    - Vista = asentado − `t0`; consumida = `seconds` del JSON (MB/s); CPU = `cpu_percent_of_core(antes, después, asentado − t0)` (D18).
    - Entre repeticiones: `cls` + `Enter` y esperar a que se asiente.
@@ -613,14 +613,14 @@ Un programa propio que repite cada tecla, para medir la tecla dentro de un progr
 > Añadido por el planificador el 2026-11-26. `TypingPorts::prepare` (`measure_window.rs`) coloca la ventana y espera 500 ms sin cambios entre imágenes seguidas. Con Warp eso se cumple enseguida: durante ~1,2 s la ventana solo deja ver lo que hay detrás, y luego pasa ~1 s quieta en «Starting Windows PowerShell…» (hechos de las 22:05). Es el mismo fallo que bloqueó `startup` (18:51), en las tres órdenes que escriben.
 
 1. `prepare` recibe también lo que mira el arranque: el monitor principal (`primary_area`, como en `startup_report`) y una imagen previa. El orden pasa a ser:
-   - **Antes de `WindowSession::open`:** `look_before` (`startup/drawn.rs`), igual que en `StartupService`. En `memory`, después de los 90 s de A.4.
+   - **Antes de `WindowSession::open`:** `look_before` (`startup/drawn.rs`), igual que en `StartupService`. En `memory`, después de los 90 s de A.4. Si no hay imagen previa (sin calma, o la pantalla no se puede mirar), la orden para **sin abrir ninguna ventana**; `startup` sí la abre y da solo «visible».
    - Con la ventana encontrada y **sin moverla**: `watch_window(before, clock, rect, t0, visible_at)`. Si `ready` es `Err`, la orden para con el motivo («la ventana no llegó a estar lista: …; no se escribe nada») y la ventana se cierra (`then_close`). Si no cabe entera en el principal, para igual, diciendo dónde abrió: no se adivina, lo decide D24.
    - Después, lo de ahora: `place`, `watch` de la región, `settle_now` (el redibujo tras moverla), `focus`.
    - `look_before` y `watch_window` se sacan de `startup/` a un módulo que compartan los dos (por ejemplo `app/ready_window.rs`), sin cambiar lo que hacen. Las pruebas de `startup` no cambian.
 2. Los 500 ms de `settle_now` siguen para todo lo de después: entre teclas, tras `cls`, tras la salida y tras escribir la orden `echo`.
 3. Cada informe anota cuánto tardó la ventana en estar lista (una nota, no una medida: el número lo da `startup`).
 4. Sumar a la estimación de `all` la espera por ventana: hasta 10 s de calma previa y hasta 15 s desde visible (en Warp, unos 6 s).
-5. Pruebas con falsos, en las tres órdenes: con una pantalla que no cambia 1,2 s, cambia, queda quieta 1 s y vuelve a cambiar, **no llega ninguna tecla** antes del segundo cambio más 3 s de calma; una ventana que no cambia nunca para sin pulsar nada y se cierra; una ventana fuera del principal para sin pulsar nada y se cierra. El falso de `Keyboard` anota los instantes de cada pulsación para comprobarlo.
+5. Pruebas con falsos, en las tres órdenes: con una pantalla que no cambia 1,2 s, cambia, queda quieta 1 s y vuelve a cambiar, **no llega ninguna tecla** antes del segundo cambio más 3 s de calma; una ventana que no cambia nunca para sin pulsar nada y se cierra; una ventana fuera del principal para sin pulsar nada y se cierra; sin imagen previa no se abre nada. El falso de `Keyboard` anota los instantes de cada pulsación para comprobarlo.
 
 **Commit:** `fix(bench): typing only into a window that is ready`
 
