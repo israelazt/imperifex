@@ -52,7 +52,13 @@ fn report<A: Adapters>(
         terminal: info,
         bench_version: env!("CARGO_PKG_VERSION").to_string(),
         measurements: measure(profile, &probe)?,
+        notes: Vec::new(),
     })
+}
+
+/// The report of a terminal with nothing measured yet.
+pub fn empty_report<A: Adapters>(terminal: &str, adapters: &A) -> Result<Report, String> {
+    report(terminal, adapters, |_, _| Ok(Vec::new()))
 }
 
 pub fn footprint_report<A: Adapters>(

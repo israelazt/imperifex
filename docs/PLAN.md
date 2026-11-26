@@ -707,7 +707,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - Pendiente de la 5.7 (2026-11-25): la orden `startup` está programada y subida, **sin medir**: falta correrla en caliente con el permiso del autor y que mire en qué carpeta abre la ventana. Una medida anterior (137 ms) se hizo con el diseño viejo y lanzada desde el repo: no vale. Por indicación del autor se programa el bloque 6 sin esperar a ese número.
 - [x] 6.1 (2026-11-25) · [x] 6.2 (2026-11-25) · [x] 6.3 (2026-11-25) · [x] 6.4 (2026-11-25) · [x] 6.5 (2026-11-25) · [x] 6.6 (2026-11-25) · [x] 6.7 (2026-11-25) · [x] 6.8 (2026-11-25) · [x] 6.9 (2026-11-25) · [ ] 6.10
 - Pendiente de la 6.10 (2026-11-25): las órdenes `latency`, `output` y `memory` están programadas y subidas, **sin ejecutar ninguna vez en el PC real**: faltan el permiso del autor, las medidas y los puntos del paso 3. Antes, repetir la comprobación de la 6.2 con la pantalla desbloqueada.
-- [ ] 7.1 · [ ] 7.2 · [ ] 7.3
+- [x] 7.1 (2026-11-25) · [ ] 7.2 · [ ] 7.3
 
 **Primera medida de salida (M3, consumida), 2026-11-25:** el autor corrió `emit ascii` (release, 100 MiB, semilla 1) en una pestaña de Warp: 5,229 s, 19,1 MB/s (1 MB = 1 048 576 bytes). Es **una sola muestra**, no es la línea base: no se anotó el tamaño de la ventana ni qué más hacía el PC (había una sesión de Claude Code en el mismo Warp). «Consumida» es el tiempo hasta que la consola aceptó los bytes, no hasta que se vieron (eso lo medirá la 6.5). Sin comprobar: en qué trozos entrega la biblioteca estándar de Rust esos bytes a la consola y cuánto cuesta; es igual para todas las terminales que se midan con esta herramienta.
 

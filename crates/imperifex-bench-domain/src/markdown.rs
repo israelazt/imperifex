@@ -46,6 +46,11 @@ fn runs_section(reports: &[Report]) -> String {
         ));
     }
     for (number, report) in (1..).zip(reports) {
+        for note in &report.notes {
+            text.push_str(&format!("\n> Tanda {number}: {note}\n"));
+        }
+    }
+    for (number, report) in (1..).zip(reports) {
         if report.machine != reports[0].machine {
             text.push_str(&format!(
                 "\n> Aviso: la tanda {number} se midió con una máquina distinta de la descrita arriba.\n"
@@ -140,6 +145,7 @@ mod tests {
                 .iter()
                 .map(|(m, s)| Measurement::new(*m, s.to_vec(), vec![]).unwrap())
                 .collect(),
+            notes: vec![],
         }
     }
 
@@ -209,6 +215,17 @@ mod tests {
         let text = baseline_markdown(&[report("2026-11-25", &[]), other]);
         assert!(
             text.contains("la tanda 2 se midió con una máquina distinta"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn the_notes_of_a_run_are_told_with_its_number() {
+        let mut noted = report("2026-11-25", &[]);
+        noted.notes.push("Falló memoria: sin pantalla".into());
+        let text = baseline_markdown(&[noted]);
+        assert!(
+            text.contains("> Tanda 1: Falló memoria: sin pantalla"),
             "{text}"
         );
     }

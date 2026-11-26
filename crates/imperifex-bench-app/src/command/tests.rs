@@ -255,3 +255,22 @@ fn a_wrong_argument_of_the_window_orders_is_an_error_that_shows_it() {
         assert!(error.contains(shown), "{line}: {error}");
     }
 }
+
+#[test]
+fn all_takes_a_terminal_and_may_take_a_folder() {
+    let Ok(Command::All(order)) = parse("all warp --out-dir r") else {
+        panic!("not an all order");
+    };
+    assert_eq!(
+        (order.terminal.as_str(), order.out_dir),
+        ("warp", Some("r".into()))
+    );
+}
+
+#[test]
+fn a_whole_run_with_a_part_that_failed_does_not_go_well_and_says_which() {
+    let command = parse("all warp --out-dir out").unwrap();
+    let (out, _) = run_on(command, FakeAdapters::default());
+    assert!(!out.ok);
+    assert!(out.text.contains("Falló memoria"), "{}", out.text);
+}

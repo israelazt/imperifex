@@ -64,6 +64,10 @@ pub struct Report {
     pub terminal: TerminalInfo,
     pub bench_version: String,
     pub measurements: Vec<Measurement>,
+    /// What a reader should know about the run as a whole, such as a part that
+    /// failed.
+    #[serde(default)]
+    pub notes: Vec<String>,
 }
 
 impl Report {
@@ -127,6 +131,7 @@ mod tests {
                 measurement(Metric::KeyLatencyPrompt, vec![10.0, 12.0]),
                 measurement(Metric::OutputSeen(Load::LongLines), vec![300.0]),
             ],
+            notes: vec!["Falló algo".into()],
         }
     }
 
@@ -140,6 +145,7 @@ mod tests {
         let value: serde_json::Value = serde_json::from_str(&report().to_json()).unwrap();
         assert_eq!(value["date"], "2026-11-25");
         assert_eq!(value["bench_version"], "0.1.0");
+        assert_eq!(value["notes"][0], "Falló algo");
         assert_eq!(value["machine"]["cpu"], "cpu");
         assert_eq!(value["machine"]["gpu"], "gpu");
         assert_eq!(value["machine"]["os"], "os");

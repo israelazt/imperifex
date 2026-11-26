@@ -3,6 +3,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod all;
 pub mod command;
 pub mod echo;
 pub mod emit;

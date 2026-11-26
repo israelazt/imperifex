@@ -12,6 +12,7 @@ use imperifex_bench_domain::ports::{
 use imperifex_bench_domain::report::Report;
 use imperifex_domain::ports::Clock;
 
+use crate::all::run_all;
 use crate::echo::run_echo;
 use crate::emit::EmitService;
 use crate::latency::LatencyMode;
@@ -74,6 +75,14 @@ pub struct MemoryOrder {
     pub out: Option<PathBuf>,
 }
 
+/// What `all` was asked for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AllOrder {
+    pub terminal: String,
+    /// Where the report goes; without it, a new folder under `bench/results`.
+    pub out_dir: Option<PathBuf>,
+}
+
 /// The adapters the orders run on. Each is made only when an order asks for
 /// it, so that none needs what it does not use.
 pub trait Adapters {
@@ -116,6 +125,7 @@ pub enum Command {
     Latency(LatencyOrder),
     OutputLoads(OutputOrder),
     Memory(MemoryOrder),
+    All(AllOrder),
 }
 
 /// What the program should write, and whether it went well.
@@ -155,6 +165,11 @@ Uso:
   imperifex-bench memory <terminal>
       Memoria de un historial largo y de cada pestaña.
   Todas admiten --out <archivo.json>.
+
+  imperifex-bench all <terminal> [--out-dir <carpeta>]
+      TODA LA LÍNEA BASE, unos 35 minutos (sin medir) sin tocar el PC. Deja
+      report.json; sin --out-dir, en bench/results/<fecha>-<terminal>-<n> de la
+      carpeta actual. Se lanza desde una carpeta sin Git.
 ";
 
 impl Command {
@@ -169,6 +184,7 @@ impl Command {
             Self::Latency(order) => run_latency(&order, adapters),
             Self::OutputLoads(order) => run_output(&order, adapters),
             Self::Memory(order) => run_memory(&order, adapters),
+            Self::All(order) => run_all_order(&order, adapters),
         };
         match done {
             Ok(text) => Output { text, ok: true },
@@ -221,6 +237,20 @@ fn run_output(order: &OutputOrder, adapters: &impl Adapters) -> Result<String, S
 fn run_memory(order: &MemoryOrder, adapters: &impl Adapters) -> Result<String, String> {
     let report = memory_report(&order.terminal, adapters)?;
     deliver(&report, order.out.as_deref(), adapters)
+}
+
+/// A run with a part that failed does not count as having gone well.
+fn run_all_order(order: &AllOrder, adapters: &impl Adapters) -> Result<String, String> {
+    let all = run_all(&order.terminal, order.out_dir.as_deref(), adapters)?;
+    let mut text = format!("{}\nInforme: {}", all.report.to_text(), all.file.display());
+    for note in &all.report.notes {
+        text.push_str(&format!("\n{note}"));
+    }
+    if all.report.notes.is_empty() {
+        Ok(text)
+    } else {
+        Err(text)
+    }
 }
 
 /// With a file, the report is kept there and its summary printed; without

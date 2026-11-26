@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use imperifex_bench_domain::metric::Load;
 
 use super::{
-    Command, EmitOrder, FootprintOrder, LatencyOrder, MemoryOrder, OutputOrder, StartupOrder,
+    AllOrder, Command, EmitOrder, FootprintOrder, LatencyOrder, MemoryOrder, OutputOrder,
+    StartupOrder,
 };
 use crate::emit::default_mib;
 use crate::latency::LatencyMode;
@@ -197,6 +198,17 @@ fn parse_startup<'a>(args: &mut Args<'a>) -> Result<StartupOrder, String> {
     Ok(order)
 }
 
+fn parse_all<'a>(args: &mut Args<'a>) -> Result<AllOrder, String> {
+    let mut order = AllOrder {
+        terminal: terminal_of("all", args)?,
+        out_dir: None,
+    };
+    while let Some((_, value)) = next_option(args, &["--out-dir"])? {
+        order.out_dir = Some(PathBuf::from(value));
+    }
+    Ok(order)
+}
+
 impl Command {
     /// Reads the arguments after the program's name. `help` is the default.
     pub fn parse<S: AsRef<str>>(args: &[S]) -> Result<Self, String> {
@@ -216,6 +228,7 @@ impl Command {
             Some("latency") => parse_latency(&mut args).map(Self::Latency),
             Some("output") => parse_output(&mut args).map(Self::OutputLoads),
             Some("memory") => parse_memory(&mut args).map(Self::Memory),
+            Some("all") => parse_all(&mut args).map(Self::All),
             Some(other) => Err(format!("orden desconocida: {other}")),
         }
     }
