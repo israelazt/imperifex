@@ -6,8 +6,8 @@
 
 #[cfg(windows)]
 fn main() {
-    use imperifex_app::{Command, StatusService};
-    use imperifex_platform::{install_stderr_log, SystemClock};
+    use imperifex_app::{Command, Shells, StatusService};
+    use imperifex_platform::{install_stderr_log, ConPtyLauncher, SystemClock, VteParser};
 
     install_stderr_log();
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -19,8 +19,18 @@ fn main() {
         }
     };
     let status = StatusService::new(SystemClock::new());
-    let output = command.run(&status);
-    println!("{}", output.text);
+    let shells = Shells {
+        launcher: &ConPtyLauncher,
+        parser: &mut VteParser::new(),
+        clock: &SystemClock::new(),
+    };
+    let output = command.run(&status, shells);
+    if !output.text.is_empty() {
+        println!("{}", output.text);
+    }
+    if let Some(notice) = &output.notice {
+        imperifex_domain::log_warn!("{notice}");
+    }
     std::process::exit(if output.ok { 0 } else { 1 });
 }
 

@@ -67,6 +67,7 @@ La imagen es la referencia de estilo, no una especificación.
 | A3 | ¿Rasterizado de texto? | DirectWrite en `platform`. Revisa lo que dice la skill (`cosmic-text` en `ui`): la medida del texto entraría a `ui` por un puerto | T2 |
 | A4 | ¿Ventana con `winit` o Win32 directo? | `winit`: menos código con `unsafe` propio. Confirmar con una sonda que permite la barra de título propia | T2 |
 | A5 | ¿Fuente? | Incluir JetBrains Mono (licencia OFL, por verificar al incluirla), con Cascadia Mono de respaldo. Se puede cambiar en Ajustes | T2 |
+| A7 | ¿Qué ancho damos a lo que ConPTY cuenta distinto (acentos sueltos, emojis compuestos, banderas)? Ver «Hechos medidos», T1.6 | Antes de decidir, ver en T2 qué pasa con PSReadLine y Claude Code reales. Candidata: contar como ConPTY, que es quien coloca el cursor en Windows; falta comprobar qué hacen los programas de WSL | T3 |
 | A6 | ¿Qué otras funciones de Warp necesitas? | Decidirlo al terminar T3, usando ya Imperifex | T5 |
 
 ## Fuera de este plan
@@ -273,7 +274,17 @@ Solo la pantalla visible, sin colores. Atributos, pantalla alternativa, regiones
 
 **Commit:** `feat(terminal): a history with a limit, and long lines that are cut again when the width changes`
 
-Los pasos de T1.6 y T1.7 se escriben antes de cada una.
+#### Pasos de T1.6 · la sesión
+1. Puertos `PtyLauncher` y `Pty` en `domain`: leer con espera, escribir, cambiar tamaño, saber si salió y con qué código, y cerrar la consola. **Nunca** se termina un proceso: cerrar la consola es lo que le pide salir.
+2. `domain/command_line.rs`: juntar programa y argumentos en una línea de órdenes de Windows, con sus reglas de comillas y pruebas.
+3. `app/session.rs`: `Session` une la consola, el intérprete y el `Terminal`: avanzar, escribir y cambiar el tamaño (de los dos). `app/headless.rs`: correr hasta que el programa salga, esperar 200 ms sin salida, cerrar y leer hasta el final; con un tiempo máximo, tras el cual se cierra la consola y se dice. Si sigue vivo 5 s después, se dice con su número de proceso.
+4. `platform/pty`: el adaptador ConPTY, partiendo de la sonda T1.1. Un hilo lee y entrega por un canal con límite; `ClosePseudoConsole` va en otro hilo, para que se pueda seguir leyendo mientras cierra.
+5. Orden `imperifex run --headless [--columns N] [--rows N] [--timeout S] [--history] -- <programa> [argumentos]`: escribe la pantalla (con `--history`, también el historial). Sale con 0 solo si el programa salió con 0.
+6. Comprobar con programas reales: que 5000 líneas lleguen todas y en orden; **qué ancho da ConPTY a los emojis compuestos** frente al nuestro (`examples/probe_widths.rs`); y si deja pasar los dibujos de `ESC ( 0`.
+
+**Commit:** `feat(terminal): a real shell in a pseudoconsole, and run --headless prints its screen`
+
+Los pasos de T1.7 se escriben antes de hacerla.
 | # | Tarea | Hecho cuando |
 |---|---|---|
 | T1.1 | Sonda ConPTY: crear, leer, escribir, cambiar tamaño, cerrar; ¿pasan intactas y en orden las secuencias OSC 7, 133 y 9? | Hechos anotados. Si OSC 133 no sirve, se replantea T5 **antes** de seguir |
@@ -373,20 +384,41 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Hechos medidos
 
+### T1.6 · Una shell real (2026-11-26, `imperifex run --headless` y `probe_widths` en release, una ejecución, Windows 10.0.26200, `cmd` y Windows PowerShell)
+
+- **5000 líneas** escritas por PowerShell llegaron **las 5000, iguales y en orden** (pantalla más historial).
+- Al agotarse el tiempo con `cmd` abierto, cerrar la consola bastó para que saliera. Un programa que no existe da el error de Windows. El código de salida 7 llega.
+- **`ESC ( 0`** (dibujos de líneas): ConPTY los entrega ya dibujados (`┌──┐`). No hace falta en el motor, al menos para lo que escribe PowerShell.
+- **Anchos.** «Consola» es la columna que Windows PowerShell lee con `[Console]::CursorLeft` tras escribir el texto desde la columna 0; «nuestra», la de la cuadrícula:
+
+| Texto | Consola | Nuestra |
+|---|---|---|
+| `e` + `U+0301` | 2 | 1 |
+| `漢字` | 4 | 4 |
+| `🚀` | 2 | 2 |
+| Familia unida con ZWJ (3 personas) | 8 | 6 |
+| `❤` + `U+FE0F` / sin él | 2 / 1 | 1 / 1 |
+| Bandera (2 indicadores) | 4 | 2 |
+| Pulgar con tono de piel | 4 | 4 |
+| `1` + `U+FE0F` + `U+20E3` | 3 | 1 |
+| `→±…│` | 4 | 4 |
+
+- Por los números, la consola parece dar columna propia a lo que para `unicode-width` mide 0 (inferencia). Tras un texto de los que difieren, lo que la consola coloque por posición caería en otra columna que en nuestra cuadrícula (sin comprobar con un programa real). Decisión abierta **A7**.
+
 ### T1.5 · Memoria y tiempo con un millón de líneas (2026-11-26, `measure_history` en release, una ejecución por caso, 80×25)
 
 | | 40 caracteres sin color | 86 caracteres con 4 colores (2 filas de 80) |
 |---|---|---|
 | Filas en el historial | 1 000 000 | 1 000 000 (unas 500 000 líneas) |
 | Memoria privada de más | 89 MB | 128 MB |
-| Reajustar a 100, 60 y 80 columnas | 596, 576 y 610 ms | 826, 937 y 994 ms |
+| Reajustar a 100, 60 y 80 columnas | 596, 576 y 610 ms (otra corrida: 646, 633 y 618) | 826, 937 y 994 ms (otra corrida: 835, 952 y 1225) |
 | Memoria privada de más tras cada reajuste | 91, 91 y 91 MB | 104, 154 y 138 MB |
 | Pico de memoria privada del proceso | 192 MB | 239 MB |
 | Llenarlo (incluye generar las líneas) | 1,59 s | 3,12 s |
 
 - MB = 1 048 576 bytes. A 100 columnas el caso con color queda en 499 988 filas: cada línea ya cabe en una.
 - El llenado incluye generar cada línea en la propia sonda y no dibuja nada: **no se compara** con las medidas de Warp.
-- **Para T2:** reajustar un millón de filas tarda entre 0,6 y 1 s; no se puede hacer en cada paso de un arrastre de la ventana. Con el límite por defecto (10 000) no se midió.
+- **Para T2:** reajustar un millón de filas tarda entre 0,6 y 1,2 s; no se puede hacer en cada paso de un arrastre de la ventana. Con el límite por defecto (10 000) no se midió.
 
 ### T1.1 · ConPTY (2026-11-26, `probe_conpty` en release, una ejecución, Windows 10.0.26200; `cmd` y Windows PowerShell; PowerShell 7 no está instalado y WSL no se probó)
 
@@ -408,7 +440,8 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Estado
 
-- [x] T1.5 (2026-11-26): historial con límite y reajuste. Un millón de filas: 89 MB sin color y 128 MB con color; reajustarlo, de 0,6 a 1 s. La prueba al azar encontró que se perdía texto al reajustar dos veces un carácter doble cortado; corregido, con su prueba.
+- [x] T1.6 (2026-11-26): ConPTY, sesión y `run --headless`, probados con `cmd` y Windows PowerShell. Los anchos difieren en 5 de 10 casos: A7.
+- [x] T1.5 (2026-11-26): historial con límite y reajuste. Un millón de filas: 89 MB sin color y 128 MB con color; reajustarlo, de 0,6 a 1,2 s. La prueba al azar encontró que se perdía texto al reajustar dos veces un carácter doble cortado; corregido, con su prueba.
 - [x] T1.4 (2026-11-26): estilos, SGR, pantalla alternativa, regiones, insertar y borrar y los modos, en `domain`. Probado con pruebas.
 - [x] T1.3 (2026-11-26): `vte` 0.15.0 sin `std` tras el puerto `SequenceParser`; el significado, en `domain::interpret`. Probado con pruebas; todavía no le llega ninguna shell. La prueba del límite de OSC se vio fallar con `std` activado (guardó 1 048 577 bytes).
 - [x] T1.2 (2026-11-26): la cuadrícula en `imperifex-domain`, probada solo con pruebas; ningún programa real escribe aún en ella.

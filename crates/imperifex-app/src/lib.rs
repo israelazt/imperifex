@@ -5,9 +5,11 @@
 #![forbid(unsafe_code)]
 
 pub mod command;
+pub mod headless;
+pub mod session;
 pub mod status;
 #[cfg(test)]
 mod testing;
 
-pub use command::{Command, Output};
+pub use command::{Command, Output, Shells};
 pub use status::StatusService;

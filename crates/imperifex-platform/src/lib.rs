@@ -6,7 +6,11 @@
 mod clock;
 mod log_console;
 mod parser;
+#[cfg(windows)]
+mod pty;
 
 pub use clock::SystemClock;
 pub use log_console::install_stderr_log;
 pub use parser::VteParser;
+#[cfg(windows)]
+pub use pty::ConPtyLauncher;

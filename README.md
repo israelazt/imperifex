@@ -16,6 +16,7 @@ Antes de cada commit: `powershell -File tools/check.ps1` (formato, clippy sin av
 | Orden | Hace |
 |---|---|
 | `imperifex status [--json]` | Ejemplo: dice que la app funciona y cuánto tardó |
+| `imperifex run --headless [--columns N] [--rows N] [--timeout S] [--history] -- <programa> [argumentos]` | Corre un programa en una consola sin ventana (ConPTY) y escribe la pantalla que deja; con `--history`, también lo que salió por arriba. Sale con 0 solo si el programa salió con 0. Nunca termina un proceso: al agotarse el tiempo cierra su consola. Probada con `cmd` y Windows PowerShell el 2026-11-26. Desde Git Bash, las opciones como `/c` necesitan `MSYS_NO_PATHCONV=1` |
 | `imperifex help` | La ayuda |
 
 ## El banco de medidas

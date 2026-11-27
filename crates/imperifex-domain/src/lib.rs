@@ -4,6 +4,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod command_line;
 pub mod example;
 pub mod grid;
 pub mod interpret;
