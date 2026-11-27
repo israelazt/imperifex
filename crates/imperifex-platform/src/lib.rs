@@ -5,6 +5,8 @@
 
 mod clock;
 mod log_console;
+mod parser;
 
 pub use clock::SystemClock;
 pub use log_console::install_stderr_log;
+pub use parser::VteParser;

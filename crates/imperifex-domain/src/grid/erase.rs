@@ -40,6 +40,15 @@ impl Grid {
         self.clear_cells(row, from, to);
     }
 
+    /// Empties `count` cells from the cursor on, without leaving its row.
+    pub fn erase_chars(&mut self, count: usize) {
+        let (row, column) = (self.cursor.row, self.cursor.column);
+        let to = self.columns.min(column.saturating_add(count));
+        if to > column {
+            self.clear_cells(row, column, to);
+        }
+    }
+
     pub fn erase_in_display(&mut self, what: Erase) {
         let row = self.cursor.row;
         match what {

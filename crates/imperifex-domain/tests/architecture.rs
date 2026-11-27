@@ -69,7 +69,12 @@ fn each_crate_depends_only_on_what_the_layers_allow() {
             "imperifex-domain",
             &["serde", "serde_json", "unicode-width"],
         ),
-        ("imperifex-platform", &["imperifex-domain", "windows"]),
+        // vte: splits the bytes of a shell into sequences (T-D11), behind
+        // the `SequenceParser` port. What they mean is decided in domain.
+        (
+            "imperifex-platform",
+            &["imperifex-domain", "vte", "windows"],
+        ),
         ("imperifex-app", &["imperifex-domain"]),
         (
             "imperifex",

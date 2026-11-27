@@ -6,5 +6,7 @@
 
 pub mod example;
 pub mod grid;
+pub mod interpret;
 pub mod log;
 pub mod ports;
+pub mod sequence;

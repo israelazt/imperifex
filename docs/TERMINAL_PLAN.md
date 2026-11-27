@@ -235,7 +235,23 @@ Solo la pantalla visible, sin colores. Atributos, pantalla alternativa, regiones
 
 **Commit:** `feat(terminal): the grid: writing, cursor, scrolling and wide and combining characters`
 
-Los pasos de T1.3 a T1.7 se escriben antes de cada una.
+#### Pasos de T1.3 · el intérprete
+`vte` solo **parte** los bytes en trozos con forma. **Qué significa** cada uno lo decide `domain`, con pruebas que no necesitan `vte`.
+1. Dependencia: `vte = { version = "0.15", default-features = false }`, usada solo en `imperifex-platform`. **Sin `std` a propósito:** con ella, una secuencia OSC sin final crece en memoria sin límite; sin ella se corta a 1024 bytes.
+2. `domain/sequence.rs`: `Sequence`: carácter, control, CSI (parámetros, marcas intermedias y letra final), ESC y OSC. Puerto `SequenceParser` en `ports.rs`: los bytes llegan cortados por cualquier sitio y nada es un error.
+3. `domain/interpret.rs`: `apply(grid, sequence)`:
+   - controles: BS, HT, LF (VT y FF igual) y CR;
+   - CSI sin marcas: `A B C D E F G d H f` (mover; un 0 o nada cuenta como 1 y las posiciones empiezan en 1), `J K` (borrar, 0 a 2) y `X` (borrar caracteres);
+   - ESC `D` (bajar) y `E` (nueva línea);
+   - **todo lo demás se ignora sin fallar**, incluidos color, `?9001`, `?1004` y `?25`. Color, modos, regiones, insertar, borrar y desplazar son T1.4; los eventos OSC, T5 y T6.
+4. `platform/parser.rs`: `VteParser`, portátil. Una secuencia que `vte` marca como incompleta no se entrega. DCS se descarta.
+5. Pruebas: bytes → cuadrícula, con el arranque de `cmd` visto en T1.1 (sin rutas personales); cortar la entrada en cualquier byte da lo mismo; bytes al azar no hacen fallar nada; una OSC de 1 MB llega recortada.
+
+**Revisión de `unsafe` de `vte` 0.15.0 (2026-11-26):** cinco usos en `lib.rs`, correctos: un arreglo de `MaybeUninit` sin iniciar; su lectura solo hasta donde se llenó (16 como máximo); y tres conversiones de texto hasta donde la validación UTF-8 dijo que era válido. No se revisó el `unsafe` de sus dependencias `arrayvec` y `memchr`.
+
+**Commit:** `feat(terminal): the bytes of a shell reach the grid, through vte behind our own port`
+
+Los pasos de T1.4 a T1.7 se escriben antes de cada una.
 | # | Tarea | Hecho cuando |
 |---|---|---|
 | T1.1 | Sonda ConPTY: crear, leer, escribir, cambiar tamaño, cerrar; ¿pasan intactas y en orden las secuencias OSC 7, 133 y 9? | Hechos anotados. Si OSC 133 no sirve, se replantea T5 **antes** de seguir |
@@ -355,6 +371,7 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Estado
 
+- [x] T1.3 (2026-11-26): `vte` 0.15.0 sin `std` tras el puerto `SequenceParser`; el significado, en `domain::interpret`. Probado con pruebas; todavía no le llega ninguna shell. La prueba del límite de OSC se vio fallar con `std` activado (guardó 1 048 577 bytes).
 - [x] T1.2 (2026-11-26): la cuadrícula en `imperifex-domain`, probada solo con pruebas; ningún programa real escribe aún en ella.
 - [x] T1.1 (2026-11-26): sonda ConPTY; resultados en «Hechos medidos».
 - 2026-11-26: el autor aplaza la línea base hasta T4 y aprueba `vte` (T-D10, T-D11). Empieza T1.

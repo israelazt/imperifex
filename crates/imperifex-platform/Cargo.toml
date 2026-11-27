@@ -11,6 +11,7 @@ workspace = true
 # in #[cfg(windows)] modules; decoding of what the system returns is portable.
 [dependencies]
 imperifex-domain = { path = "../imperifex-domain" }
+vte.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = [
