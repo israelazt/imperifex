@@ -1,16 +1,17 @@
-use imperifex_domain::grid::{Grid, Position, Span};
+use imperifex_domain::grid::{Color, Grid, Position, Span};
 use imperifex_domain::interpret::apply;
+use imperifex_domain::terminal::Terminal;
 
 use super::*;
 
 /// The grid after feeding the chunks, one after the other.
 fn shown<'a>(columns: u16, rows: u16, chunks: impl IntoIterator<Item = &'a [u8]>) -> Grid {
-    let mut grid = Grid::new(columns, rows);
+    let mut terminal = Terminal::new(columns, rows);
     let mut parser = VteParser::new();
     for chunk in chunks {
-        parser.parse(chunk, &mut |sequence| apply(&mut grid, sequence));
+        parser.parse(chunk, &mut |sequence| apply(&mut terminal, sequence));
     }
-    grid
+    terminal.screen().clone()
 }
 
 fn state(grid: &Grid) -> (String, Position) {
@@ -46,6 +47,26 @@ fn cutting_the_input_at_any_byte_changes_nothing() {
         assert_eq!(state(&parts), whole, "cut at {cut}");
     }
     assert_eq!(state(&shown(80, 25, bytes.chunks(1))), whole);
+}
+
+#[test]
+fn both_ways_of_writing_a_colour_arrive_whole() {
+    for bytes in [
+        "\x1b[38;2;1;2;3;48;5;200mx",
+        "\x1b[38:2::1:2:3;48:5:200mx",
+        "\x1b[38:2:1:2:3m\x1b[48:5:200mx",
+    ] {
+        let grid = shown(10, 1, [bytes.as_bytes()]);
+        let style = grid.cell(0, 0).unwrap().style();
+        assert_eq!(style.foreground, Color::Rgb(1, 2, 3), "{bytes:?}");
+        assert_eq!(style.background, Color::Indexed(200), "{bytes:?}");
+    }
+}
+
+#[test]
+fn a_parameter_left_out_at_the_end_counts_as_0() {
+    let grid = shown(10, 1, [&b"\x1b[1;31;mx"[..]]);
+    assert_eq!(grid.cell(0, 0).unwrap().style(), Default::default());
 }
 
 #[test]
@@ -97,7 +118,8 @@ impl Numbers {
 
 /// Random bytes, with many of those that start and shape sequences.
 fn noise(length: usize, seed: u64) -> Vec<u8> {
-    const SHAPING: &[u8] = b"\x1b\x1b[[]P;;:?0123456789ABCDEFGHJKXdfm\x07\x08\t\r\n\\\x18";
+    const SHAPING: &[u8] =
+        b"\x1b\x1b[[]P;;:??0123456789@ABCDEFGHJKLMPSTXcdfhlmrsu78\x07\x08\t\r\n\\\x18";
     let mut numbers = Numbers(seed);
     (0..length)
         .map(|_| match numbers.below(4) {

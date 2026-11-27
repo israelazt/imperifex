@@ -251,7 +251,19 @@ Solo la pantalla visible, sin colores. Atributos, pantalla alternativa, regiones
 
 **Commit:** `feat(terminal): the bytes of a shell reach the grid, through vte behind our own port`
 
-Los pasos de T1.4 a T1.7 se escriben antes de cada una.
+#### Pasos de T1.4 · estilos, pantalla alternativa, regiones y modos
+1. `grid/style.rs`: `Color` (por defecto, índice 0 a 255 o RGB) y `Style` (color de letra, de fondo y atributos: negrita, tenue, cursiva, subrayado, parpadeo, inverso, oculto y tachado). Cada `Cell` guarda el suyo; la cuadrícula tiene el estilo con el que escribe. **Lo que se vacía queda con el color de fondo en uso**, como en xterm.
+2. `Sequence::Csi` conserva los sub-parámetros (`38:2::r:g:b`) en un tipo `Params`.
+3. `interpret/sgr.rs`: SGR (`m`), con los colores de 16, 256 y 24 bits en sus dos escrituras (`;` y `:`). El color del subrayado (58) se lee y se descarta.
+4. Región de desplazamiento (`r`), con el desplazamiento al bajar y al subir (`ESC M`) y las órdenes `S T L M`; subir y bajar el cursor se detiene en sus bordes. Insertar y borrar caracteres (`@ P`), sin dejar media letra doble.
+5. Guardar y recuperar el cursor con su estilo (`ESC 7`, `ESC 8`, `CSI s`, `CSI u`). Reinicio total (`ESC c`).
+6. `domain/terminal.rs`: `Terminal`, la pantalla activa, la principal guardada mientras se usa la alternativa y los modos que lee la ventana. `interpret::apply` pasa a actuar sobre él.
+7. Modos: `?1` (teclas de cursor de aplicación), `?6` (origen), `?7` (salto automático), `?25` (cursor visible), `?47`, `?1047`, `?1048`, `?1049` (pantalla alternativa y cursor), `?2004` (pegado delimitado) y `4` (insertar). La pantalla alternativa empieza vacía cada vez. Ratón y foco: T3.
+8. Fuera: tabuladores configurables, juegos de caracteres de dibujo (`ESC ( 0`; sin comprobar que ConPTY los deje pasar, se verá en T1.6) y las respuestas a consultas (las contesta ConPTY; no se vio ninguna dirigida a la terminal).
+
+**Commit:** `feat(terminal): colours and styles, the alternate screen, scroll regions and modes`
+
+Los pasos de T1.5 a T1.7 se escriben antes de cada una.
 | # | Tarea | Hecho cuando |
 |---|---|---|
 | T1.1 | Sonda ConPTY: crear, leer, escribir, cambiar tamaño, cerrar; ¿pasan intactas y en orden las secuencias OSC 7, 133 y 9? | Hechos anotados. Si OSC 133 no sirve, se replantea T5 **antes** de seguir |
@@ -371,6 +383,7 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Estado
 
+- [x] T1.4 (2026-11-26): estilos, SGR, pantalla alternativa, regiones, insertar y borrar y los modos, en `domain`. Probado con pruebas.
 - [x] T1.3 (2026-11-26): `vte` 0.15.0 sin `std` tras el puerto `SequenceParser`; el significado, en `domain::interpret`. Probado con pruebas; todavía no le llega ninguna shell. La prueba del límite de OSC se vio fallar con `std` activado (guardó 1 048 577 bytes).
 - [x] T1.2 (2026-11-26): la cuadrícula en `imperifex-domain`, probada solo con pruebas; ningún programa real escribe aún en ella.
 - [x] T1.1 (2026-11-26): sonda ConPTY; resultados en «Hechos medidos».

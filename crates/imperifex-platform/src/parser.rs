@@ -2,8 +2,8 @@
 //! and tested on every system. It decides nothing about their meaning.
 
 use imperifex_domain::ports::SequenceParser;
-use imperifex_domain::sequence::Sequence;
-use vte::{Params, Perform};
+use imperifex_domain::sequence::{Params, Sequence};
+use vte::Perform;
 
 /// `vte` keeps no more parameters than this.
 const MAX_PARAMS: usize = 32;
@@ -40,18 +40,32 @@ impl Perform for Forward<'_> {
         (self.receive)(Sequence::Control(byte));
     }
 
-    fn csi_dispatch(&mut self, params: &Params, intermediates: &[u8], cut: bool, action: char) {
+    fn csi_dispatch(
+        &mut self,
+        params: &vte::Params,
+        intermediates: &[u8],
+        cut: bool,
+        action: char,
+    ) {
         if cut {
             return;
         }
         let mut values = [0u16; MAX_PARAMS];
         let mut length = 0;
-        for (slot, param) in values.iter_mut().zip(params.iter()) {
-            *slot = param.first().copied().unwrap_or(0);
-            length += 1;
+        let mut joined = 0u32;
+        for param in params {
+            for (part, value) in param.iter().enumerate() {
+                if let Some(slot) = values.get_mut(length) {
+                    *slot = *value;
+                    if part > 0 {
+                        joined |= 1 << length;
+                    }
+                    length += 1;
+                }
+            }
         }
         (self.receive)(Sequence::Csi {
-            params: &values[..length],
+            params: Params::new(&values[..length], joined),
             intermediates,
             action,
         });

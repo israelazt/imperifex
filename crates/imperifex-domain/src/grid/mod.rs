@@ -1,17 +1,19 @@
-//! The visible screen of a terminal: the cells and the cursor, and what
-//! writing and moving do to them.
+//! One screen of a terminal: its cells and cursor, and what writing does to
+//! them.
 
 mod cell;
+mod cursor;
 mod erase;
-
-use unicode_width::UnicodeWidthChar;
+mod scroll;
+mod style;
+mod write;
 
 pub use cell::{Cell, Span};
 pub use erase::Erase;
+pub use style::{Attributes, Color, Style};
 
 /// The most columns or rows a grid has: a size comes from outside.
 const MAX_SIDE: u16 = 1000;
-const TAB_WIDTH: usize = 8;
 
 /// A place in the grid, counted from 0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -30,6 +32,18 @@ pub struct Grid {
     /// The last column was written: the next character goes to the next row.
     /// Until then the cursor stays; any movement forgets it.
     wrap_pending: bool,
+    /// What is written from now on looks like this.
+    pub pen: Style,
+    /// Writing past the last column goes on in the next row.
+    pub autowrap: bool,
+    /// Writing pushes the rest of the row instead of covering it.
+    pub insert: bool,
+    /// Row positions count from the top of the scroll region and stay in it.
+    origin: bool,
+    /// First and last row that scroll.
+    top: usize,
+    bottom: usize,
+    saved: cursor::Saved,
 }
 
 impl Grid {
@@ -42,7 +56,29 @@ impl Grid {
             rows: vec![vec![Cell::default(); columns]; rows],
             cursor: Position::default(),
             wrap_pending: false,
+            pen: Style::default(),
+            autowrap: true,
+            insert: false,
+            origin: false,
+            top: 0,
+            bottom: rows - 1,
+            saved: cursor::Saved::default(),
         }
+    }
+
+    /// An empty screen of the same size that goes on with this one's cursor,
+    /// pen and writing modes.
+    pub fn blank_copy(&self) -> Self {
+        let mut copy = Self {
+            rows: vec![vec![Cell::default(); self.columns]; self.rows()],
+            origin: false,
+            top: 0,
+            bottom: self.rows() - 1,
+            saved: cursor::Saved::default(),
+            ..*self
+        };
+        copy.move_to(self.cursor.row, self.cursor.column);
+        copy
     }
 
     pub fn columns(&self) -> usize {
@@ -77,95 +113,6 @@ impl Grid {
             .map(|row| self.row_text(row))
             .collect::<Vec<_>>()
             .join("\n")
-    }
-
-    /// Writes one character at the cursor. Control characters do nothing here.
-    pub fn print(&mut self, character: char) {
-        match character.width() {
-            None => {}
-            Some(0) => self.add_mark(character),
-            Some(1) => self.put(character, 1),
-            Some(_) => self.put(character, 2),
-        }
-    }
-
-    /// Writes a character that takes `width` columns, 1 or 2.
-    fn put(&mut self, character: char, width: usize) {
-        if width > self.columns {
-            return;
-        }
-        if self.wrap_pending || self.cursor.column + width > self.columns {
-            self.carriage_return();
-            self.line_feed();
-        }
-        let Position { row, column } = self.cursor;
-        self.clear_cells(row, column, column + width);
-        if width == 2 {
-            self.rows[row][column] = Cell::new(character, Span::Double);
-            self.rows[row][column + 1] = Cell::continuation();
-        } else {
-            self.rows[row][column] = Cell::new(character, Span::Single);
-        }
-        if column + width == self.columns {
-            self.cursor.column = self.columns - 1;
-            self.wrap_pending = true;
-        } else {
-            self.cursor.column = column + width;
-        }
-    }
-
-    /// A character without a column joins the one just written. With none to
-    /// its left in the row, it is dropped.
-    fn add_mark(&mut self, mark: char) {
-        let Position { row, column } = self.cursor;
-        let written = if self.wrap_pending {
-            Some(column)
-        } else {
-            column.checked_sub(1)
-        };
-        let Some(mut at) = written else {
-            return;
-        };
-        if self.rows[row][at].span() == Span::Continuation {
-            at -= 1;
-        }
-        self.rows[row][at].add_mark(mark);
-    }
-
-    pub fn carriage_return(&mut self) {
-        self.move_to(self.cursor.row, 0);
-    }
-
-    /// Goes down one row. On the last one everything moves up and the top row
-    /// is lost.
-    pub fn line_feed(&mut self) {
-        self.wrap_pending = false;
-        if self.cursor.row + 1 < self.rows() {
-            self.cursor.row += 1;
-        } else {
-            self.rows.rotate_left(1);
-            let last = self.rows() - 1;
-            self.rows[last].fill(Cell::default());
-        }
-    }
-
-    pub fn backspace(&mut self) {
-        self.move_to(self.cursor.row, self.cursor.column.saturating_sub(1));
-    }
-
-    /// Goes to the next column that is a multiple of 8, or to the last one.
-    pub fn tab(&mut self) {
-        let next = (self.cursor.column / TAB_WIDTH + 1) * TAB_WIDTH;
-        self.move_to(self.cursor.row, next);
-    }
-
-    /// Moves the cursor, kept inside the grid.
-    pub fn move_to(&mut self, row: usize, column: usize) {
-        self.cursor = Position {
-            row: row.min(self.rows() - 1),
-            column: column.min(self.columns - 1),
-        };
-        self.wrap_pending = false;
     }
 }
 

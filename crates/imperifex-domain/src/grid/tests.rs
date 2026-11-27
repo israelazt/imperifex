@@ -245,7 +245,7 @@ impl Numbers {
 fn do_one(grid: &mut Grid, numbers: &mut Numbers) {
     const CHARACTERS: [char; 5] = ['a', ' ', '漢', '\u{301}', '\u{7}'];
     const ERASES: [Erase; 3] = [Erase::ToEnd, Erase::ToStart, Erase::All];
-    match numbers.below(14) {
+    match numbers.below(28) {
         0 => grid.carriage_return(),
         1 => grid.line_feed(),
         2 => grid.backspace(),
@@ -253,6 +253,20 @@ fn do_one(grid: &mut Grid, numbers: &mut Numbers) {
         4 => grid.move_to(numbers.below(9), numbers.below(9)),
         5 => grid.erase_in_line(ERASES[numbers.below(3)]),
         6 => grid.erase_in_display(ERASES[numbers.below(3)]),
+        7 => grid.insert_chars(numbers.below(9)),
+        8 => grid.delete_chars(numbers.below(9)),
+        9 => grid.erase_chars(numbers.below(9)),
+        10 => grid.insert_lines(numbers.below(9)),
+        11 => grid.delete_lines(numbers.below(9)),
+        12 => grid.set_region(numbers.below(9), numbers.below(9)),
+        13 => grid.reverse_line_feed(),
+        14 => grid.scroll_down(numbers.below(9)),
+        15 => grid.scroll_up(numbers.below(9)),
+        16 => grid.insert = numbers.below(2) == 0,
+        17 => grid.autowrap = numbers.below(2) == 0,
+        18 => grid.set_origin(numbers.below(2) == 0),
+        19 => grid.save_cursor(),
+        20 => grid.restore_cursor(),
         _ => grid.print(CHARACTERS[numbers.below(CHARACTERS.len())]),
     }
 }
