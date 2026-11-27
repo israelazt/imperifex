@@ -63,7 +63,12 @@ fn each_crate_depends_only_on_what_the_layers_allow() {
     // crate -> every dependency it may have. Dependencies go only downward:
     // domain <- platform, app <- the binary. A new one is added here with a reason.
     let allowed: [(&str, &[&str]); 8] = [
-        ("imperifex-domain", &["serde", "serde_json"]),
+        // unicode-width: how many columns a character takes (T-D12). Pure
+        // tables kept up to date with Unicode, better than our own.
+        (
+            "imperifex-domain",
+            &["serde", "serde_json", "unicode-width"],
+        ),
         ("imperifex-platform", &["imperifex-domain", "windows"]),
         ("imperifex-app", &["imperifex-domain"]),
         (

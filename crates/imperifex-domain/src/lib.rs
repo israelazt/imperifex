@@ -5,5 +5,6 @@
 #![forbid(unsafe_code)]
 
 pub mod example;
+pub mod grid;
 pub mod log;
 pub mod ports;

@@ -57,6 +57,7 @@ La imagen es la referencia de estilo, no una especificación.
 | T-D9 | **Todo nativo**, como en Luminifex y Purifex: Rust y las API del sistema. Sin WebView, Electron, HTML, CSS, JavaScript ni motor web. La imagen del diseño es solo una referencia visual | Pedido del autor: rendimiento |
 | T-D10 | **La terminal se programa ya; la línea base de Warp se aplaza hasta T4** (2026-11-26). B.1, B.4, la 7.3 y los fallos del banco sin explicar quedan pendientes en `docs/PLAN.md` y se cierran en T4.0 | Pedido del autor. Los números de Warp solo se necesitan para comparar, y no hay nada que comparar hasta que Imperifex se pueda medir |
 | T-D11 | El intérprete de secuencias es el crate **`vte`**, detrás de un puerto propio (cierra A1). Antes de usarlo en T1.3 se revisa su `unsafe` | Aprobado por el autor (2026-11-26) |
+| T-D12 | El ancho de cada carácter lo da el crate **`unicode-width`**, usado solo en `domain` | Aprobado por el autor (2026-11-26). Prohíbe `unsafe`; mantener tablas propias es más fácil de equivocar |
 
 ## Decisiones abiertas (cada una se cierra antes de su bloque)
 
@@ -215,7 +216,26 @@ Sonda desechable: no es código del producto y no abre ventanas.
 6. **Nunca** `TerminateProcess`. Si una shell no sale al cerrar la consola en 5 s, la sonda lo dice con su pid.
 7. Anotar los resultados en «Hechos medidos» de este plan.
 
-Los pasos de T1.2 a T1.7 se escriben después, con lo que diga la sonda.
+#### Pasos de T1.2 · `crates/imperifex-domain/src/grid/`
+Solo la pantalla visible, sin colores. Atributos, pantalla alternativa, regiones, insertar y borrar líneas o caracteres: T1.4. Historial, cambiar de tamaño y recordar qué filas se cortaron solas: T1.5.
+1. `cell.rs`: `Cell`: un carácter, las marcas que no ocupan columna (sin reservar memoria si no hay) y si ocupa una columna, dos, o es la segunda de uno doble. Vacía = un espacio.
+2. `mod.rs`: `Grid::new(columns, rows)`, con cada medida entre 1 y 1000. Cursor desde 0.
+3. `print(c)`:
+   - ancho según `unicode-width`; los caracteres de control no hacen nada;
+   - ancho 0: se une a la celda recién escrita (si es la segunda de un doble, a la primera); sin ninguna a su izquierda en la fila, se descarta. Como mucho 8 marcas por celda: la entrada no es de fiar;
+   - al escribir en la última columna el cursor no salta: queda el salto **pendiente** y lo hace el siguiente carácter. Mover el cursor lo anula;
+   - un doble que no cabe en lo que queda de la fila salta antes y deja esa columna vacía; en una cuadrícula de 1 columna se descarta;
+   - escribir sobre media letra doble borra también la otra mitad.
+4. Movimientos: `carriage_return`, `line_feed` (baja; en la última fila desplaza todo y la de arriba se pierde), `backspace`, `tab` (cada 8, sin pasar de la última columna), `move_to(row, column)` recortado a la cuadrícula.
+5. `erase_in_line` y `erase_in_display` con `Erase::{ToEnd, ToStart, All}`, incluida la celda del cursor. No mueven el cursor y nunca dejan media letra doble.
+6. Lectura: `cell(row, column)`, `row_text(row)` sin los espacios del final y `text()`.
+7. Pruebas de cada punto, y una con miles de operaciones al azar (semilla fija) tras las cuales ninguna fila tiene media letra doble y el cursor está dentro.
+
+**Sin comprobar, para T1.6:** el ancho se calcula carácter a carácter. Los emojis compuestos (unidos con ZWJ, o con el selector `U+FE0F`) pueden ocupar en ConPTY otras columnas que aquí y descuadrar el cursor.
+
+**Commit:** `feat(terminal): the grid: writing, cursor, scrolling and wide and combining characters`
+
+Los pasos de T1.3 a T1.7 se escriben antes de cada una.
 | # | Tarea | Hecho cuando |
 |---|---|---|
 | T1.1 | Sonda ConPTY: crear, leer, escribir, cambiar tamaño, cerrar; ¿pasan intactas y en orden las secuencias OSC 7, 133 y 9? | Hechos anotados. Si OSC 133 no sirve, se replantea T5 **antes** de seguir |
@@ -335,6 +355,7 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Estado
 
+- [x] T1.2 (2026-11-26): la cuadrícula en `imperifex-domain`, probada solo con pruebas; ningún programa real escribe aún en ella.
 - [x] T1.1 (2026-11-26): sonda ConPTY; resultados en «Hechos medidos».
 - 2026-11-26: el autor aplaza la línea base hasta T4 y aprueba `vte` (T-D10, T-D11). Empieza T1.
 - 2026-11-25: plan escrito a partir de `design/screen.png`. Nada programado. Nada de A0 ni de las sondas de este plan verificado.
