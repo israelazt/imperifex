@@ -1,6 +1,6 @@
 # Imperifex · La terminal y su diseño (plan, 2026-11-25)
 
-> Estado: **T1 completo** (2026-11-26); en **PAUSA** antes de T2. Las demás decisiones abiertas (tabla «Decisiones abiertas») esperan confirmación antes de su bloque.
+> Estado: **T1 completo** (2026-11-26). **Pasos de T2 escritos** (2026-11-27); se empieza por T2.1. Las demás decisiones abiertas (tabla «Decisiones abiertas») esperan confirmación antes de su bloque.
 > Sustituye al resumen «Fase T» de `docs/PLAN.md`. La línea base de Warp **se aplaza hasta T4** (T-D10).
 > Las reglas de trabajo son las de `docs/PLAN.md` («Cómo se usa este plan») y D11.
 
@@ -58,15 +58,17 @@ La imagen es la referencia de estilo, no una especificación.
 | T-D10 | **La terminal se programa ya; la línea base de Warp se aplaza hasta T4** (2026-11-26). B.1, B.4, la 7.3 y los fallos del banco sin explicar quedan pendientes en `docs/PLAN.md` y se cierran en T4.0 | Pedido del autor. Los números de Warp solo se necesitan para comparar, y no hay nada que comparar hasta que Imperifex se pueda medir |
 | T-D11 | El intérprete de secuencias es el crate **`vte`**, detrás de un puerto propio (cierra A1). Antes de usarlo en T1.3 se revisa su `unsafe` | Aprobado por el autor (2026-11-26) |
 | T-D12 | El ancho de cada carácter lo da el crate **`unicode-width`**, usado solo en `domain` | Aprobado por el autor (2026-11-26). Prohíbe `unsafe`; mantener tablas propias es más fácil de equivocar |
+| T-D13 | Se dibuja con **Direct3D 11**, como Luminifex; no Vulkan (cierra A2) | Elegido por el autor (2026-11-27). Por ahora solo hay Windows |
+| T-D14 | El texto lo rasteriza **DirectWrite**, en `platform`; la medida del texto llega a `ui` por un puerto (cierra A3). Se aparta de la skill `fexarium-rust`, que pone `cosmic-text` en `ui` | Elegido por el autor (2026-11-27) |
+| T-D15 | La ventana se crea con **`winit`**, tras una sonda que confirme que permite la barra de título propia (cierra A4). Si no lo permite, se vuelve a preguntar | Elegido por el autor (2026-11-27). Menos `unsafe` propio |
+| T-D16 | La fuente por defecto es **`Cascadia Mono`** (de `github.com/microsoft/cascadia-code`; sin ligaduras, porque la cuadrícula dibuja celda a celda), no JetBrains Mono (cierra A5). **No va incluida:** se busca por nombre en las fuentes instaladas (Windows 11 la trae en `C:\Windows\Fonts\CascadiaMono.ttf`; DirectWrite ve también las del usuario). Si no está, se usa `Consolas` y se avisa. Se puede cambiar en Ajustes | El autor respondió con el enlace (2026-11-27) y eligió variante y la fuente instalada el mismo día. Al no repartirla, no hay que llevar la licencia OFL |
+| T-D17 | **Contraste mínimo en la cuadrícula:** si la letra y el fondo de una celda contrastan menos de **2:1**, el color de la letra se acerca al blanco o al negro (el que más contraste dé con ese fondo) hasta llegar a **3:1**. Por encima de 2:1, los colores son los del programa. Se puede apagar (`Settings`; pantalla en T3.5) | Elegido por el autor (2026-11-27). Ejemplo: la sugerencia de PSReadLine (`ESC[97;2;3m`, blanco brillante atenuado) no se vería sobre el fondo claro |
+| T-D18 | **Entrada mínima provisional en T2** (T2.9): el texto tal como lo da Windows, Enter, Retroceso, Tab, Esc y las flechas. Lo demás (`AltGr`, teclas muertas, IME, atajos) sigue en T3.1, que la sustituye | Elegido por el autor (2026-11-27): sin escribir no se puede ver PSReadLine ni Claude Code reales, que A7 necesita |
 
 ## Decisiones abiertas (cada una se cierra antes de su bloque)
 
 | # | Pregunta | Recomendación | Antes de |
 |---|---|---|---|
-| A2 | ¿Dibujo? | Direct3D 11 (como Luminifex), no Vulkan: solo hay Windows por ahora | T2 |
-| A3 | ¿Rasterizado de texto? | DirectWrite en `platform`. Revisa lo que dice la skill (`cosmic-text` en `ui`): la medida del texto entraría a `ui` por un puerto | T2 |
-| A4 | ¿Ventana con `winit` o Win32 directo? | `winit`: menos código con `unsafe` propio. Confirmar con una sonda que permite la barra de título propia | T2 |
-| A5 | ¿Fuente? | Incluir JetBrains Mono (licencia OFL, por verificar al incluirla), con Cascadia Mono de respaldo. Se puede cambiar en Ajustes | T2 |
 | A7 | ¿Qué ancho damos a lo que ConPTY cuenta distinto (acentos sueltos, emojis compuestos, banderas)? Ver «Hechos medidos», T1.6 | Antes de decidir, ver en T2 qué pasa con PSReadLine y Claude Code reales. Candidata: contar como ConPTY, que es quien coloca el cursor en Windows; falta comprobar qué hacen los programas de WSL | T3 |
 | A6 | ¿Qué otras funciones de Warp necesitas? | Decidirlo al terminar T3, usando ya Imperifex | T5 |
 
@@ -302,15 +304,167 @@ Solo la pantalla visible, sin colores. Atributos, pantalla alternativa, regiones
 | T1.7 | Perfiles de shell como datos: PowerShell 7, Windows PowerShell, cmd, WSL | Cada uno que esté instalado corre en `--headless` |
 
 ### T2 · Ventana, dibujo, tema e idioma
+
+Pasos escritos el 2026-11-27 (Opus), con T1 terminado y A2 a A5 cerradas (T-D13 a T-D18).
+
+**Cómo encaja (vale para todo el bloque):**
+
+```
+ binario (winit: ventana y bucle; solo traduce eventos y conecta)
+   │  eventos de winit → tipos de domain (Pointer, KeyInput, tamaño, escala)
+   ▼
+ app::window::Core ── tick() / model() / apply(Action)   (servicios, solo puertos)
+   │ Model                          ▲ Action
+   ▼                                │
+ ui::frame(&Model, &Pointer, &dyn TextMeasure) → Frame { draw: DrawList, actions, terminal_area }
+   │
+   ▼
+ platform: D3dRenderer (puerto Renderer): DrawList de la interfaz + la cuadrícula del Terminal
+           DirectWriteText (puerto TextMeasure, y rasteriza glifos para el atlas)
+```
+
+- `ui` no dibuja la cuadrícula celda a celda: dice **dónde** va (`terminal_area`) y el renderizador la lee del `Terminal`. Una lista de 12 000 textos por frame sería el cuello de botella.
+- Los colores de una celda (índice, por defecto, inverso, atenuado, oculto, contraste mínimo) los decide una función pura de `domain`; el renderizador solo la llama.
+- La ventana dibuja solo cuando algo cambia (T-D6): `ControlFlow::Wait`, y se pide un redibujo solo por salida de la shell, entrada, tamaño, escala o tema.
+- Las tareas **🖥** abren ventanas: regla 9 de `docs/PLAN.md` (permiso del autor en esa sesión y aviso antes).
+
+#### Pasos de T2.1 · `crates/imperifex-domain/src/i18n/`
+1. `mod.rs`: `LanguageChoice { System, Spanish, English }` (con `Default` = `System`) y `Language { Spanish, English }`. Regla pura `resolve_language(choice, system_locale: Option<&str>) -> Language`: con `System`, una etiqueta que empiece por `es` (sin distinguir mayúsculas: `es`, `es-MX`, `es-419`, `es-ES`) da español; cualquier otra, o ninguna, inglés.
+2. `strings.rs`: la macro `strings!` declara `pub enum Text` y `pub fn text(language, Text) -> &'static str`. Cada entrada es `Clave { es: "…", en: "…" }`: si falta uno de los dos, **no compila** (el patrón de la macro exige los dos). Una prueba `compile_fail` en la documentación lo demuestra.
+3. Textos de T2, y solo esos: el nombre de la app; los cuatro botones de la ventana (`Minimizar`, `Maximizar`, `Restaurar`, `Cerrar`); los avisos de ajustes dañados y de fuente no encontrada (T2.3, T2.8); la shell que no arranca (T2.9).
+4. `plural.rs`: `count(language, n, Noun) -> String` («1 agente», «2 agentes», «0 agentes»; «1 agent», «2 agents»). En T2 solo existe `Noun::Agent`, para probar la regla.
+5. `number.rs`: `decimal(language, value, digits) -> String`: coma en español, punto en inglés (como escribe este plan). Sin separador de miles.
+6. Pruebas de cada regla. Una prueba recorre todas las claves y comprueba que ningún texto está vacío.
+
+**Commit:** `feat(terminal): texts in Spanish and English, and the rule that picks one`
+
+#### Pasos de T2.2 · tema, colores y espaciado (`domain`)
+1. `theme/mod.rs`: `ThemeChoice { System, Dark, Light }` (`Default` = `System`), `Theme { Dark, Light }` y `resolve_theme(choice, system_dark: Option<bool>) -> Theme`; si no se sabe el del sistema, oscuro.
+2. `theme/palette.rs`: `Rgb(u8, u8, u8)` y `Palette` con los diez tokens de «Diseño: tema» y `ansi: [Rgb; 16]`. `palette(theme) -> &'static Palette`, con estos ANSI (propuestos el 2026-11-27; medidos con la fórmula de WCAG: los índices 1 a 6 y 9 a 14 dan al menos **5,0:1** sobre los tres fondos de su tema, y el 8, al menos 3,2:1):
+
+   | Índice | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+   |---|---|---|---|---|---|---|---|---|
+   | Oscuro | `#1C1C1F` | `#FF7B72` | `#4ADE9B` | `#F5C451` | `#6CA8FF` | `#C4A7FF` | `#4CD7F6` | `#C8C8CE` |
+   | Claro | `#18181B` | `#B3261E` | `#0F6B42` | `#7A5200` | `#1F5FBF` | `#6A3FC0` | `#006781` | `#E4E4E7` |
+
+   | Índice | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
+   |---|---|---|---|---|---|---|---|---|
+   | Oscuro | `#6B6B75` | `#FFA198` | `#7EEDB8` | `#FFD97A` | `#9CC5FF` | `#DCCBFF` | `#8BE6FA` | `#F4F4F5` |
+   | Claro | `#55555E` | `#9E1F18` | `#0B5C38` | `#664400` | `#1A50A3` | `#5A33A8` | `#00576E` | `#FFFFFF` |
+
+   Negro (0) y blanco (7, 15) conservan su sentido en los dos temas: hay programas que pintan «blanco sobre negro» a propósito. Lo ilegible lo arregla el paso 4.
+3. `theme/contrast.rs`: `luminance(Rgb)` y `contrast(a, b) -> f32` (WCAG 2). Prueba: los siete tokens de texto dan al menos 4,5:1 sobre los tres fondos de su tema; los ANSI, lo del paso 2.
+4. `theme/cell_colors.rs`: `cell_colors(style, palette, adjust_contrast: bool) -> (Rgb, Rgb)` (letra, fondo): por defecto = `text` y `surface`; índices 0 a 15 de la paleta, 16 a 255 del cubo de xterm y los grises; inverso cambia letra y fondo; atenuado mezcla la letra al 50 % con el fondo; oculto = letra igual al fondo. Después, **T-D17**: por debajo de 2:1 la letra se acerca al blanco o al negro hasta 3:1 (no con oculto). Pruebas: cada caso, el de PSReadLine en tema claro (`97` atenuado sobre `#FFFFFF` acaba en 3:1 o más) y que un par con 2:1 o más no cambia.
+5. `space.rs`: `enum Space { Xs, S, M, L, Xl, Xxl }`, `const BASE: f32 = 16.0` (la única vez que aparece), `Space::rem()` (0,25 a 2) y `Space::px(scale) -> u32`, redondeado. Pruebas a 1,0, 1,25 y 1,5 (`L`: 16, 20, 24; `Xs`: 4, 5, 6).
+
+**Commit:** `feat(terminal): dark and light palettes with their ANSI colours, a minimum contrast, and the spacing scale`
+
+#### Pasos de T2.3 · `Settings`
+1. `domain/settings.rs`: `Settings { theme, language, font: FontSettings { family: String, size: f32 }, shell: Option<String>, adjust_contrast: bool }`, `Default` = `System`, `System`, `Cascadia Mono` a **12 pt** (como Windows Terminal), sin shell elegida (T2.9 prueba `pwsh` y luego `powershell`) y contraste mínimo encendido. Serde con `#[serde(default)]` en cada campo, y un campo `version: u32` (hoy 1).
+2. Lectura tolerante, pura: `Settings::read(text) -> Read { settings, damaged: bool }`. JSON inválido → `Default` y `damaged`. Un campo de tipo equivocado o un valor fuera de rango (tamaño fuera de 6 a 72, tema desconocido) se cambia por su valor por defecto **y el resto se conserva**: se lee campo a campo desde `serde_json::Value`. Los campos desconocidos se ignoran. `Settings::write() -> String`, con sangría.
+3. Puerto `SettingsStore` en `ports.rs`: `load() -> Result<Option<String>, String>` (`None` = no existe), `save(text)`, `keep_damaged(text) -> Result<String, String>` (devuelve dónde la guardó).
+4. `app/settings.rs`: `SettingsService::load(store) -> (Settings, Option<Notice>)`: dañado → copia y aviso; ausente → valores por defecto sin escribir nada. `save` solo escribe si algo cambió. Pruebas con un doble que anota lo que le piden.
+5. `platform/settings_file.rs`, solo `std`: `%APPDATA%\Imperifex\settings.json` (la carpeta se crea). Escritura atómica: `settings.json.tmp`, `sync_all`, `std::fs::rename` (en Windows es `MoveFileExW` con reemplazo). La copia dañada va a `settings.damaged.json`, o `settings.damaged-2.json` y siguientes, sin pisar ninguna. Pruebas en una carpeta temporal propia, nunca en `%APPDATA%`.
+
+**Commit:** `feat(terminal): settings with defaults, read leniently and written atomically`
+
+#### Pasos de T2.4 · el sistema: tema e idioma
+1. Puertos: `SystemAppearance { fn dark(&self) -> Result<bool, String>; fn watch(&self, changed: Wake) -> Result<(), String> }` y `SystemLanguage { fn locale(&self) -> Option<String> }`. `Wake = Arc<dyn Fn() + Send + Sync>` va en `ports.rs` (lo usa también T2.9).
+2. `platform/appearance.rs`: lee `AppsUseLightTheme` (DWORD) de `HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize` con `RegGetValueW`; si no existe, oscuro. `watch`: un hilo con `RegNotifyChangeKeyValue` sobre esa clave (`REG_NOTIFY_CHANGE_LAST_SET`, con evento), que llama a `changed` y vuelve a esperar; la clave se cierra con un `Drop`. No depende de la ventana: winit tiene su `ThemeChanged`, pero solo si no se fija el tema de la ventana, y se probaría tarde.
+3. `platform/language.rs`: el primer idioma de `GetUserPreferredUILanguages(MUI_LANGUAGE_NAME)` (el de la interfaz de Windows, no el formato regional). La lista doble terminada en nulo se decodifica en código portátil con pruebas.
+4. Features nuevas de `windows`: `Win32_System_Registry` y `Win32_Globalization`. Comprobar las firmas (regla 6).
+5. La CLI usa el idioma (`docs/TERMINAL_PLAN.md`, «Diseño: idioma»): `HELP` y los errores de `Command::parse` y `run` pasan a `strings!`; `Command::run` recibe el `Language`, resuelto en el binario con `Settings` (T2.3) y `SystemLanguage`. Las pruebas actuales de la CLI siguen en español pasándole `Language::Spanish`; una nueva comprueba la ayuda en inglés.
+6. `examples/watch_appearance.rs` en `platform`: imprime el tema y el idioma, y cada cambio durante 60 s. **A mano:** cambiar de oscuro a claro en Ajustes de Windows y anotar cuánto tarda en llegar.
+
+**Commit:** `feat(terminal): the system's light or dark mode and language, and the command line speaks it`
+
+#### Pasos de T2.5 · `crates/imperifex-ui`
+1. Crate nuevo, solo con `imperifex-domain`; `#![forbid(unsafe_code)]` y `[lints] workspace = true`. Fila en la guarda: `("imperifex-ui", &["imperifex-domain"])`. El binario podrá depender de él y de `winit` (fila del binario: `+ "imperifex-ui", "winit"`).
+2. Tipos que cruzan capas, en `domain`:
+   - `draw.rs`: `Rect { x, y, width, height }` en píxeles físicos (`i32`/`u32`), `DrawList { rects: Vec<(Rect, Rgb)>, texts: Vec<TextRun> }` y `TextRun { x, y, text, color, font: UiFont }`, con `UiFont { Text, Icons }`.
+   - `view.rs`: `Model { title, language, palette: &'static Palette, scale, window: (u32, u32), maximized, focused }`, `Action { Minimize, ToggleMaximize, Close, Drag, Resize(Edge), SystemMenu }`, `Edge` (ocho bordes) y `Pointer { position: Option<(i32, i32)>, pressed, released, double_click, right_click }`.
+   - Puerto `TextMeasure`: `width(&self, text, UiFont, scale) -> u32` y `line_height(UiFont, scale) -> u32`.
+3. `ui/src/lib.rs`: `frame(&Model, &Pointer, &dyn TextMeasure) -> Frame { draw, actions, terminal_area: Rect, cursor: CursorIcon }`. En T2.5 solo existe una función de prueba que arma un rectángulo con relleno `Space::L`: la barra de título real es T2.7.
+4. `ui/src/layout.rs`: `inset(rect, Space, scale)` y `row(...)`: **toda** función de márgenes y rellenos recibe `Space`, nunca un número, para que lo impida el compilador. Los tamaños que no son espacio (alto de la barra, ancho de un botón, borde de 1 px) son constantes con nombre en `ui/src/metrics.rs`, en píxeles lógicos.
+5. Guardas nuevas en `architecture.rs`, cada una probada rompiéndola una vez a mano (y anotado en el commit):
+   - `ui_has_no_loose_colours`: en el código de producción de `ui` no aparecen `Rgb(`, `#` seguido de 6 dígitos hexadecimales ni `0x` con 6 u 8.
+   - `ui_has_no_loose_visible_text`: en `ui` no hay literales de texto salvo `""`; los textos llegan por `Text` o del `Model`.
+6. Pruebas de `layout` y de que `frame` no da acciones sin puntero.
+
+**Commit:** `feat(terminal): the interface crate, with guards against loose colours and texts`
+
+#### Pasos de T2.6 · 🖥 sonda de winit (T-D15)
+Sonda desechable en `apps/imperifex/examples/probe_titlebar.rs`, con la técnica de Luminifex (`with_decorations(false)`, `with_undecorated_shadow(true)`, `drag_window`, `drag_resize_window`, `show_window_menu`). Dependencia nueva: `winit = "0.30"` en `[workspace.dependencies]`, usada solo por el binario (`raw-window-handle` llega reexportado por winit: no es una dependencia más). La sonda no dibuja nada: basta con que se vean el borde y la sombra de la ventana.
+1. Una ventana sin barra del sistema; una franja de 40 px lógicos arriba hace de barra (arrastrar = `drag_window`, doble clic = maximizar o restaurar, clic derecho = `show_window_menu`) y 8 px en cada borde redimensionan.
+2. Lista, con veredicto «sí / no / parcial» y lo que se vio:
+   - (a) mover; (b) arrastrar al borde de la pantalla y a una esquina ajusta la ventana (Aero Snap); (c) `Win`+flechas; (d) **menú de diseños de ajuste** al pasar el ratón sobre el botón de maximizar (Windows 11). Se espera **no**: winit 0.30.13 no responde a `WM_NCHITTEST` con `HTMAXBUTTON` (leído en su código el 2026-11-27);
+   - (e) maximizada ocupa justo el área de trabajo, sin tapar la barra de tareas ni dejar píxeles fuera; (f) minimizar y restaurar desde la barra de tareas; (g) `Alt`+`Espacio`;
+   - (h) pasar a `\\.\DISPLAY2` y volver; si los dos monitores tienen la misma escala, cambiar la de uno al 125 % solo durante la prueba y anotar si llega `ScaleFactorChanged` con el tamaño propuesto;
+   - (i) la sombra y las esquinas redondeadas de Windows 11.
+3. Anotar en «Hechos medidos».
+4. **Si algo de (a) a (i) falla**, parar y preguntar al autor (T-D15). Si solo falla (d), la propuesta es reemplazar el procedimiento de la ventana de winit (`SetWindowLongPtrW` con `GWLP_WNDPROC`, llamando al de winit con `CallWindowProcW`) para responder `HTMAXBUTTON` sobre el botón: unas pocas líneas de `unsafe` en `platform`. La otra opción es vivir sin ese menú.
+
+**Commit:** `docs(plan): what winit allows for our own title bar` (con la sonda).
+
+#### Pasos de T2.7 · 🖥 la ventana con su barra
+1. `platform/render/`: `D3dRenderer`, que implementa el puerto `Renderer` (`resize(width, height)`, `draw(&DrawList, Option<TerminalPicture>) -> Result<(), String>`; `TerminalPicture` se usa desde T2.9). Recibe la ventana como `isize` (el `HWND` que el binario saca de `raw-window-handle` vía winit). Partir de `dockview-platform/src/render` y `ui_gpu.rs`: dispositivo D3D11, cadena de intercambio `FLIP_DISCARD` con 2 búferes, `ResizeBuffers` al cambiar el tamaño, `Present(1, 0)`, y sombreadores HLSL compilados al arrancar con `D3DCompile`.
+2. Dibujo por instancias: un rectángulo = una instancia (posición, tamaño, color, coordenadas en el atlas y si es glifo); el sombreador de vértices lo abre en 4 esquinas con `SV_VertexID`. Mezcla alfa normal. El atlas (T2.8) ya existe vacío: textura `R8_UNORM` de 2048×2048.
+3. Features nuevas de `windows`: `Win32_Graphics_Direct3D`, `Win32_Graphics_Direct3D_Fxc`, `Win32_Graphics_Direct3D11`, `Win32_Graphics_Dxgi`, `Win32_Graphics_Dxgi_Common`, `Win32_Graphics_Dwm` (esquinas y borde, como `set_window_frame` de Luminifex).
+4. `ui/src/titlebar.rs`: la franja (tokens `background` y `raised`), el espacio de las pestañas (vacío hasta T3.4) y los tres botones (46 × 40 px lógicos; cerrar se pone rojo `error` al pasar). Devuelve `Action::Drag` al pulsar en la franja, `ToggleMaximize` con doble clic, `SystemMenu` con clic derecho y `Resize(edge)` en los 8 px del borde (sin borde si está maximizada). Los iconos llegan en T2.8; hasta entonces, rectángulos.
+5. `app/window.rs`: `Core` con `Settings`, `Theme` y `Language` resueltos, tamaño, escala, `maximized` y `focused`; `model()`, `apply(Action) -> Vec<WindowCommand>` (lo que el binario pide a winit) y `system_theme_changed()`. Pruebas con dobles: un cambio de tema del sistema con `ThemeChoice::System` cambia la paleta del `Model`; con `Dark`, no.
+6. Binario: con `imperifex` sin argumentos (o `imperifex window`; hoy sin argumentos es la ayuda: pasa a abrir la ventana, y `help` sigue) se abre la ventana. `src/window/` traduce eventos de winit a `Pointer`, tamaño y escala, llama a `ui::frame` y al renderizador, y ejecuta los `WindowCommand`. `EventLoopProxy` lleva a la ventana el aviso de `SystemAppearance::watch`. Tamaño mínimo: 640 × 400 lógicos.
+7. Se dibuja solo con un evento que lo pida; anotar el uso de CPU con la ventana quieta 60 s (Administrador de tareas o `footprint` del banco).
+8. Comprobar a mano (a) a (i) de T2.6 con la barra real, más: cambiar el tema de Windows con la ventana abierta y verla cambiar sin reiniciar.
+
+**Commit:** `feat(terminal): a window with its own title bar, drawn with Direct3D 11 only when something changes`
+
+#### Pasos de T2.8 · 🖥 texto con DirectWrite
+1. `platform/text/`: `DirectWriteText`, que implementa `TextMeasure` y da al renderizador los glifos. Feature nueva: `Win32_Graphics_DirectWrite`.
+   - Fuente: `GetSystemFontCollection` y `FindFamilyName("Cascadia Mono")` (o la de `Settings`); si no está, `Consolas` y el aviso de T2.1, una vez. Negrita y cursiva con `GetFirstMatchingFont` (en Windows 11 es una fuente variable: comprobar que da las caras negrita y cursiva, y anotarlo).
+   - Iconos: `Segoe Fluent Icons` (en Windows 11, `SegoeIcons.ttf`), y si no está, `Segoe MDL2 Assets`. Minimizar `U+E921`, maximizar `U+E922`, restaurar `U+E923`, cerrar `U+E8BB`.
+   - Carácter que no está en la fuente: `IDWriteFactory2::GetSystemFontFallback` y `MapCharacters`. Los emojis se dibujan **en un color**, el de la letra: el color de los emojis queda fuera de T2 (anotado para T5.5).
+2. Medida de la celda, pura y probada en `domain` (`cell_size(metrics, size_pt, scale) -> CellSize { width, height, baseline }`), con los datos de `DWRITE_FONT_METRICS` y el avance del glifo `0`: tamaño en px = puntos × escala × 96 / 72; ancho, alto (`ascent + descent + lineGap`) y línea base redondeados a píxel entero.
+3. Rasterizado: `IDWriteFactory2::CreateGlyphRunAnalysis` con antialias en **escala de grises** (`DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE`, modo `NATURAL_SYMMETRIC`) y `CreateAlphaTexture` con `DWRITE_TEXTURE_ALIASED_1x1`: un byte por píxel, que va al atlas. ClearType queda fuera: depende del fondo, y la sombra y los temas lo complican.
+4. Atlas (`domain/atlas.rs`, puro): `GlyphKey { glyph, font_face, bold, italic, size }` → lugar en la textura, por estantes (*shelf packing*). Lleno: se vacía entero y se rehace en el siguiente frame (se anota con `log_info!`). Pruebas del empaquetado y del vaciado.
+5. La barra de título usa el texto: nombre de la app e iconos de los botones, cada botón con su texto de ayuda en el idioma elegido (`Text::Minimize`…) dibujado al pasar el ratón 600 ms; si cuesta, la ayuda pasa a T3 y se dice.
+6. Al cambiar de escala (otro monitor) se mide de nuevo la celda y se vacía el atlas.
+
+**Commit:** `feat(terminal): text and icons with DirectWrite, in a glyph atlas`
+
+#### Pasos de T2.9 · 🖥 la shell en la ventana
+1. **Refactor primero, con las pruebas sin tocar salvo la construcción:** `Session` pasa a tener su propio `Box<dyn SequenceParser>` (no un `&mut` con vida), y `Shells` da una fábrica `new_parser: &dyn Fn() -> Box<dyn SequenceParser>`: cada pestaña de T3.4 tendrá el suyo.
+2. `PtyLauncher::start` recibe un `Wake` (T2.4). El adaptador ConPTY lo llama tras dejar salida en el canal, **solo si no hay ya un aviso pendiente** (`AtomicBool` que `read` baja): una ráfaga no inunda la ventana de avisos. `headless` pasa uno que no hace nada.
+3. Daños en `Grid`: `take_damage() -> Damage { rows: Vec<bool> }` (o `all`), puesto por cada escritura, borrado, desplazamiento, cambio de tamaño y cambio de pantalla. Prueba al azar (semilla fija): tras cada operación, toda fila cuyo contenido cambió está marcada.
+4. `app/window.rs`, `Core::tick(clock)`: lee la salida hasta que no haya más o hasta **8 ms**; si quedó salida, pide otro `tick` justo después del dibujo. El dibujo se pide solo si hubo daños o se movió el cursor.
+5. Abrir la shell: `Settings.shell`, o si no hay, `pwsh` y luego `powershell`, con solo su programa (sin orden). Eso es lo mínimo que T2 necesita; argumentos, carpeta y variables de la pestaña siguen en T3.4. Si no arranca ninguna, el aviso de T2.1 dentro de la ventana.
+6. Cambio de tamaño: la ventana se redibuja al momento (la cuadrícula vieja recortada, o con fondo `surface` donde sobra), y el `Terminal` y la consola se ajustan cuando el tamaño lleva **100 ms** sin cambiar (regla pura en `domain/resize_wait.rs`, con pruebas; el `Core` pide un `WaitUntil`). Medir cuánto tarda `Terminal::resize` con las 10 000 filas por defecto llenas, y anotarlo.
+7. Renderizador: `TerminalPicture { terminal, area, palette, adjust_contrast, cell }`. Una instancia por fondo distinto del de la ventana y una por glifo. Las instancias de cada fila se guardan y solo se rehacen las de las filas dañadas; se sube todo con `Map(WRITE_DISCARD)`. Los anchos dobles ocupan dos celdas. Subrayado y tachado como rectángulos de 1 px por escala. Cursor: bloque `accent` con el carácter encima en `surface`; hueco si la ventana no tiene el foco; nada si `?25` lo ocultó. **Sin parpadeo** (T-D6).
+8. La cuadrícula va dentro de `terminal_area` con `Space::L` alrededor; en la pantalla alternativa sin márgenes (T-D5). Lo que sobre al dividir en celdas queda abajo y a la derecha.
+9. **Entrada mínima (T-D18)**: el binario traduce `KeyEvent` de winit a `domain::input::KeyInput { text: Option<String>, key: Option<NamedKey> }`, y la regla pura `bytes(KeyInput, Modes) -> Vec<u8>` da: el texto en UTF-8; Enter `\r`; Retroceso `\x7f`; Tab `\t`; Esc `\x1b`; flechas `ESC[A`… o `ESCOA`… con `application_cursor_keys`. Nada más. Pruebas de la tabla.
+10. Con la ventana quieta y la shell en reposo, ningún dibujo (contarlos con un contador en `log_info!` al cerrar, o el uso de CPU durante 60 s, anotado).
+
+**Commit:** `feat(terminal): a shell in the window: damaged rows, cursor, colours, a minimal keyboard and a resize that waits`
+
+#### Pasos de T2.10 · 🖥 programas reales y la respuesta del color de fondo
+1. OSC 10 y 11 con `?`: `Terminal` guarda respuestas pendientes (`take_replies() -> Vec<u8>`), `interpret` responde `ESC]11;rgb:rrrr/gggg/bbbb ESC\` con el `surface` del tema (y `text` para el 10), y `Core` las escribe en la consola. El `Terminal` recibe los dos colores al crearse y al cambiar el tema. **Antes**, comprobar con `run --headless` y un `printf` de la consulta si ConPTY la deja pasar hasta nosotros; si la contesta él o la borra, no se programa y se anota.
+2. Mirar con el autor, en los dos temas: el prompt y la sugerencia de PSReadLine, `git log --color`, `Get-ChildItem` en color, una aplicación de pantalla completa (`edit`, o `vim` si está) y **Claude Code**. Anotar en «Hechos medidos» lo que se ve mal, y para A7 si el cursor se descuadra con textos de la tabla de T1.6 (emojis, banderas, acentos sueltos).
+3. Medidas anotadas, una ejecución cada una: CPU y memoria en reposo 60 s; frame con la pantalla entera cambiando (`cmd /c dir /s C:\Windows` unos segundos); `Terminal::resize` de T2.9.
+4. `ARCHITECTURE.md`: `imperifex-ui` en la tabla y el dibujo de capas; «Estado».
+
+**Commit:** `feat(terminal): answer the background colour query, and what real programs look like`
+
 | # | Tarea | Hecho cuando |
 |---|---|---|
 | T2.1 | `i18n` con `strings!` y `resolve_language` | Pruebas de la regla y de plurales |
-| T2.2 | `Palette`, tokens, ANSI, `resolve_theme` y la escala `Space` | Pruebas, incluidas la de contraste y la de la escala a 100, 125 y 150 % |
+| T2.2 | `Palette`, tokens, ANSI, `resolve_theme`, colores de una celda con contraste mínimo y la escala `Space` | Pruebas, incluidas la de contraste y la de la escala a 100, 125 y 150 % |
 | T2.3 | `Settings` con `Default`, lectura tolerante y escritura atómica en `%APPDATA%\Imperifex\settings.json` | Un archivo dañado o antiguo no impide arrancar; se conserva copia |
-| T2.4 | Puertos y adaptadores de apariencia e idioma del sistema, con aviso de cambios | Cambiar el tema de Windows llega como evento (probado a mano) |
+| T2.4 | Puertos y adaptadores de apariencia e idioma del sistema, con aviso de cambios; la CLI en el idioma | Cambiar el tema de Windows llega como evento (probado a mano) |
 | T2.5 | Crate `imperifex-ui` y su fila en las guardas | Una guarda falla si `ui` tiene un color o un texto visible suelto (probada rompiéndola). Los márgenes y rellenos reciben `Space`, no números, para que lo impida el compilador |
-| T2.6 | Ventana con barra de título propia: mover, maximizar, ajuste de Windows, varios monitores y DPI | Lista de comprobación en el PC real |
-| T2.7 | Atlas de glifos y dibujo de la cuadrícula con daños, cursor y fuente | Se ve la salida de una shell; sin cambios no se dibuja |
+| T2.6 🖥 | Sonda de winit para la barra de título propia (T-D15) | Veredicto de (a) a (i); si falla algo, el autor decide antes de T2.7 |
+| T2.7 🖥 | Ventana con barra de título propia: mover, maximizar, ajuste de Windows, varios monitores y DPI | Lista de comprobación en el PC real; el tema de Windows cambia la ventana sin reiniciar |
+| T2.8 🖥 | Texto e iconos con DirectWrite y el atlas de glifos | La barra muestra su texto e iconos a 100 % y a otra escala |
+| T2.9 🖥 | La cuadrícula en la ventana, con daños, cursor, fuente, entrada mínima y reajuste con espera | Se ve y se usa una shell; sin cambios no se dibuja (número anotado) |
+| T2.10 🖥 | OSC 10/11 y revisión con programas reales, Claude Code incluido | Hechos anotados, también para A7 |
 
 ### T3 · Uso diario
 | # | Tarea | Hecho cuando |
@@ -383,7 +537,7 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 | ConPTY altera u omite secuencias | Sonda T1.1 antes de depender de ellas |
 | Los ganchos de un agente cambian con una actualización | Tabla de eventos en un solo lugar; un evento desconocido no cambia el estado; queda la detección |
 | La integración rompe la configuración del agente | Vista previa, copia, lectura de vuelta y deshacer |
-| La barra de título propia pierde funciones de Windows | Lista de comprobación en T2.6; sonda en A4 |
+| La barra de título propia pierde funciones de Windows | Sonda T2.6 antes de programar la ventana; lista de comprobación en T2.7 |
 | El teclado en español (`AltGr`, teclas muertas) falla | Tarea propia con pruebas (T3.1) |
 | En tema claro, programas que suponen fondo oscuro se leen mal | OSC 10/11, ANSI propio por tema; evaluar contraste mínimo en T2 |
 | El diseño y los agentes retrasan una terminal usable | Hito de uso diario antes de T5 y T6 |
@@ -456,6 +610,8 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 ## Estado
 
 - [x] T1.7 (2026-11-26): perfiles como datos; `powershell` y `cmd` probados; `pwsh` y `wsl` sin probar. **T1 completo. PAUSA:** antes de T2 se cierran A2 a A5 y el planificador escribe sus pasos.
+- 2026-11-27: A2 a A5 cerradas (T-D13 a T-D16). Faltan los pasos de T2.
+- 2026-11-27: pasos de T2 escritos (Opus). T-D16 confirmada (`Cascadia Mono`, la instalada, `Consolas` si falta); nuevas T-D17 (contraste mínimo) y T-D18 (entrada mínima en T2). T2 pasa de 7 a 10 tareas: la sonda de winit (T2.6), el texto (T2.8) y los programas reales (T2.10) van aparte. Sigue T2.1.
 - [x] T1.6 (2026-11-26): ConPTY, sesión y `run --headless`, probados con `cmd` y Windows PowerShell. Los anchos difieren en 5 de 10 casos: A7.
 - [x] T1.5 (2026-11-26): historial con límite y reajuste. Un millón de filas: 89 MB sin color y 128 MB con color; reajustarlo, de 0,6 a 1,2 s. La prueba al azar encontró que se perdía texto al reajustar dos veces un carácter doble cortado; corregido, con su prueba.
 - [x] T1.4 (2026-11-26): estilos, SGR, pantalla alternativa, regiones, insertar y borrar y los modos, en `domain`. Probado con pruebas.
