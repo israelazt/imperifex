@@ -1,6 +1,6 @@
 # Imperifex · Plan maestro (2026-11-25)
 
-> Estado: **bloques 0 a 7 programados salvo las pruebas 🖥; el planificador revisó el arranque y la línea base (2026-11-25)**. A.1 a A.5, la 5.7 y la 6.10 hechos. El planificador revisó lo pendiente antes de la 7.3 (2026-11-26): siguen los ajustes B.1 a B.4 y después, con permiso del autor, la 7.3. D24 se cierra con la prueba B.1. Lo planifica Opus; lo programa Sonnet, tarea a tarea.
+> Estado: **bloques 0 a 7 programados salvo las pruebas 🖥; el planificador revisó el arranque y la línea base (2026-11-25)**. A.1 a A.5, la 5.7 y la 6.10 hechos. El planificador revisó lo pendiente antes de la 7.3 (2026-11-26): siguen los ajustes B.1 a B.4 y después, con permiso del autor, la 7.3. D24 se cierra con la prueba B.1. **En pausa desde el 2026-11-26: el autor aplaza lo que falta de la línea base hasta T4 y empieza la terminal (`docs/TERMINAL_PLAN.md`, T-D10).** Lo planifica Opus; lo programa Sonnet, tarea a tarea.
 
 ## Qué es
 
@@ -896,6 +896,7 @@ Para no tocar ninguna ventana ajena (S1), la sonda abre dos ventanas propias, A 
 - 2026-11-26, 15:14 a 16:00, tandas sin el autor delante (con su permiso; release de `36495bf`; mismo Warp sin reiniciar). **No es la línea base.**
   - B.2 paso 6, **hecho**: `latency` por separado terminó en los dos modos. Prompt: p50 9,5 ms, p95 14,1, máx 35, zona 57x67, 0 previas descartadas, 0 muestras lentas. Programa: p50 9,1, p95 43,2, máx 159, zona 68x67, **1 previa descartada** (la corrección hizo falta), 14 muestras de más de 4 veces el p50 (en tres rachas). Los dos salieron más lentos que por la tarde sin zona (8,1/10,0 y 7,4/8,1); causa desconocida.
   - `all warp` corrió por primera vez (unos 37 min, no 30) y **fallaron 6 partes**: la latencia en el prompt (11 de 200 sin muestra, aunque suelta había pasado) y las salidas `long_lines`, `color`, `unicode`, `cursor` y `cargo` («no apareció el resultado de emit», con 2 o 3 cambios en 120 s). `ascii` y `memory` (que emite `ascii`) funcionaron, antes y después. A las 14:20 las seis habían funcionado; el código de la salida no cambió desde entonces.
+  - Esa tarde se intentó repetir `long_lines` dos veces más con captura: el banco paró antes de abrir la ventana («la pantalla no se asentó», 22 y 10 cambios). El autor aplaza el banco hasta T4 (T-D10 de `docs/TERMINAL_PLAN.md`).
   - Repetida `output --load long_lines --repeats 1` a las 15:57: mismo fallo. Mirando los procesos cada segundo no se vio arrancar `emit`; uno que terminara antes de un segundo pudo escaparse. Fuera de una consola `emit` no corre, así que no se ha podido reproducir sin Warp. **Causa desconocida; falta ver la ventana** (una captura, con permiso). No quedó ninguna ventana del banco abierta.
   - **Arranque raro, no fiarse:** en el `startup` de ese `all`, el primer contenido (p50 78 ms) salió igual o antes que «visible» (84 ms), cuando por la tarde era de unos 800 ms; «lista», p50 1215 ms, de 952 a 4950, sin subir (1909 la primera, 1114 la última). Algo cambió en la pantalla o en Warp y no se sabe qué. Contradice la subida de la 5.7 como algo que solo crece: revisar antes de leer B.1.
 

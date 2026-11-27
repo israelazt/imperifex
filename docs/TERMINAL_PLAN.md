@@ -1,7 +1,7 @@
 # Imperifex · La terminal y su diseño (plan, 2026-11-25)
 
-> Estado: **solo plan**. Las decisiones abiertas (tabla «Decisiones abiertas») esperan confirmación.
-> Sustituye al resumen «Fase T» de `docs/PLAN.md`. Se programa **después** de cerrar la línea base de Warp.
+> Estado: **T1 en marcha** (T-D10, 2026-11-26). Las demás decisiones abiertas (tabla «Decisiones abiertas») esperan confirmación antes de su bloque.
+> Sustituye al resumen «Fase T» de `docs/PLAN.md`. La línea base de Warp **se aplaza hasta T4** (T-D10).
 > Las reglas de trabajo son las de `docs/PLAN.md` («Cómo se usa este plan») y D11.
 
 ## Objetivo
@@ -55,12 +55,13 @@ La imagen es la referencia de estilo, no una especificación.
 | T-D7 | El motor funciona sin ventana antes de pintar nada | Se prueba y se confía en él primero |
 | T-D8 | El espaciado de la interfaz usa una escala con **base 16**, como el `rem` de CSS: 4, 8, 12, 16, 24 y 32 (ver «Diseño: espaciado») | Pedido del autor: da aire parejo a todo |
 | T-D9 | **Todo nativo**, como en Luminifex y Purifex: Rust y las API del sistema. Sin WebView, Electron, HTML, CSS, JavaScript ni motor web. La imagen del diseño es solo una referencia visual | Pedido del autor: rendimiento |
+| T-D10 | **La terminal se programa ya; la línea base de Warp se aplaza hasta T4** (2026-11-26). B.1, B.4, la 7.3 y los fallos del banco sin explicar quedan pendientes en `docs/PLAN.md` y se cierran en T4.0 | Pedido del autor. Los números de Warp solo se necesitan para comparar, y no hay nada que comparar hasta que Imperifex se pueda medir |
+| T-D11 | El intérprete de secuencias es el crate **`vte`**, detrás de un puerto propio (cierra A1). Antes de usarlo en T1.3 se revisa su `unsafe` | Aprobado por el autor (2026-11-26) |
 
 ## Decisiones abiertas (cada una se cierra antes de su bloque)
 
 | # | Pregunta | Recomendación | Antes de |
 |---|---|---|---|
-| A1 | ¿Intérprete de secuencias propio o crate `vte`? | `vte`, detrás de un puerto propio. Es una dependencia nueva: necesita tu aprobación, y se revisa su `unsafe` (D11) | T1 |
 | A2 | ¿Dibujo? | Direct3D 11 (como Luminifex), no Vulkan: solo hay Windows por ahora | T2 |
 | A3 | ¿Rasterizado de texto? | DirectWrite en `platform`. Revisa lo que dice la skill (`cosmic-text` en `ui`): la medida del texto entraría a `ui` por un puerto | T2 |
 | A4 | ¿Ventana con `winit` o Win32 directo? | `winit`: menos código con `unsafe` propio. Confirmar con una sonda que permite la barra de título propia | T2 |
@@ -203,6 +204,18 @@ Aquí quedan las tareas y su criterio. Antes de empezar cada bloque, el planific
 Si no se puede saber cuándo un agente espera, **parar** y replantear el panel.
 
 ### T1 · Motor sin ventana
+
+#### Pasos de T1.1 · `crates/imperifex-platform/examples/probe_conpty.rs`
+Sonda desechable: no es código del producto y no abre ventanas.
+1. Features nuevas de `windows` en `imperifex-platform`, solo estas: `Win32_System_Console`, `Win32_System_Pipes`, `Win32_System_Threading`, `Win32_Security` (la pide la firma de `CreatePipe` y `CreateProcessW`).
+2. Crear: dos tuberías, `CreatePseudoConsole` de 80×25, lista de atributos con `PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE` y `CreateProcessW` con `EXTENDED_STARTUPINFO_PRESENT`. Se pone `STARTF_USESTDHANDLES` con manejadores vacíos: sin eso, una shell lanzada desde un proceso con la salida redirigida puede escribir en la del padre y no en la consola falsa (sin comprobar: lo dirá la sonda).
+3. Leer en un hilo aparte desde antes de lanzar y hasta el fin de la tubería.
+4. Casos, cada uno con su veredicto: (a) `cmd` y Windows PowerShell escriben una marca y se lee; (b) escribir en la tubería de entrada una orden y leer su resultado; (c) cambiar el tamaño y que la shell vea el nuevo; (d) OSC 7, OSC 133 (A, B, C y D con código de salida) y OSC 9, con final BEL y con final ESC `\`, cada una entre marcas de texto: ¿llegan intactas y en su orden respecto al texto?; (e) cerrar: la shell sale sola, cuánto tarda y que la lectura termina.
+5. Imprimir también lo que ConPTY manda por su cuenta al arrancar (por si pregunta algo y espera respuesta).
+6. **Nunca** `TerminateProcess`. Si una shell no sale al cerrar la consola en 5 s, la sonda lo dice con su pid.
+7. Anotar los resultados en «Hechos medidos» de este plan.
+
+Los pasos de T1.2 a T1.7 se escriben después, con lo que diga la sonda.
 | # | Tarea | Hecho cuando |
 |---|---|---|
 | T1.1 | Sonda ConPTY: crear, leer, escribir, cambiar tamaño, cerrar; ¿pasan intactas y en orden las secuencias OSC 7, 133 y 9? | Hechos anotados. Si OSC 133 no sirve, se replantea T5 **antes** de seguir |
@@ -239,6 +252,7 @@ Si no se puede saber cuándo un agente espera, **parar** y replantear el panel.
 ### T4 · Medir y optimizar
 | # | Tarea | Hecho cuando |
 |---|---|---|
+| T4.0 | La línea base de Warp aplazada (T-D10): los fallos del banco sin explicar, B.1, B.4 y 7.3 de `docs/PLAN.md` | `docs/BASELINE.md`, con la versión de Warp medida |
 | T4.1 | Perfil `imperifex` en `bench/terminals.json` y `all imperifex` | Informe junto al de Warp |
 | T4.2+ | Una tarea por cada medida peor que Warp | Iguala o mejora, o el autor acepta la diferencia con su número |
 | T4.final | Modo de diagnóstico (CPU, memoria, tiempo por frame), apagado por defecto | Apagado no cuesta redibujos |
@@ -271,7 +285,7 @@ Zip en Releases, bucket de Scoop, y terminal predeterminada de Windows como una 
 ## Orden y dependencias
 
 ```
-docs/PLAN.md (línea base) → T1 → T2 → T3 → [hito: uso diario] → T4 → T5 → T6 → T7
+T1 → T2 → T3 → [hito: uso diario] → T4 → T5 → T6 → T7
 A0 (en cualquier momento) ───────────────────────────────────────────→ T6
 ```
 
@@ -299,6 +313,28 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 | En tema claro, programas que suponen fondo oscuro se leen mal | OSC 10/11, ANSI propio por tema; evaluar contraste mínimo en T2 |
 | El diseño y los agentes retrasan una terminal usable | Hito de uso diario antes de T5 y T6 |
 
+## Hechos medidos
+
+### T1.1 · ConPTY (2026-11-26, `probe_conpty` en release, una ejecución, Windows 10.0.26200; `cmd` y Windows PowerShell; PowerShell 7 no está instalado y WSL no se probó)
+
+| Caso | Visto |
+|---|---|
+| Crear, escribir y leer | Las dos shells escriben su marca y salen solas (778 y 983 ms, desde antes de crear la consola). Con la shell abierta, una orden escrita en la tubería de entrada da su resultado en 21 ms (`cmd`) y 60 ms (PowerShell); una sola muestra cada una |
+| Cambiar tamaño | PowerShell ve 80 columnas antes y 100 después |
+| Cerrar | Con la shell abierta, al cerrar la consola sale sola en 5 ms (`cmd`) y 16 a 17 ms (PowerShell), y la lectura termina. No hizo falta terminar nada |
+| OSC 133 (A, B, C, D con código) | **Intactas y en su sitio** entre las marcas de texto, con final BEL y con final ESC `\` |
+| 200 líneas con desplazamiento, cada una entre 133;A y 133;D | **200 de 200** en orden |
+| OSC 7, OSC 9 y OSC 9;9 | Intactas, con los dos finales, pero **adelantadas** a texto escrito antes que ellas. En esta prueba, OSC 7 llegó antes incluso del borrado inicial de pantalla |
+| Lo que ConPTY manda por su cuenta | `ESC[?9001h` (entrada en modo Win32) y `ESC[?1004h` (avisos de foco) al empezar, y los apaga al salir; borra la pantalla y manda el título (OSC 0). No se vio ninguna consulta que esperara respuesta |
+
+**Qué implica:**
+- OSC 133 sirve: T5 no se replantea.
+- **La posición de OSC 7 y OSC 9 no es de fiar.** OSC 7 se trata como «la carpeta actual» y OSC 9 como un aviso, sin ligarlos a una fila. Un bloque toma la carpeta al llegar su 133;A (T5). Sin comprobar: si se adelantan también a texto que la consola ya había entregado.
+- El motor (T1.3, T1.4) tiene que aceptar `?9001` y `?1004` sin romperse. Escribir texto normal y `` en la entrada funcionó con `?9001` activo.
+- La sonda usa `STARTF_USESTDHANDLES` con manejadores vacíos, lanzada con la salida redirigida, y todo llegó por la consola falsa. No se probó sin eso.
+
 ## Estado
 
+- [x] T1.1 (2026-11-26): sonda ConPTY; resultados en «Hechos medidos».
+- 2026-11-26: el autor aplaza la línea base hasta T4 y aprueba `vte` (T-D10, T-D11). Empieza T1.
 - 2026-11-25: plan escrito a partir de `design/screen.png`. Nada programado. Nada de A0 ni de las sondas de este plan verificado.
