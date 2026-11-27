@@ -58,6 +58,25 @@ fn run_takes_a_size_a_time_and_the_program_with_its_arguments() {
 }
 
 #[test]
+fn with_a_profile_the_one_command_is_written_for_its_shell() {
+    let args = ["run", "--headless", "--profile", "cmd", "--", "echo a b"];
+    let Command::Run(options) = Command::parse(&args).unwrap() else {
+        panic!("not a run");
+    };
+    assert_eq!(
+        options.request.command_line,
+        "cmd.exe /d /s /c \"echo a b\""
+    );
+}
+
+#[test]
+fn the_help_names_every_profile() {
+    for profile in imperifex_domain::shell::PROFILES {
+        assert!(HELP.contains(profile.id), "{}", profile.id);
+    }
+}
+
+#[test]
 fn run_without_what_it_needs_says_why() {
     for (line, said) in [
         ("run -- cmd", "--headless"),
@@ -68,6 +87,9 @@ fn run_without_what_it_needs_says_why() {
         ("run --headless --timeout pronto -- cmd", "pronto"),
         ("run --headless --columns", "falta el número"),
         ("run --headless cmd", "cmd"),
+        ("run --headless --profile fish -- ls", "powershell"),
+        ("run --headless --profile cmd -- dir /b", "una sola orden"),
+        ("run --headless --profile cmd --", "una sola orden"),
     ] {
         let error = parse(line).unwrap_err();
         assert!(error.contains(said), "{line}: {error}");

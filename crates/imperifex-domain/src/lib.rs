@@ -11,4 +11,5 @@ pub mod interpret;
 pub mod log;
 pub mod ports;
 pub mod sequence;
+pub mod shell;
 pub mod terminal;

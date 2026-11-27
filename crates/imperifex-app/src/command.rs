@@ -52,6 +52,8 @@ Uso:
       Corre un programa en una consola sin ventana y escribe la pantalla que
       deja (80x25 y 30 s si no se dice otra cosa). --history escribe también
       lo que salió por arriba.
+  imperifex run --headless --profile <perfil> [opciones] -- \"<orden>\"
+      Lo mismo, con la orden escrita para una shell: pwsh, powershell, cmd o wsl.
   imperifex help              Esta ayuda
 ";
 

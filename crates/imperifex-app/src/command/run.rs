@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use imperifex_domain::command_line::command_line;
+use imperifex_domain::shell::{self, ShellProfile};
 use imperifex_domain::terminal::Terminal;
 
 use crate::headless::{self, Ending, Finished, Request};
@@ -20,6 +21,8 @@ pub struct RunOptions {
     pub request: Request,
     /// Print the history too, and not only the screen.
     pub history: bool,
+    /// The shell that runs the command, if one was named.
+    pub profile: Option<ShellProfile>,
 }
 
 fn number<'a>(
@@ -34,6 +37,22 @@ fn number<'a>(
         .ok()
         .filter(|value| (1..=max).contains(value))
         .ok_or_else(|| format!("{name} pide un número de 1 a {max}, no «{text}»"))
+}
+
+fn profile<'a>(args: &mut impl Iterator<Item = &'a str>) -> Result<ShellProfile, String> {
+    let id = args.next().unwrap_or("");
+    shell::find(id)
+        .ok_or_else(|| format!("no hay un perfil «{id}»; los que hay son: {}", shell::ids()))
+}
+
+/// The line to start, from what came after `--`.
+fn line(profile: Option<ShellProfile>, rest: &[&str]) -> Result<String, String> {
+    match (profile, rest) {
+        (None, []) => Err("falta el programa: run --headless -- <programa> [argumentos]".into()),
+        (None, program) => Ok(command_line(program)),
+        (Some(profile), [command]) => Ok(profile.command_line(command)),
+        (Some(_), _) => Err("con --profile va una sola orden entre comillas después de --".into()),
+    }
 }
 
 fn side<'a>(name: &str, args: &mut impl Iterator<Item = &'a str>) -> Result<u16, String> {
@@ -52,6 +71,7 @@ impl RunOptions {
                 timeout: Duration::from_secs(DEFAULT_TIMEOUT_S),
             },
             history: false,
+            profile: None,
         };
         let mut headless = false;
         while let Some(arg) = args.next() {
@@ -59,6 +79,7 @@ impl RunOptions {
                 "--" => break,
                 "--headless" => headless = true,
                 "--history" => options.history = true,
+                "--profile" => options.profile = Some(profile(&mut args)?),
                 "--columns" => options.request.columns = side(arg, &mut args)?,
                 "--rows" => options.request.rows = side(arg, &mut args)?,
                 "--timeout" => {
@@ -71,11 +92,8 @@ impl RunOptions {
         if !headless {
             return Err("todavía no hay ventana: usa run --headless".into());
         }
-        let program: Vec<&str> = args.collect();
-        if program.is_empty() {
-            return Err("falta el programa: run --headless -- <programa> [argumentos]".into());
-        }
-        options.request.command_line = command_line(&program);
+        let rest: Vec<&str> = args.collect();
+        options.request.command_line = line(options.profile, &rest)?;
         Ok(options)
     }
 
@@ -91,7 +109,10 @@ impl RunOptions {
             Err(error) => Output {
                 text: String::new(),
                 ok: false,
-                notice: Some(error),
+                notice: Some(match self.profile {
+                    Some(profile) => format!("{} (¿está instalado?): {error}", profile.name),
+                    None => error,
+                }),
             },
         }
     }

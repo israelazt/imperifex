@@ -105,6 +105,6 @@ El autor trabaja **dentro** de la terminal que se mide. Estas reglas no se rompe
 - [ ] Bloque 6 · Pantalla y teclado: latencia y salida vista. Programado y probado con dobles; **falta correrlo en el PC real** (6.10), incluida la comprobación de que la captura de pantalla entrega imágenes.
 - [ ] Bloque 7 · Línea base. Las órdenes `all` y `report` están programadas y probadas con dobles; **las dos tandas (7.3) no se han corrido**.
 
-- [ ] **La terminal** (`docs/TERMINAL_PLAN.md`), bloque T1: hechos la sonda de ConPTY, la cuadrícula con estilos, historial y reajuste (`domain::grid`), el intérprete (puerto `SequenceParser` con `vte`, y `domain::interpret`), el `Terminal`, y la sesión sobre ConPTY (puertos `PtyLauncher` y `Pty`) con `run --headless`; falta, el historial, la sesión y los perfiles. La línea base se aplaza hasta T4.
+- [ ] **La terminal** (`docs/TERMINAL_PLAN.md`), bloque T1, el motor sin ventana: hechos la sonda de ConPTY, la cuadrícula con estilos, historial y reajuste (`domain::grid`), el intérprete (puerto `SequenceParser` con `vte`, y `domain::interpret`), el `Terminal`, y la sesión sobre ConPTY (puertos `PtyLauncher` y `Pty`) con `run --headless` y los perfiles de shell como datos. **T1 completo** (2026-11-26); sigue T2 (ventana, dibujo, tema e idioma). La línea base se aplaza hasta T4.
 
 El detalle de cada bloque del banco está en `docs/PLAN.md`.

@@ -1,6 +1,6 @@
 # Imperifex · La terminal y su diseño (plan, 2026-11-25)
 
-> Estado: **T1 en marcha** (T-D10, 2026-11-26). Las demás decisiones abiertas (tabla «Decisiones abiertas») esperan confirmación antes de su bloque.
+> Estado: **T1 completo** (2026-11-26); en **PAUSA** antes de T2. Las demás decisiones abiertas (tabla «Decisiones abiertas») esperan confirmación antes de su bloque.
 > Sustituye al resumen «Fase T» de `docs/PLAN.md`. La línea base de Warp **se aplaza hasta T4** (T-D10).
 > Las reglas de trabajo son las de `docs/PLAN.md` («Cómo se usa este plan») y D11.
 
@@ -284,7 +284,13 @@ Solo la pantalla visible, sin colores. Atributos, pantalla alternativa, regiones
 
 **Commit:** `feat(terminal): a real shell in a pseudoconsole, and run --headless prints its screen`
 
-Los pasos de T1.7 se escriben antes de hacerla.
+#### Pasos de T1.7 · perfiles de shell
+1. `domain/shell.rs`: `ShellProfile` como tabla de datos (`pwsh`, `powershell`, `cmd`, `wsl`): programa, lo que va antes de una orden y cómo se le entrecomilla. `cmd` no sigue las reglas comunes: va con `/s /c` y la orden entre comillas, sin escapar.
+2. `run --headless --profile <perfil> -- "<orden>"`: una sola orden, escrita para esa shell. Un perfil desconocido dice cuáles hay; una shell que no arranca se nombra.
+3. Cómo se abre cada una **sin** orden (la sesión interactiva) se añade en T3.4, que es quien lo usa.
+4. Correr cada perfil instalado, con comillas, una tubería y un código de salida.
+
+**Commit:** `feat(terminal): shell profiles as data, and run --headless --profile`
 | # | Tarea | Hecho cuando |
 |---|---|---|
 | T1.1 | Sonda ConPTY: crear, leer, escribir, cambiar tamaño, cerrar; ¿pasan intactas y en orden las secuencias OSC 7, 133 y 9? | Hechos anotados. Si OSC 133 no sirve, se replantea T5 **antes** de seguir |
@@ -384,6 +390,15 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Hechos medidos
 
+### T1.7 · Perfiles (2026-11-26, en release, una ejecución)
+
+| Perfil | Resultado |
+|---|---|
+| `powershell` | Instalado. Orden simple, comillas dobles con tubería y `exit 5`: bien |
+| `cmd` | Instalado. Orden simple, comillas con tubería y `exit 6`: bien |
+| `pwsh` | **No instalado, sin probar.** El error dice «PowerShell 7 (¿está instalado?)» |
+| `wsl` | **Sin probar:** está `wsl.exe` pero no el subsistema. No se ejecutó el perfil, para no arrancar una instalación (sin comprobar que la ofrezca) |
+
 ### T1.6 · Una shell real (2026-11-26, `imperifex run --headless` y `probe_widths` en release, una ejecución, Windows 10.0.26200, `cmd` y Windows PowerShell)
 
 - **5000 líneas** escritas por PowerShell llegaron **las 5000, iguales y en orden** (pantalla más historial).
@@ -440,6 +455,7 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Estado
 
+- [x] T1.7 (2026-11-26): perfiles como datos; `powershell` y `cmd` probados; `pwsh` y `wsl` sin probar. **T1 completo. PAUSA:** antes de T2 se cierran A2 a A5 y el planificador escribe sus pasos.
 - [x] T1.6 (2026-11-26): ConPTY, sesión y `run --headless`, probados con `cmd` y Windows PowerShell. Los anchos difieren en 5 de 10 casos: A7.
 - [x] T1.5 (2026-11-26): historial con límite y reajuste. Un millón de filas: 89 MB sin color y 128 MB con color; reajustarlo, de 0,6 a 1,2 s. La prueba al azar encontró que se perdía texto al reajustar dos veces un carácter doble cortado; corregido, con su prueba.
 - [x] T1.4 (2026-11-26): estilos, SGR, pantalla alternativa, regiones, insertar y borrar y los modos, en `domain`. Probado con pruebas.
