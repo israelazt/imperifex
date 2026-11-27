@@ -3,6 +3,9 @@
 
 use crate::grid::Grid;
 
+/// How many rows of history are kept when nobody says another number.
+pub const DEFAULT_HISTORY: usize = 10_000;
+
 /// What a program asked for that the window, not the screen, has to follow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Modes {
@@ -29,14 +32,39 @@ pub struct Terminal {
     /// The main screen, kept while the alternate one is in use.
     main: Option<Grid>,
     pub modes: Modes,
+    history_limit: usize,
 }
 
 impl Terminal {
     pub fn new(columns: u16, rows: u16) -> Self {
+        Self::with_history(columns, rows, DEFAULT_HISTORY)
+    }
+
+    /// Keeps up to `lines` rows of history.
+    pub fn with_history(columns: u16, rows: u16, lines: usize) -> Self {
         Self {
-            screen: Grid::new(columns, rows),
+            screen: Grid::with_history(columns, rows, lines),
             main: None,
             modes: Modes::default(),
+            history_limit: lines,
+        }
+    }
+
+    /// The main screen, also while the alternate one is in use. It is the one
+    /// with the history.
+    pub fn main_screen(&self) -> &Grid {
+        self.main.as_ref().unwrap_or(&self.screen)
+    }
+
+    /// The main screen joins and cuts its long lines again; the alternate one
+    /// is redrawn by its program.
+    pub fn resize(&mut self, columns: u16, rows: u16) {
+        match &mut self.main {
+            Some(main) => {
+                main.resize(columns, rows);
+                self.screen.resize_cutting(columns, rows);
+            }
+            None => self.screen.resize(columns, rows),
         }
     }
 
@@ -76,6 +104,6 @@ impl Terminal {
     pub fn reset(&mut self) {
         let columns = u16::try_from(self.screen.columns()).unwrap_or(u16::MAX);
         let rows = u16::try_from(self.screen.rows()).unwrap_or(u16::MAX);
-        *self = Self::new(columns, rows);
+        *self = Self::with_history(columns, rows, self.history_limit);
     }
 }

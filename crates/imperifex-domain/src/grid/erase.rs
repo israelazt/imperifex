@@ -1,7 +1,7 @@
 //! Emptying, inserting and deleting cells of a row. Nothing here moves the
 //! cursor, and half a double character is never left.
 
-use super::{Cell, Grid, Span};
+use super::{Cell, Grid, Span, Wrap};
 
 /// What to empty, seen from the cursor. Its own cell is always included.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,7 +20,7 @@ impl Grid {
     /// character cut by either edge goes whole.
     pub(super) fn clear_cells(&mut self, row: usize, mut from: usize, mut to: usize) {
         let blank = self.blank();
-        let cells = &mut self.rows[row];
+        let cells = &mut self.rows[row].cells;
         if cells.get(from).map(Cell::span) == Some(Span::Continuation) {
             from -= 1;
         }
@@ -28,12 +28,15 @@ impl Grid {
             to += 1;
         }
         cells[from..to].fill(blank);
+        if to == self.columns {
+            self.rows[row].wrap = Wrap::End;
+        }
     }
 
     /// Empties a double character whose two halves are on both sides of the
     /// edge before `column`.
     fn break_at(&mut self, row: usize, column: usize) {
-        let cell = self.rows[row].get(column);
+        let cell = self.rows[row].cells.get(column);
         if cell.map(Cell::span) == Some(Span::Continuation) {
             self.clear_cells(row, column, column);
         }
@@ -68,7 +71,8 @@ impl Grid {
         self.break_at(row, column);
         self.break_at(row, self.columns - count);
         let blank = self.blank();
-        let rest = &mut self.rows[row][column..];
+        self.rows[row].wrap = Wrap::End;
+        let rest = &mut self.rows[row].cells[column..];
         rest.rotate_right(count);
         rest[..count].fill(blank);
     }
@@ -83,7 +87,8 @@ impl Grid {
         self.break_at(row, column);
         self.break_at(row, column + count);
         let blank = self.blank();
-        let rest = &mut self.rows[row][column..];
+        self.rows[row].wrap = Wrap::End;
+        let rest = &mut self.rows[row].cells[column..];
         rest.rotate_left(count);
         let kept = rest.len() - count;
         rest[kept..].fill(blank);

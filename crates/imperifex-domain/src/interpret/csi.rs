@@ -49,6 +49,7 @@ fn move_cursor(screen: &mut Grid, params: Params<'_>, action: char) {
 fn edit(screen: &mut Grid, params: Params<'_>, action: char) {
     let n = count(params, 0);
     match action {
+        'J' if params.get(0) == 3 => screen.clear_history(),
         'J' => {
             if let Some(what) = erase(params) {
                 screen.erase_in_display(what);
@@ -80,7 +81,7 @@ fn edit(screen: &mut Grid, params: Params<'_>, action: char) {
     }
 }
 
-/// `None` for what is not about the visible screen (3 is the history).
+/// `None` for what means nothing here.
 fn erase(params: Params<'_>) -> Option<Erase> {
     match params.get(0) {
         0 => Some(Erase::ToEnd),

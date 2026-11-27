@@ -263,7 +263,17 @@ Solo la pantalla visible, sin colores. Atributos, pantalla alternativa, regiones
 
 **Commit:** `feat(terminal): colours and styles, the alternate screen, scroll regions and modes`
 
-Los pasos de T1.5 a T1.7 se escriben antes de cada una.
+#### Pasos de T1.5 · historial y reajuste
+1. Cada fila recuerda si su línea **sigue** en la siguiente porque no cupo, y si dejó vacía la última celda porque un carácter doble no entraba.
+2. `grid/history.rs`: el historial **no guarda celdas**: cada línea es su texto, sus tramos de estilo y si sigue; una línea que termina pierde sus celdas vacías del final. Tiene límite (10 000 filas por defecto) y olvida lo más viejo.
+3. Entra en el historial lo que sale **por arriba de la pantalla** al desplazarse (también con una región que empieza en la primera fila); no lo borrado con `ESC[M` ni lo que sale de una región más baja. `ESC[3J` lo vacía. La pantalla alternativa no tiene.
+4. Reajuste (`resize`): une las líneas que siguen y las corta al ancho nuevo, historial incluido, sin tener nunca todo el historial como celdas. El cursor se queda en su texto; las filas vacías bajo el cursor no empujan texto al historial. La pantalla alternativa solo se recorta o se amplía.
+5. Pruebas, una de ellas con texto al azar por una cadena de anchos que debe volver igual.
+6. `examples/measure_history.rs` en `platform` (feature `Win32_System_ProcessStatus`): memoria privada y tiempos con un millón de líneas.
+
+**Commit:** `feat(terminal): a history with a limit, and long lines that are cut again when the width changes`
+
+Los pasos de T1.6 y T1.7 se escriben antes de cada una.
 | # | Tarea | Hecho cuando |
 |---|---|---|
 | T1.1 | Sonda ConPTY: crear, leer, escribir, cambiar tamaño, cerrar; ¿pasan intactas y en orden las secuencias OSC 7, 133 y 9? | Hechos anotados. Si OSC 133 no sirve, se replantea T5 **antes** de seguir |
@@ -363,6 +373,21 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Hechos medidos
 
+### T1.5 · Memoria y tiempo con un millón de líneas (2026-11-26, `measure_history` en release, una ejecución por caso, 80×25)
+
+| | 40 caracteres sin color | 86 caracteres con 4 colores (2 filas de 80) |
+|---|---|---|
+| Filas en el historial | 1 000 000 | 1 000 000 (unas 500 000 líneas) |
+| Memoria privada de más | 89 MB | 128 MB |
+| Reajustar a 100, 60 y 80 columnas | 596, 576 y 610 ms | 826, 937 y 994 ms |
+| Memoria privada de más tras cada reajuste | 91, 91 y 91 MB | 104, 154 y 138 MB |
+| Pico de memoria privada del proceso | 192 MB | 239 MB |
+| Llenarlo (incluye generar las líneas) | 1,59 s | 3,12 s |
+
+- MB = 1 048 576 bytes. A 100 columnas el caso con color queda en 499 988 filas: cada línea ya cabe en una.
+- El llenado incluye generar cada línea en la propia sonda y no dibuja nada: **no se compara** con las medidas de Warp.
+- **Para T2:** reajustar un millón de filas tarda entre 0,6 y 1 s; no se puede hacer en cada paso de un arrastre de la ventana. Con el límite por defecto (10 000) no se midió.
+
 ### T1.1 · ConPTY (2026-11-26, `probe_conpty` en release, una ejecución, Windows 10.0.26200; `cmd` y Windows PowerShell; PowerShell 7 no está instalado y WSL no se probó)
 
 | Caso | Visto |
@@ -383,6 +408,7 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Estado
 
+- [x] T1.5 (2026-11-26): historial con límite y reajuste. Un millón de filas: 89 MB sin color y 128 MB con color; reajustarlo, de 0,6 a 1 s. La prueba al azar encontró que se perdía texto al reajustar dos veces un carácter doble cortado; corregido, con su prueba.
 - [x] T1.4 (2026-11-26): estilos, SGR, pantalla alternativa, regiones, insertar y borrar y los modos, en `domain`. Probado con pruebas.
 - [x] T1.3 (2026-11-26): `vte` 0.15.0 sin `std` tras el puerto `SequenceParser`; el significado, en `domain::interpret`. Probado con pruebas; todavía no le llega ninguna shell. La prueba del límite de OSC se vio fallar con `std` activado (guardó 1 048 577 bytes).
 - [x] T1.2 (2026-11-26): la cuadrícula en `imperifex-domain`, probada solo con pruebas; ningún programa real escribe aún en ella.

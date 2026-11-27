@@ -2,7 +2,7 @@
 
 use unicode_width::UnicodeWidthChar;
 
-use super::{Cell, Grid, Position, Span};
+use super::{Cell, Grid, Position, Span, Wrap};
 
 impl Grid {
     /// Writes one character at the cursor. Control characters do nothing here.
@@ -21,8 +21,7 @@ impl Grid {
             return;
         }
         if self.autowrap && (self.wrap_pending || self.cursor.column + width > self.columns) {
-            self.carriage_return();
-            self.line_feed();
+            self.wrap_line();
         }
         // Without autowrap, what does not fit stays on the last columns.
         let column = self.cursor.column.min(self.columns - width);
@@ -37,9 +36,9 @@ impl Grid {
         } else {
             Span::Single
         };
-        self.rows[row][column] = Cell::new(character, span, self.pen);
+        self.rows[row].cells[column] = Cell::new(character, span, self.pen);
         if width == 2 {
-            self.rows[row][column + 1] = Cell::continuation(self.pen);
+            self.rows[row].cells[column + 1] = Cell::continuation(self.pen);
         }
         if column + width == self.columns {
             self.cursor.column = self.columns - 1;
@@ -48,6 +47,24 @@ impl Grid {
             self.cursor.column = column + width;
             self.wrap_pending = false;
         }
+    }
+
+    /// Goes on in the next row, and remembers that the line does.
+    fn wrap_line(&mut self) {
+        let Position { row, column } = self.cursor;
+        // Below the scroll region, the last row has no next one.
+        if row == self.bottom || row + 1 < self.rows() {
+            let left_empty = !self.wrap_pending
+                && column + 1 == self.columns
+                && self.rows[row].cells[column] == Cell::default();
+            self.rows[row].wrap = if left_empty {
+                Wrap::BeforeWide
+            } else {
+                Wrap::GoesOn
+            };
+        }
+        self.carriage_return();
+        self.line_feed();
     }
 
     /// A character without a column joins the one just written. With none to
@@ -62,9 +79,9 @@ impl Grid {
         let Some(mut at) = written else {
             return;
         };
-        if self.rows[row][at].span() == Span::Continuation {
+        if self.rows[row].cells[at].span() == Span::Continuation {
             at -= 1;
         }
-        self.rows[row][at].add_mark(mark);
+        self.rows[row].cells[at].add_mark(mark);
     }
 }

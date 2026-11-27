@@ -1,6 +1,6 @@
 //! The scroll region, and everything that moves whole rows.
 
-use super::{Cell, Grid};
+use super::{Cell, Grid, Wrap};
 
 impl Grid {
     /// Sets the first and last row that scroll, counted from 0, and goes to the
@@ -34,9 +34,16 @@ impl Grid {
         }
     }
 
-    /// The rows of the region move up: the top ones are lost and empty ones
-    /// come in at the bottom.
+    /// The rows of the region move up and empty ones come in at the bottom.
+    /// Those that leave through the top of the screen go to the history; from
+    /// a region that starts lower they are lost.
     pub fn scroll_up(&mut self, count: usize) {
+        if self.top == 0 {
+            let leaving = count.min(self.bottom + 1);
+            for row in &self.rows[..leaving] {
+                self.history.push_row(row);
+            }
+        }
         self.shift_up(self.top, self.bottom, count);
     }
 
@@ -63,7 +70,15 @@ impl Grid {
         }
     }
 
+    /// The row above a block that moves no longer goes on in the same row.
+    fn cut_above(&mut self, from: usize) {
+        if let Some(above) = from.checked_sub(1) {
+            self.rows[above].wrap = Wrap::End;
+        }
+    }
+
     fn shift_up(&mut self, from: usize, to: usize, count: usize) {
+        self.cut_above(from);
         let rows = &mut self.rows[from..=to];
         let count = count.min(rows.len());
         rows.rotate_left(count);
@@ -72,16 +87,20 @@ impl Grid {
     }
 
     fn shift_down(&mut self, from: usize, to: usize, count: usize) {
+        self.cut_above(from);
         let rows = &mut self.rows[from..=to];
         let count = count.min(rows.len());
         rows.rotate_right(count);
         self.empty_rows(from, from + count);
+        // What ends the block now has another row under it.
+        self.rows[to].wrap = Wrap::End;
     }
 
     pub(super) fn empty_rows(&mut self, from: usize, to: usize) {
         let blank = Cell::blank(self.pen.for_emptied());
         for row in &mut self.rows[from..to] {
-            row.fill(blank.clone());
+            row.cells.fill(blank.clone());
+            row.wrap = Wrap::End;
         }
     }
 }

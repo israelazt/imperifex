@@ -4,6 +4,10 @@
 mod cell;
 mod cursor;
 mod erase;
+mod history;
+mod reflow;
+mod resize;
+mod row;
 mod scroll;
 mod style;
 mod write;
@@ -11,6 +15,9 @@ mod write;
 pub use cell::{Cell, Span};
 pub use erase::Erase;
 pub use style::{Attributes, Color, Style};
+
+use history::History;
+use row::{Row, Wrap};
 
 /// The most columns or rows a grid has: a size comes from outside.
 const MAX_SIDE: u16 = 1000;
@@ -27,7 +34,8 @@ pub struct Grid {
     columns: usize,
     /// Every row has exactly `columns` cells, and half a double character is
     /// never left in one.
-    rows: Vec<Vec<Cell>>,
+    rows: Vec<Row>,
+    history: History,
     cursor: Position,
     /// The last column was written: the next character goes to the next row.
     /// Until then the cursor stays; any movement forgets it.
@@ -48,12 +56,19 @@ pub struct Grid {
 
 impl Grid {
     /// An empty grid. Each side is kept between 1 and 1000.
+    /// It keeps no history.
     pub fn new(columns: u16, rows: u16) -> Self {
+        Self::with_history(columns, rows, 0)
+    }
+
+    /// Keeps up to `lines` rows of those that leave through the top.
+    pub fn with_history(columns: u16, rows: u16, lines: usize) -> Self {
         let columns = usize::from(columns.clamp(1, MAX_SIDE));
         let rows = usize::from(rows.clamp(1, MAX_SIDE));
         Self {
             columns,
-            rows: vec![vec![Cell::default(); columns]; rows],
+            rows: vec![Row::empty(columns, &Cell::default()); rows],
+            history: History::new(lines),
             cursor: Position::default(),
             wrap_pending: false,
             pen: Style::default(),
@@ -66,11 +81,12 @@ impl Grid {
         }
     }
 
-    /// An empty screen of the same size that goes on with this one's cursor,
-    /// pen and writing modes.
+    /// An empty screen of the same size, without history, that goes on with
+    /// this one's cursor, pen and writing modes.
     pub fn blank_copy(&self) -> Self {
         let mut copy = Self {
-            rows: vec![vec![Cell::default(); self.columns]; self.rows()],
+            rows: vec![Row::empty(self.columns, &Cell::default()); self.rows()],
+            history: History::default(),
             origin: false,
             top: 0,
             bottom: self.rows() - 1,
@@ -94,17 +110,47 @@ impl Grid {
     }
 
     pub fn cell(&self, row: usize, column: usize) -> Option<&Cell> {
-        self.rows.get(row)?.get(column)
+        self.rows.get(row)?.cells.get(column)
     }
 
     /// What a row shows, without the spaces at its end. Empty past the last row.
     pub fn row_text(&self, row: usize) -> String {
         let mut text = String::new();
-        for cell in self.rows.get(row).into_iter().flatten() {
+        for cell in self.rows.get(row).into_iter().flat_map(|row| &row.cells) {
             cell.push_to(&mut text);
         }
         text.truncate(text.trim_end_matches(' ').len());
         text
+    }
+
+    /// How many rows of history there are.
+    pub fn history_len(&self) -> usize {
+        self.history.len()
+    }
+
+    /// A row of history, 0 being the oldest, without the spaces at its end.
+    pub fn history_text(&self, index: usize) -> Option<&str> {
+        let line = self.history.get(index)?;
+        Some(line.text().trim_end_matches(' '))
+    }
+
+    /// The cells of a row of history; the empty ones at its end are not kept.
+    pub fn history_cells(&self, index: usize) -> Option<Vec<Cell>> {
+        self.history.get(index).map(history::Line::cells)
+    }
+
+    pub fn clear_history(&mut self) {
+        self.history.clear();
+    }
+
+    /// The history and the screen, one row per line.
+    pub fn text_with_history(&self) -> String {
+        (0..self.history_len())
+            .filter_map(|index| self.history_text(index))
+            .map(str::to_string)
+            .chain((0..self.rows()).map(|row| self.row_text(row)))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     /// Every row, one per line.
