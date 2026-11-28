@@ -2,7 +2,8 @@
 //! whole way: bytes, parser, interpreter and grid. It opens no window.
 //!
 //! `cargo run --release -p imperifex-platform --example measure_history -- <case>`
-//! with `plain` or `colour`. One case per run, so that the peak is its own.
+//! with `plain` or `colour`, and `-default` after it for the history a terminal
+//! keeps by default (T2.9). One case per run, so that the peak is its own.
 
 #[cfg(windows)]
 #[path = "measure_history/memory.rs"]

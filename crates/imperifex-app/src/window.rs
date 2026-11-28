@@ -1,6 +1,8 @@
 //! The state of the window while it is open: what the interface is shown, and
 //! what the program is asked to do with the real window.
 
+mod output;
+
 use imperifex_domain::draw::DrawList;
 use imperifex_domain::i18n::{text, Language, Text};
 use imperifex_domain::log_warn;
@@ -8,6 +10,8 @@ use imperifex_domain::ports::{SystemAppearance, Wake};
 use imperifex_domain::settings::Settings;
 use imperifex_domain::theme::{palette, resolve_theme, Theme};
 use imperifex_domain::view::{Action, Edge, Model};
+
+pub use output::Start;
 
 /// What the program does with the window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,6 +41,7 @@ pub struct Core {
     focused: bool,
     /// What was last drawn.
     shown: Option<DrawList>,
+    output: output::Output,
 }
 
 impl Core {
@@ -58,6 +63,7 @@ impl Core {
             maximized: false,
             focused: true,
             shown: None,
+            output: output::Output::default(),
         }
     }
 
@@ -76,7 +82,21 @@ impl Core {
             window: self.size,
             maximized: self.maximized,
             focused: self.focused,
+            full_screen: self
+                .output
+                .tab()
+                .is_some_and(|tab| tab.terminal().on_alternate_screen()),
+            notice: self.notice(),
         }
+    }
+
+    /// What is told inside the window.
+    fn notice(&self) -> Vec<String> {
+        let Some(why) = self.output.failure() else {
+            return Vec::new();
+        };
+        let said = text(self.language, Text::ShellNotStarted);
+        vec![said.into(), why.into()]
     }
 
     pub fn resized(&mut self, size: (u32, u32), maximized: bool) {
@@ -121,6 +141,7 @@ impl Core {
 
     /// `list` is now on the window.
     pub fn was_shown(&mut self, list: DrawList) {
+        self.output.was_shown();
         self.shown = Some(list);
     }
 }

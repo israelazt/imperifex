@@ -13,6 +13,8 @@ fn model(theme: Theme) -> Model {
         window: (800, 600),
         maximized: false,
         focused: true,
+        full_screen: false,
+        notice: Vec::new(),
     }
 }
 
@@ -54,4 +56,39 @@ fn what_the_bar_is_asked_comes_out_of_the_frame() {
     };
     let found = frame(&model(Theme::Dark), &pointer, &FixedWidth);
     assert_eq!(found.actions, [Action::Drag]);
+}
+
+#[test]
+fn a_program_that_uses_the_whole_screen_gets_no_margins() {
+    let model = Model {
+        full_screen: true,
+        ..model(Theme::Dark)
+    };
+    let found = frame(&model, &Pointer::default(), &FixedWidth);
+    let under_the_bar = Rect {
+        x: 0,
+        y: 50,
+        width: 800,
+        height: 550,
+    };
+    assert_eq!(found.terminal_area, under_the_bar);
+}
+
+#[test]
+fn each_line_of_a_notice_is_written_where_the_output_goes() {
+    let model = Model {
+        notice: vec!["first".into(), "second".into()],
+        ..model(Theme::Dark)
+    };
+    let found = frame(&model, &Pointer::default(), &FixedWidth);
+    let said: Vec<_> = found
+        .draw
+        .texts
+        .iter()
+        .filter(|run| run.y >= found.terminal_area.y)
+        .map(|run| (run.x, run.y, run.text.as_str(), run.color))
+        .collect();
+    let error = model.palette.error;
+    // At 125 % the lines of the fake font are 20 high.
+    assert_eq!(said, [(20, 70, "first", error), (20, 90, "second", error)]);
 }

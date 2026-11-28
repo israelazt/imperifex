@@ -1,5 +1,6 @@
 //! Running a program to its end with no window, to see the screen it leaves.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use imperifex_domain::ports::{Clock, PtyLauncher, SequenceParser};
@@ -45,11 +46,13 @@ pub struct Finished {
 
 pub fn run(
     launcher: &dyn PtyLauncher,
-    parser: &mut dyn SequenceParser,
+    parser: Box<dyn SequenceParser>,
     clock: &dyn Clock,
     request: &Request,
 ) -> Result<Finished, String> {
-    let pty = launcher.start(&request.command_line, request.columns, request.rows)?;
+    // Nobody needs telling: the run waits for the output itself.
+    let nobody = Arc::new(|| {});
+    let pty = launcher.start(&request.command_line, request.columns, request.rows, nobody)?;
     let terminal = Terminal::new(request.columns, request.rows);
     let mut session = Session::new(pty, parser, terminal);
     let timed_out = wait_for_the_program(&mut session, clock, request.timeout)?;
@@ -65,7 +68,7 @@ pub fn run(
 /// Reads until the program has left and gone quiet; `true` if time ran out
 /// first.
 fn wait_for_the_program(
-    session: &mut Session<'_>,
+    session: &mut Session,
     clock: &dyn Clock,
     timeout: Duration,
 ) -> Result<bool, String> {
@@ -92,7 +95,7 @@ fn wait_for_the_program(
 }
 
 /// Closes the console and reads what is left; `false` if it did not end.
-fn close_and_read(session: &mut Session<'_>, clock: &dyn Clock) -> bool {
+fn close_and_read(session: &mut Session, clock: &dyn Clock) -> bool {
     session.close();
     let start = clock.monotonic();
     while clock.monotonic().saturating_sub(start) < TO_CLOSE {
@@ -103,7 +106,7 @@ fn close_and_read(session: &mut Session<'_>, clock: &dyn Clock) -> bool {
     false
 }
 
-fn ending(session: &mut Session<'_>, clock: &dyn Clock, timed_out: bool) -> Result<Ending, String> {
+fn ending(session: &mut Session, clock: &dyn Clock, timed_out: bool) -> Result<Ending, String> {
     let start = clock.monotonic();
     loop {
         if let Some(code) = session.exit_code()? {

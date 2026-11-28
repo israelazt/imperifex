@@ -121,6 +121,14 @@ impl Clock for FakeClock {
 /// reached the screen: the real parser is tested in the platform crate.
 pub struct FakeParser;
 
+pub fn fake_parser() -> Box<dyn SequenceParser> {
+    Box::new(FakeParser)
+}
+
+pub fn no_wake() -> Wake {
+    std::sync::Arc::new(|| {})
+}
+
 impl SequenceParser for FakeParser {
     fn parse(&mut self, bytes: &[u8], receive: &mut dyn FnMut(Sequence<'_>)) {
         for byte in bytes {
@@ -160,6 +168,8 @@ pub struct Asked {
 #[derive(Default)]
 pub struct FakeLauncher {
     pub script: Script,
+    /// The command lines that fail to start.
+    pub missing: Vec<&'static str>,
     pub asked: Rc<RefCell<Asked>>,
 }
 
@@ -183,9 +193,18 @@ pub fn data(text: &str) -> PtyRead {
 }
 
 impl PtyLauncher for FakeLauncher {
-    fn start(&self, command_line: &str, columns: u16, rows: u16) -> Result<Box<dyn Pty>, String> {
+    fn start(
+        &self,
+        command_line: &str,
+        columns: u16,
+        rows: u16,
+        _wake: Wake,
+    ) -> Result<Box<dyn Pty>, String> {
         let started = (command_line.to_string(), columns, rows);
         self.asked.borrow_mut().started.push(started);
+        if self.missing.contains(&command_line) {
+            return Err(format!("{command_line} is not installed"));
+        }
         Ok(Box::new(FakePty {
             output: self.script.output.iter().cloned().collect(),
             script: self.script.clone(),

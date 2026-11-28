@@ -3,6 +3,8 @@ use imperifex_domain::theme::ThemeChoice;
 use super::*;
 use crate::testing::FakeAppearance;
 
+mod output;
+
 fn core_with(choice: ThemeChoice, appearance: &FakeAppearance) -> Core {
     let settings = Settings {
         theme: choice,

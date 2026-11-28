@@ -83,6 +83,7 @@ impl Grid {
         let count = count.min(rows.len());
         rows.rotate_left(count);
         let kept = rows.len() - count;
+        self.damage(from, to + 1);
         self.empty_rows(from + kept, from + kept + count);
     }
 
@@ -91,6 +92,7 @@ impl Grid {
         let rows = &mut self.rows[from..=to];
         let count = count.min(rows.len());
         rows.rotate_right(count);
+        self.damage(from, to + 1);
         self.empty_rows(from, from + count);
         // What ends the block now has another row under it.
         self.rows[to].wrap = Wrap::End;
@@ -102,5 +104,6 @@ impl Grid {
             row.cells.fill(blank.clone());
             row.wrap = Wrap::End;
         }
+        self.damage(from, to);
     }
 }

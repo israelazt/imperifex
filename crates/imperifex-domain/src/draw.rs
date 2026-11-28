@@ -66,9 +66,13 @@ pub struct TextRun {
     pub size: u32,
 }
 
-/// Rectangles first, in order, and the texts over them.
+/// Rectangles first, in order, and the texts over them. What floats is drawn
+/// last, the same way, over those and over the grid of the terminal, which goes
+/// between the rectangles and the texts.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct DrawList {
     pub rects: Vec<(Rect, Rgb)>,
     pub texts: Vec<TextRun>,
+    pub floating_rects: Vec<(Rect, Rgb)>,
+    pub floating_texts: Vec<TextRun>,
 }

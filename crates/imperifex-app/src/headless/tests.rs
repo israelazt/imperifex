@@ -1,5 +1,5 @@
 use super::*;
-use crate::testing::{data, FakeClock, FakeLauncher, FakeParser, Script};
+use crate::testing::{data, fake_parser, FakeClock, FakeLauncher, Script};
 use imperifex_domain::ports::PtyRead;
 
 fn request(timeout: Duration) -> Request {
@@ -16,7 +16,7 @@ fn finish(script: Script) -> (Finished, FakeLauncher) {
     let launcher = FakeLauncher::running(script);
     let clock = FakeClock::ticking(10);
     let request = request(Duration::from_secs(2));
-    let finished = run(&launcher, &mut FakeParser, &clock, &request).unwrap();
+    let finished = run(&launcher, fake_parser(), &clock, &request).unwrap();
     (finished, launcher)
 }
 

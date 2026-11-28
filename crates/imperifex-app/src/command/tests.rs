@@ -3,7 +3,7 @@ use std::time::Duration;
 use imperifex_domain::i18n::{text, Text};
 
 use super::*;
-use crate::testing::{data, FakeClock, FakeLauncher, FakeParser, Script};
+use crate::testing::{data, fake_parser, FakeClock, FakeLauncher, Script};
 
 fn parse(line: &str) -> Result<Command, String> {
     let args: Vec<&str> = line.split_whitespace().collect();
@@ -15,7 +15,7 @@ fn output(command: &Command, launcher: &FakeLauncher) -> Output {
     let clock = FakeClock::ticking(10);
     let shells = Shells {
         launcher,
-        parser: &mut FakeParser,
+        new_parser: &fake_parser,
         clock: &clock,
     };
     command.run(&service, shells, Language::Spanish)
@@ -152,7 +152,7 @@ fn in_english_the_help_and_the_errors_are_in_english() {
     let clock = FakeClock::ticking(10);
     let shells = Shells {
         launcher: &launcher,
-        parser: &mut FakeParser,
+        new_parser: &fake_parser,
         clock: &clock,
     };
     let help = Command::Help.run(&service, shells, Language::English);

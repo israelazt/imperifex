@@ -16,6 +16,10 @@ pub struct Model {
     pub window: (u32, u32),
     pub maximized: bool,
     pub focused: bool,
+    /// A program uses the whole screen: the output gets no margins (T-D5).
+    pub full_screen: bool,
+    /// What went wrong, one line each, shown where the output goes.
+    pub notice: Vec<String>,
 }
 
 /// A place in physical pixels from the top left of the window.

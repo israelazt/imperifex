@@ -94,7 +94,7 @@ pub fn help(button: Button, model: &Model, measure: &dyn TextMeasure, into: &mut
         width,
         height: line + padding * 2,
     };
-    into.rects.push((area, model.palette.muted));
+    into.floating_rects.push((area, model.palette.muted));
     let border = physical(BORDER, model.scale).max(1);
     let inside = Rect {
         x: area.x + i32::try_from(border).unwrap_or(0),
@@ -102,9 +102,9 @@ pub fn help(button: Button, model: &Model, measure: &dyn TextMeasure, into: &mut
         width: area.width.saturating_sub(border * 2),
         height: area.height.saturating_sub(border * 2),
     };
-    into.rects.push((inside, model.palette.raised));
+    into.floating_rects.push((inside, model.palette.raised));
     let place = layout::inset(area, Space::S, model.scale);
     let style = (UiFont::Text, model.palette.text);
-    into.texts
+    into.floating_texts
         .push(run(model, (place.x, place.y), said.into(), style));
 }

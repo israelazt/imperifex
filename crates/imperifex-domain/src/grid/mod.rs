@@ -3,6 +3,7 @@
 
 mod cell;
 mod cursor;
+mod damage;
 mod erase;
 mod history;
 mod reflow;
@@ -13,6 +14,7 @@ mod style;
 mod write;
 
 pub use cell::{Cell, Span};
+pub use damage::Damage;
 pub use erase::Erase;
 pub use style::{Attributes, Color, Style};
 
@@ -35,6 +37,8 @@ pub struct Grid {
     /// Every row has exactly `columns` cells, and half a double character is
     /// never left in one.
     rows: Vec<Row>,
+    /// Which rows changed since they were last drawn.
+    damaged: Vec<bool>,
     history: History,
     cursor: Position,
     /// The last column was written: the next character goes to the next row.
@@ -68,6 +72,7 @@ impl Grid {
         Self {
             columns,
             rows: vec![Row::empty(columns, &Cell::default()); rows],
+            damaged: vec![true; rows],
             history: History::new(lines),
             cursor: Position::default(),
             wrap_pending: false,
@@ -86,6 +91,7 @@ impl Grid {
     pub fn blank_copy(&self) -> Self {
         let mut copy = Self {
             rows: vec![Row::empty(self.columns, &Cell::default()); self.rows()],
+            damaged: vec![true; self.rows()],
             history: History::default(),
             origin: false,
             top: 0,

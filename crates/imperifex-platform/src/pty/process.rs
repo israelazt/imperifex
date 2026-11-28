@@ -3,13 +3,14 @@
 use std::ffi::c_void;
 use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 
+use imperifex_domain::ports::Wake;
 use windows::core::PWSTR;
 use windows::Win32::Foundation::{HANDLE, WAIT_OBJECT_0};
 use windows::Win32::System::Console::HPCON;
 use windows::Win32::System::Threading::{
     CreateProcessW, DeleteProcThreadAttributeList, GetExitCodeProcess,
     InitializeProcThreadAttributeList, UpdateProcThreadAttribute, WaitForSingleObject,
-    EXTENDED_STARTUPINFO_PRESENT, LPPROC_THREAD_ATTRIBUTE_LIST, PROCESS_INFORMATION,
+    EXTENDED_STARTUPINFO_PRESENT, INFINITE, LPPROC_THREAD_ATTRIBUTE_LIST, PROCESS_INFORMATION,
     PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, STARTF_USESTDHANDLES, STARTUPINFOEXW,
 };
 
@@ -21,6 +22,26 @@ pub(super) struct Process {
 impl Process {
     pub fn id(&self) -> u32 {
         self.id
+    }
+
+    /// Calls `left` from another thread once the program has left. The
+    /// console stays open after it, and then its output says nothing.
+    pub fn tell_when_it_leaves(&self, left: Wake) -> Result<(), String> {
+        let handle = self
+            .handle
+            .try_clone()
+            .map_err(|e| format!("no se pudo duplicar el proceso: {e}"))?;
+        std::thread::Builder::new()
+            .name("conpty-exit".into())
+            .spawn(move || {
+                let raw = HANDLE(handle.as_raw_handle());
+                // SAFETY: this thread owns the handle, open until it ends.
+                if unsafe { WaitForSingleObject(raw, INFINITE) } == WAIT_OBJECT_0 {
+                    left();
+                }
+            })
+            .map(drop)
+            .map_err(|e| format!("no se pudo vigilar el proceso: {e}"))
     }
 
     pub fn exit_code(&self) -> Result<Option<u32>, String> {

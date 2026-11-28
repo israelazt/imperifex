@@ -28,6 +28,7 @@ impl Grid {
             to += 1;
         }
         cells[from..to].fill(blank);
+        self.damage(row, row + 1);
         if to == self.columns {
             self.rows[row].wrap = Wrap::End;
         }
@@ -75,6 +76,7 @@ impl Grid {
         let rest = &mut self.rows[row].cells[column..];
         rest.rotate_right(count);
         rest[..count].fill(blank);
+        self.damage(row, row + 1);
     }
 
     /// Takes cells out at the cursor; empty ones come in at the end.
@@ -92,6 +94,7 @@ impl Grid {
         rest.rotate_left(count);
         let kept = rest.len() - count;
         rest[kept..].fill(blank);
+        self.damage(row, row + 1);
     }
 
     pub fn erase_in_display(&mut self, what: Erase) {

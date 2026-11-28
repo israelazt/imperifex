@@ -17,7 +17,7 @@ use windows::Win32::Graphics::DirectWrite::{
     DWriteCreateFactory, IDWriteFactory2, IDWriteFontCollection, DWRITE_FACTORY_TYPE_SHARED,
 };
 
-use crate::instances::{GlyphSource, Picture, Shaped};
+use crate::instances::{GlyphSource, GridLook, Picture, Shaped};
 use face::{Face, Look};
 
 /// The font of the interface's words.
@@ -174,6 +174,14 @@ fn face_at(faces: &[Face], number: u32) -> Result<&Face, String> {
 impl GlyphSource for DirectWriteText {
     fn shape(&self, font: UiFont, character: char, size: u32) -> Option<Shaped> {
         self.shape_in(number_of(font), character, size as f32)
+            .map_err(|error| log_warn!("{character:?} cannot be drawn: {error}"))
+            .ok()
+    }
+
+    fn shape_grid(&self, character: char, look: GridLook, size: f32) -> Option<Shaped> {
+        // In the order of [`Look::ALL`].
+        let face = GRID_FACES + u32::from(look.bold) + 2 * u32::from(look.italic);
+        self.shape_in(face, character, size)
             .map_err(|error| log_warn!("{character:?} cannot be drawn: {error}"))
             .ok()
     }

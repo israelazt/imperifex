@@ -44,7 +44,7 @@ fn screen() -> Result<(Terminal, Vec<u8>), String> {
         "powershell.exe -NoLogo -NoProfile -Command \"{}\"",
         script()
     );
-    let mut pty = ConPtyLauncher.start(&command, 80, 25)?;
+    let mut pty = ConPtyLauncher.start(&command, 80, 25, std::sync::Arc::new(|| {}))?;
     let mut terminal = Terminal::new(80, 25);
     let mut parser = VteParser::new();
     let mut raw = Vec::new();

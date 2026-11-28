@@ -41,6 +41,7 @@ pub struct Atlas {
     side: u32,
     shelves: Vec<Shelf>,
     slots: HashMap<GlyphKey, Slot>,
+    emptied: u64,
 }
 
 impl Atlas {
@@ -49,6 +50,7 @@ impl Atlas {
             side,
             shelves: Vec::new(),
             slots: HashMap::new(),
+            emptied: 0,
         }
     }
 
@@ -74,7 +76,14 @@ impl Atlas {
         Some(slot)
     }
 
+    /// How many times it was emptied: a place given before the last one holds
+    /// something else now.
+    pub fn generation(&self) -> u64 {
+        self.emptied
+    }
+
     pub fn clear(&mut self) {
+        self.emptied += 1;
         self.shelves.clear();
         self.slots.clear();
     }

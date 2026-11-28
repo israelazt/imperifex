@@ -42,6 +42,19 @@ pub struct CellSize {
     pub baseline: u32,
 }
 
+impl CellSize {
+    /// How many columns and rows fit in an area of that many pixels: at least
+    /// one of each, and no more than a console takes. What is left over stays
+    /// empty at the right and at the bottom.
+    pub fn fit(self, width: u32, height: u32) -> (u16, u16) {
+        let count = |room: u32, side: u32| {
+            let whole = room / side.max(1);
+            u16::try_from(whole).unwrap_or(u16::MAX).clamp(1, 1000)
+        };
+        (count(width, self.width), count(height, self.height))
+    }
+}
+
 /// The size in physical pixels of letters of `points` at the window's `scale`.
 pub fn pixels_of_points(points: f32, scale: f32) -> f32 {
     points * scale * PIXELS_PER_INCH / POINTS_PER_INCH
@@ -97,6 +110,16 @@ mod tests {
         };
         assert_eq!(with(250), 20);
         assert_eq!(with(-250), 18);
+    }
+
+    #[test]
+    fn only_whole_cells_fit_with_at_least_one_and_at_most_a_thousand() {
+        let cell = cell(9, 19, 15);
+        assert_eq!(cell.fit(900, 380), (100, 20));
+        assert_eq!(cell.fit(908, 398), (100, 20));
+        assert_eq!(cell.fit(0, 5), (1, 1));
+        assert_eq!(cell.fit(100_000, 100_000), (1000, 1000));
+        assert_eq!(CellSize::default().fit(5, 5), (5, 5));
     }
 
     #[test]

@@ -46,7 +46,7 @@ fn pixels(painter: &mut Painter, list: &DrawList) -> Vec<Rgb> {
     let cpu = D3D11_CPU_ACCESS_READ.0 as u32;
     let copy = texture(painter.device(), D3D11_USAGE_STAGING, 0, cpu);
     let target = painter.target(&drawn).expect("a target");
-    painter.paint(list, &target, SIZE).expect("a frame");
+    painter.paint(list, None, &target, SIZE).expect("a frame");
     // SAFETY: both are of one device, with the same size and format.
     unsafe { painter.context().CopyResource(&copy, &drawn) };
     let mut mapped = D3D11_MAPPED_SUBRESOURCE::default();
@@ -97,6 +97,7 @@ fn rectangles_and_letters_reach_the_pixels_in_their_colours() {
             font: UiFont::Text,
             size: 24,
         }],
+        ..DrawList::default()
     };
     let found = pixels(&mut painter, &list);
     let at = |x: usize, y: usize| found[y * SIZE.0 as usize + x];

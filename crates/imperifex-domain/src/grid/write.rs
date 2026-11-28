@@ -37,6 +37,7 @@ impl Grid {
             Span::Single
         };
         self.rows[row].cells[column] = Cell::new(character, span, self.pen);
+        self.damage(row, row + 1);
         if width == 2 {
             self.rows[row].cells[column + 1] = Cell::continuation(self.pen);
         }
@@ -83,5 +84,6 @@ impl Grid {
             at -= 1;
         }
         self.rows[row].cells[at].add_mark(mark);
+        self.damage(row, row + 1);
     }
 }

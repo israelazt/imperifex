@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::draw::{DrawList, UiFont};
+use crate::picture::TerminalPicture;
 use crate::sequence::Sequence;
 
 /// The clock: a monotonic time to measure how long things take, and waiting.
@@ -40,7 +41,11 @@ pub trait Renderer {
     fn resize(&mut self, width: u32, height: u32) -> Result<(), String>;
     /// Draws a whole frame and shows it. After an error the renderer may be of
     /// no more use: a new one is made.
-    fn draw(&mut self, list: &DrawList) -> Result<(), String>;
+    fn draw(
+        &mut self,
+        list: &DrawList,
+        terminal: Option<&TerminalPicture<'_>>,
+    ) -> Result<(), String>;
 }
 
 /// Telling whoever waits that there is something new. It may be called from any
@@ -106,5 +111,15 @@ pub trait Pty {
 /// Starting programs in pseudoconsoles.
 pub trait PtyLauncher {
     /// `command_line` is the whole line, program included, already quoted.
-    fn start(&self, command_line: &str, columns: u16, rows: u16) -> Result<Box<dyn Pty>, String>;
+    /// `wake` is called, from another thread, when there is output to read,
+    /// when it has ended and when the program leaves. For output, after a call
+    /// there is no other until [`Pty::read`] was called, so one call may stand
+    /// for much of it.
+    fn start(
+        &self,
+        command_line: &str,
+        columns: u16,
+        rows: u16,
+        wake: Wake,
+    ) -> Result<Box<dyn Pty>, String>;
 }

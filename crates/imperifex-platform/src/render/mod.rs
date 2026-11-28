@@ -9,6 +9,7 @@ mod shader;
 use std::rc::Rc;
 
 use imperifex_domain::draw::DrawList;
+use imperifex_domain::picture::TerminalPicture;
 use imperifex_domain::ports::Renderer;
 use windows::Win32::Graphics::Direct3D11::{ID3D11RenderTargetView, ID3D11Texture2D};
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN;
@@ -86,14 +87,18 @@ impl Renderer for D3dRenderer {
         self.make_target()
     }
 
-    fn draw(&mut self, list: &DrawList) -> Result<(), String> {
+    fn draw(
+        &mut self,
+        list: &DrawList,
+        terminal: Option<&TerminalPicture<'_>>,
+    ) -> Result<(), String> {
         if self.target.is_none() {
             self.make_target()?;
         }
         let Some(target) = &self.target else {
             return Err("nothing to draw on".into());
         };
-        self.painter.paint(list, target, self.size)?;
+        self.painter.paint(list, terminal, target, self.size)?;
         // SAFETY: a live swap chain; 1 waits for the screen's next refresh.
         unsafe { self.swap_chain.Present(1, DXGI_PRESENT(0)) }
             .ok()

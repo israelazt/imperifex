@@ -7,9 +7,10 @@ use imperifex_domain::interpret::apply;
 use imperifex_domain::ports::{Pty, PtyRead, SequenceParser};
 use imperifex_domain::terminal::Terminal;
 
-pub struct Session<'a> {
+pub struct Session {
     pty: Box<dyn Pty>,
-    parser: &'a mut dyn SequenceParser,
+    /// Each shell has its own: its output may be cut anywhere.
+    parser: Box<dyn SequenceParser>,
     pub terminal: Terminal,
 }
 
@@ -23,8 +24,8 @@ pub enum Step {
     Ended,
 }
 
-impl<'a> Session<'a> {
-    pub fn new(pty: Box<dyn Pty>, parser: &'a mut dyn SequenceParser, terminal: Terminal) -> Self {
+impl Session {
+    pub fn new(pty: Box<dyn Pty>, parser: Box<dyn SequenceParser>, terminal: Terminal) -> Self {
         Self {
             pty,
             parser,

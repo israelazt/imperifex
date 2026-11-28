@@ -63,6 +63,16 @@ impl Cell {
         self.style
     }
 
+    /// The character that takes the cell's column; a space if it is empty.
+    pub fn base(&self) -> char {
+        self.base
+    }
+
+    /// The characters drawn with it that take no column of their own.
+    pub fn marks(&self) -> &str {
+        self.marks.as_deref().unwrap_or("")
+    }
+
     pub(super) fn add_mark(&mut self, mark: char) {
         let old = self.marks.as_deref().unwrap_or("");
         if old.chars().count() < MAX_MARKS {

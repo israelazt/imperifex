@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use imperifex_domain::interpret::apply;
 use imperifex_domain::ports::SequenceParser;
-use imperifex_domain::terminal::Terminal;
+use imperifex_domain::terminal::{Terminal, DEFAULT_HISTORY};
 use imperifex_platform::VteParser;
 
 use crate::memory;
@@ -28,13 +28,13 @@ fn mib(count: usize) -> f64 {
 }
 
 /// Feeds the lines in chunks, as a pipe gives them, and gives the bytes fed.
-fn fill(terminal: &mut Terminal, line: fn(usize) -> String) -> usize {
+fn fill(terminal: &mut Terminal, line: fn(usize) -> String, lines: usize) -> usize {
     let mut parser = VteParser::new();
     let (mut bytes, mut fed) = (Vec::new(), 0);
     // The rows of the screen push the last lines into the history.
-    for n in 0..LINES + 25 {
+    for n in 0..lines + 25 {
         bytes.extend_from_slice(line(n).as_bytes());
-        if bytes.len() >= CHUNK || n == LINES + 24 {
+        if bytes.len() >= CHUNK || n == lines + 24 {
             parser.parse(&bytes, &mut |sequence| apply(terminal, sequence));
             fed += bytes.len();
             bytes.clear();
@@ -44,16 +44,20 @@ fn fill(terminal: &mut Terminal, line: fn(usize) -> String) -> usize {
 }
 
 pub fn run(case: &str) -> Result<(), String> {
-    let line = match case {
+    let (name, lines) = match case.strip_suffix("-default") {
+        Some(name) => (name, DEFAULT_HISTORY),
+        None => (case, LINES),
+    };
+    let line = match name {
         "plain" => plain,
         "colour" => colour,
         other => return Err(format!("caso desconocido: «{other}» (plain o colour)")),
     };
     let before = memory::private_bytes()?;
     let extra = || memory::private_bytes().map(|now| mib(now.saturating_sub(before)));
-    let mut terminal = Terminal::with_history(80, 25, LINES);
+    let mut terminal = Terminal::with_history(80, 25, lines);
     let start = Instant::now();
-    let fed = fill(&mut terminal, line);
+    let fed = fill(&mut terminal, line, lines);
     let seconds = start.elapsed().as_secs_f64();
     println!(
         "caso {case}: {} filas de historial",

@@ -96,6 +96,7 @@ impl Terminal {
             main.pen = self.screen.pen;
             main.autowrap = self.screen.autowrap;
             main.insert = self.screen.insert;
+            main.damage_all();
             self.screen = main;
         }
     }

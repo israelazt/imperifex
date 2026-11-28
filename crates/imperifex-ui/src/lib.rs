@@ -6,6 +6,7 @@
 #![forbid(unsafe_code)]
 
 pub mod layout;
+mod notice;
 #[cfg(test)]
 mod testing;
 pub mod titlebar;
@@ -25,8 +26,8 @@ pub struct Frame {
     pub cursor: CursorIcon,
 }
 
-/// The window: its title bar, and under it the place of the output with the
-/// base space around it.
+/// The window: its title bar, and under it the output, with the base space
+/// around its grid unless a program uses the whole screen.
 pub fn frame(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure) -> Frame {
     let (width, height) = model.window;
     let window = Rect {
@@ -41,11 +42,16 @@ pub fn frame(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure) -> Fra
         height: height - bar,
         ..window
     };
-    let terminal_area = layout::inset(below, Space::L, model.scale);
+    let terminal_area = if model.full_screen {
+        below
+    } else {
+        layout::inset(below, Space::L, model.scale)
+    };
     let mut draw = DrawList::default();
     draw.rects.push((window, model.palette.background));
-    draw.rects.push((terminal_area, model.palette.surface));
+    draw.rects.push((below, model.palette.surface));
     titlebar::draw(model, pointer, measure, &mut draw);
+    notice::draw(model, terminal_area, measure, &mut draw);
     titlebar::draw_help(model, pointer, measure, &mut draw);
     let (action, cursor) = titlebar::input(model, pointer);
     Frame {

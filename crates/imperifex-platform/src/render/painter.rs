@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use imperifex_domain::atlas::Atlas;
 use imperifex_domain::draw::DrawList;
+use imperifex_domain::picture::TerminalPicture;
 use windows::Win32::Graphics::Direct3D11::{
     ID3D11Device, ID3D11DeviceContext, ID3D11RenderTargetView, ID3D11Texture2D, D3D11_VIEWPORT,
 };
@@ -70,14 +71,17 @@ impl Painter {
         created(target)
     }
 
-    /// Draws `list` on `target`, of that size in pixels.
+    /// Draws `list`, with the grid of `terminal` in it, on `target`, of that
+    /// size in pixels.
     pub fn paint(
         &mut self,
         list: &DrawList,
+        terminal: Option<&TerminalPicture<'_>>,
         target: &ID3D11RenderTargetView,
         size: (u32, u32),
     ) -> Result<(), String> {
-        self.batch.fill(list, self.text.as_ref(), &mut self.atlas);
+        let letters = self.text.as_ref();
+        self.batch.fill(list, terminal, letters, &mut self.atlas);
         self.pipeline
             .upload_glyphs(&self.context, &self.batch.uploads);
         self.aim(target, size);

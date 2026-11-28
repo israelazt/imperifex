@@ -1,6 +1,7 @@
 //! The window: winit's events go to the application and the interface, and what
 //! they answer goes back to the real window and the renderer. No decisions.
 
+mod frame;
 mod translate;
 
 use std::rc::Rc;
@@ -25,6 +26,8 @@ use winit::window::{Window, WindowId};
 #[derive(Debug, Clone, Copy)]
 enum Told {
     ThemeChanged,
+    /// The shell wrote something, or it is gone.
+    ShellSpoke,
 }
 
 /// Opens the window and stays until it is closed.
@@ -39,15 +42,11 @@ pub fn run(settings: Settings, language: Language) -> Result<(), String> {
         log_warn!("{} ({family})", text(language, Text::FontNotFound));
     }
     let core = Core::new(settings, language, Box::new(WindowsAppearance));
-    let proxy = events.create_proxy();
-    let changed: Wake = Arc::new(move || {
-        // It only fails once the loop is over: nobody is left to tell.
-        let _ = proxy.send_event(Told::ThemeChanged);
-    });
-    if let Err(error) = core.watch_system(changed) {
+    if let Err(error) = core.watch_system(telling(&events, Told::ThemeChanged)) {
         log_warn!("changes of the system theme will not be seen: {error}");
     }
     let mut app = App {
+        output_arrived: telling(&events, Told::ShellSpoke),
         core,
         mouse: Mouse::default(),
         clock: SystemClock::new(),
@@ -62,8 +61,19 @@ pub fn run(settings: Settings, language: Language) -> Result<(), String> {
     result
 }
 
+/// What another thread calls to tell the window `told`.
+fn telling(events: &EventLoop<Told>, told: Told) -> Wake {
+    let proxy = events.create_proxy();
+    Arc::new(move || {
+        // It only fails once the loop is over: nobody is left to tell.
+        let _ = proxy.send_event(told);
+    })
+}
+
 struct App {
     core: Core,
+    /// What the shell's console calls.
+    output_arrived: Wake,
     mouse: Mouse,
     clock: SystemClock,
     /// Measures the texts for the interface and pictures them for the renderer.
@@ -105,29 +115,9 @@ impl Shown {
 }
 
 impl App {
-    /// Draws what there is now and shows it.
-    fn draw(&mut self) {
-        let Some(shown) = &mut self.shown else { return };
-        let model = self.core.model();
-        if model.window.0 == 0 || model.window.1 == 0 {
-            return;
-        }
-        let pointer = self.mouse.hover(self.clock.monotonic());
-        let list = imperifex_ui::frame(&model, &pointer, self.letters.as_ref()).draw;
-        let renderer = shown.renderer(&self.letters);
-        match renderer.and_then(|renderer| renderer.draw(&list)) {
-            Ok(()) => {
-                shown.failed = false;
-                self.frames += 1;
-                self.core.was_shown(list);
-            }
-            Err(error) => shown.lost(&error),
-        }
-    }
-
     /// Does what the mouse asks, and asks for a redraw if what is seen changed.
     fn mouse_did(&mut self, event_loop: &ActiveEventLoop, pointer: Pointer) {
-        let frame = imperifex_ui::frame(&self.core.model(), &pointer, self.letters.as_ref());
+        let frame = self.frame(&pointer);
         if let Some(shown) = &self.shown {
             shown.window.set_cursor(translate::cursor(frame.cursor));
         }
@@ -137,15 +127,6 @@ impl App {
             }
         }
         self.redraw_if_changed();
-    }
-
-    fn redraw_if_changed(&self) {
-        let Some(shown) = &self.shown else { return };
-        let pointer = self.mouse.hover(self.clock.monotonic());
-        let list = imperifex_ui::frame(&self.core.model(), &pointer, self.letters.as_ref()).draw;
-        if self.core.is_news(&list) {
-            shown.window.request_redraw();
-        }
     }
 
     fn obey(&mut self, event_loop: &ActiveEventLoop, command: WindowCommand) {
@@ -184,14 +165,40 @@ impl App {
         }
     }
 
+    fn obey_all(&mut self, event_loop: &ActiveEventLoop, commands: Vec<WindowCommand>) {
+        for command in commands {
+            self.obey(event_loop, command);
+        }
+    }
+
+    fn read_shell(&mut self, event_loop: &ActiveEventLoop) {
+        let commands = self.core.read_output(&self.clock);
+        self.obey_all(event_loop, commands);
+    }
+
+    /// A key going down goes to the shell. Those the system makes up when the
+    /// window gets the focus do not.
+    fn key_event(&mut self, event: &WindowEvent) {
+        if let WindowEvent::KeyboardInput {
+            event,
+            is_synthetic: false,
+            ..
+        } = event
+        {
+            if event.state == ElementState::Pressed {
+                self.core.typed(&translate::key(event));
+            }
+        }
+    }
+
     /// The window's size changed, or whether it is maximized.
     fn resized(&mut self) {
         let Some(shown) = &mut self.shown else { return };
-        let size = shown.window.inner_size();
+        let (width, height) = translate::seen_size(&shown.window);
         self.core
-            .resized((size.width, size.height), shown.window.is_maximized());
+            .resized((width, height), shown.window.is_maximized());
         if let Some(renderer) = &mut shown.renderer {
-            if let Err(error) = renderer.resize(size.width, size.height) {
+            if let Err(error) = renderer.resize(width, height) {
                 shown.lost(&error);
                 return;
             }
@@ -248,16 +255,25 @@ impl ApplicationHandler<Told> for App {
         }
     }
 
-    fn new_events(&mut self, _: &ActiveEventLoop, cause: StartCause) {
-        // The only wait with an end is for the mouse to rest.
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
+        // The waits with an end are for the mouse to rest and for the window's
+        // size to settle.
         if matches!(cause, StartCause::ResumeTimeReached { .. }) {
             self.redraw_if_changed();
+            let commands = self.core.settle_size(self.clock.monotonic());
+            self.obey_all(event_loop, commands);
+        }
+        if self.core.has_unread() {
+            self.read_shell(event_loop);
         }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let rest = self.mouse.rests_in(self.clock.monotonic());
-        event_loop.set_control_flow(match rest {
+        let now = self.clock.monotonic();
+        let waits = [self.mouse.rests_in(now), self.core.settles_in(now)];
+        event_loop.set_control_flow(match waits.into_iter().flatten().min() {
+            // There is output left: back at once, after what else is waiting.
+            _ if self.core.has_unread() => ControlFlow::Poll,
             Some(left) => ControlFlow::WaitUntil(Instant::now() + left),
             None => ControlFlow::Wait,
         });
@@ -266,10 +282,10 @@ impl ApplicationHandler<Told> for App {
     fn user_event(&mut self, event_loop: &ActiveEventLoop, told: Told) {
         match told {
             Told::ThemeChanged => {
-                for command in self.core.system_theme_changed() {
-                    self.obey(event_loop, command);
-                }
+                let commands = self.core.system_theme_changed();
+                self.obey_all(event_loop, commands);
             }
+            Told::ShellSpoke => self.read_shell(event_loop),
         }
     }
 
@@ -277,6 +293,7 @@ impl ApplicationHandler<Told> for App {
         if let WindowEvent::Focused(focused) = event {
             self.core.set_focused(focused);
         }
+        self.key_event(&event);
         if let Some(pointer) = self.mouse_event(&event) {
             self.mouse_did(event_loop, pointer);
             return;

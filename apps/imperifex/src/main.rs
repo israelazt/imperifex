@@ -62,7 +62,7 @@ fn main() {
     let status = StatusService::new(SystemClock::new());
     let shells = Shells {
         launcher: &ConPtyLauncher,
-        parser: &mut VteParser::new(),
+        new_parser: &|| Box::new(VteParser::new()),
         clock: &SystemClock::new(),
     };
     let output = command.run(&status, shells, language);

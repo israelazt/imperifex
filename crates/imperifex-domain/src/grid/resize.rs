@@ -62,6 +62,7 @@ impl Grid {
         self.bottom = self.rows() - 1;
         self.move_to(cursor.row, cursor.column);
         self.wrap_pending = wrap_pending && self.autowrap;
+        self.damage_all();
     }
 }
 

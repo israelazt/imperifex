@@ -2,44 +2,57 @@
 //! the console never stops on a full pipe.
 
 mod console;
+mod output;
 mod process;
 
 use std::fs::File;
-use std::io::{Read, Write};
-use std::sync::mpsc::{sync_channel, Receiver, RecvTimeoutError, SyncSender};
+use std::io::Write;
+use std::sync::mpsc::{sync_channel, Receiver, RecvTimeoutError};
+use std::sync::Arc;
 use std::time::Duration;
 
-use imperifex_domain::ports::{Pty, PtyLauncher, PtyRead};
+use imperifex_domain::ports::{Pty, PtyLauncher, PtyRead, Wake};
 
 use console::Console;
+use output::{forward, Doorbell};
 use process::Process;
 
 /// How many chunks wait to be read before the program has to wait.
 const WAITING_CHUNKS: usize = 64;
-const CHUNK: usize = 16 * 1024;
 
 #[derive(Debug, Default)]
 pub struct ConPtyLauncher;
 
 struct ConPty {
     output: Receiver<Vec<u8>>,
+    doorbell: Doorbell,
     input: File,
     console: Console,
     process: Process,
 }
 
 impl PtyLauncher for ConPtyLauncher {
-    fn start(&self, command_line: &str, columns: u16, rows: u16) -> Result<Box<dyn Pty>, String> {
+    fn start(
+        &self,
+        command_line: &str,
+        columns: u16,
+        rows: u16,
+        wake: Wake,
+    ) -> Result<Box<dyn Pty>, String> {
         let (console, input, output) = Console::open(columns, rows)?;
         let (send, receive) = sync_channel(WAITING_CHUNKS);
+        let doorbell = Doorbell::new(Arc::clone(&wake));
+        let ringing = doorbell.clone();
         // Reading starts before the program: a full pipe would stop the console.
         std::thread::Builder::new()
             .name("conpty-output".into())
-            .spawn(move || forward(output, &send))
+            .spawn(move || forward(output, send, &ringing))
             .map_err(|e| format!("no se pudo crear el hilo de lectura: {e}"))?;
         let process = console.launch(command_line)?;
+        process.tell_when_it_leaves(wake)?;
         Ok(Box::new(ConPty {
             output: receive,
+            doorbell,
             input,
             console,
             process,
@@ -47,19 +60,9 @@ impl PtyLauncher for ConPtyLauncher {
     }
 }
 
-/// Passes the output on until the console closes its pipe. With nobody left to
-/// take it, it is still read and dropped: closing may wait for that.
-fn forward(mut from: File, to: &SyncSender<Vec<u8>>) {
-    let mut chunk = vec![0u8; CHUNK];
-    let mut wanted = true;
-    // An error here is the pipe closing: the end of the output.
-    while let Ok(read @ 1..) = from.read(&mut chunk) {
-        wanted = wanted && to.send(chunk[..read].to_vec()).is_ok();
-    }
-}
-
 impl Pty for ConPty {
     fn read(&mut self, wait: Duration) -> PtyRead {
+        self.doorbell.answer();
         match self.output.recv_timeout(wait) {
             Ok(bytes) => PtyRead::Data(bytes),
             Err(RecvTimeoutError::Timeout) => PtyRead::Nothing,

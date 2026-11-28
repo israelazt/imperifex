@@ -20,14 +20,30 @@ impl GlyphSource for SquareLetters {
         (character != '?').then_some(Shaped { key, advance: 4.5 })
     }
 
+    /// The face says the look: 2 plain, 3 bold, 4 italic, 5 both. A mark
+    /// above a letter does not move the pen.
+    fn shape_grid(&self, character: char, look: GridLook, size: f32) -> Option<Shaped> {
+        let glyph = u16::try_from(u32::from(character)).ok()?;
+        let key = GlyphKey {
+            face: 2 + u32::from(look.bold) + 2 * u32::from(look.italic),
+            glyph,
+            size: size as u32,
+        };
+        let mark = ('\u{300}'..='\u{36f}').contains(&character) || character == '\u{20d7}';
+        let advance = if mark { 0.0 } else { 4.5 };
+        Some(Shaped { key, advance })
+    }
+
     fn picture(&self, key: GlyphKey) -> Result<Picture, String> {
         self.pictured.borrow_mut().push(key.glyph);
         if key.glyph == u16::from(b'!') {
             return Err("it breaks".into());
         }
         let side = |length| if key.glyph == 32 { 0 } else { length };
+        // One mark is drawn behind the pen; the rest, ahead as the letters.
+        let behind = key.glyph == 0x20D7;
         Ok(Picture {
-            left: 1,
+            left: if behind { -5 } else { 1 },
             top: -5,
             width: side(4),
             height: side(6),
@@ -60,7 +76,7 @@ fn texts(all: &[&str]) -> DrawList {
 
 fn filled(list: &DrawList, source: &SquareLetters, atlas: &mut Atlas) -> Batch {
     let mut batch = Batch::default();
-    batch.fill(list, source, atlas);
+    batch.fill(list, None, source, atlas);
     batch
 }
 
@@ -142,3 +158,5 @@ fn with_more_glyphs_than_the_atlas_holds_some_are_left_out() {
     let batch = filled(&list, &SquareLetters::default(), &mut Atlas::new(8));
     assert_eq!(batch.instances.len(), 3);
 }
+
+mod grid;

@@ -1,7 +1,10 @@
 //! From the words of the interface to winit's, and back.
 
+use imperifex_domain::input::{KeyInput, NamedKey};
 use imperifex_domain::view::{CursorIcon, Edge, Point};
 use winit::dpi::{LogicalSize, PhysicalPosition};
+use winit::event::KeyEvent;
+use winit::keyboard::{Key, NamedKey as Named};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{CursorIcon as Cursor, ResizeDirection, Window, WindowAttributes};
@@ -22,6 +25,17 @@ pub fn attributes(title: String) -> WindowAttributes {
         .with_visible(false)
 }
 
+/// The size of what is seen of the window, in physical pixels. Minimized,
+/// nothing is, though Windows gives it a small size (160×28 here) that would
+/// cut the terminal's lines to fit in it.
+pub fn seen_size(window: &Window) -> (u32, u32) {
+    if window.is_minimized() == Some(true) {
+        return (0, 0);
+    }
+    let size = window.inner_size();
+    (size.width, size.height)
+}
+
 /// The number Windows knows the window by.
 pub fn handle(window: &Window) -> Result<isize, String> {
     match window.window_handle().map(|handle| handle.as_raw()) {
@@ -33,6 +47,24 @@ pub fn handle(window: &Window) -> Result<isize, String> {
 pub fn point(position: PhysicalPosition<f64>) -> Point {
     let whole = position.cast::<i32>();
     (whole.x, whole.y)
+}
+
+pub fn key(event: &KeyEvent) -> KeyInput {
+    let named = match event.logical_key {
+        Key::Named(Named::Enter) => Some(NamedKey::Enter),
+        Key::Named(Named::Backspace) => Some(NamedKey::Backspace),
+        Key::Named(Named::Tab) => Some(NamedKey::Tab),
+        Key::Named(Named::Escape) => Some(NamedKey::Escape),
+        Key::Named(Named::ArrowUp) => Some(NamedKey::Up),
+        Key::Named(Named::ArrowDown) => Some(NamedKey::Down),
+        Key::Named(Named::ArrowRight) => Some(NamedKey::Right),
+        Key::Named(Named::ArrowLeft) => Some(NamedKey::Left),
+        _ => None,
+    };
+    KeyInput {
+        text: event.text.as_ref().map(ToString::to_string),
+        key: named,
+    }
 }
 
 pub fn direction(edge: Edge) -> ResizeDirection {

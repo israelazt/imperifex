@@ -2,9 +2,12 @@
 //! vertex shader opens into its four corners. Portable, so that it is tested
 //! everywhere: the letters come from a [`GlyphSource`].
 
+mod grid;
+
 use imperifex_domain::atlas::{Atlas, GlyphKey, Slot};
 use imperifex_domain::draw::{DrawList, Rect, TextRun, UiFont};
 use imperifex_domain::log_info;
+use imperifex_domain::picture::TerminalPicture;
 use imperifex_domain::theme::Rgb;
 
 /// Laid out as `shaders.hlsl` reads it.
@@ -39,15 +42,24 @@ pub struct Picture {
     pub coverage: Vec<u8>,
 }
 
-/// The letters of the interface, as the system gives them.
+/// The letters of the interface and of the grid, as the system gives them.
 pub trait GlyphSource {
     /// `size` is that of the letters, in physical pixels. `None` when nothing
     /// can draw the character.
     fn shape(&self, font: UiFont, character: char, size: u32) -> Option<Shaped>;
+    /// The same in the font of the grid, with letters of `size` pixels.
+    fn shape_grid(&self, character: char, look: GridLook, size: f32) -> Option<Shaped>;
     /// The picture of a glyph that [`GlyphSource::shape`] gave.
     fn picture(&self, key: GlyphKey) -> Result<Picture, String>;
     /// From the top of a line down to its baseline.
     fn ascent(&self, font: UiFont, size: u32) -> i32;
+}
+
+/// Which of the grid's faces a cell is written with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct GridLook {
+    pub bold: bool,
+    pub italic: bool,
 }
 
 /// A picture to copy to the texture.
@@ -63,21 +75,32 @@ pub struct Batch {
     pub instances: Vec<Instance>,
     /// What the texture does not have yet.
     pub uploads: Vec<Upload>,
+    /// The rows of the terminal as they were last made.
+    grid: grid::Rows,
 }
 
 /// The atlas had no room for a glyph.
 struct Full;
 
 impl Batch {
-    /// The rectangles of `list` in order, and its texts over them. If the atlas
+    /// The rectangles of `list` in order, the grid of `terminal`, the texts of
+    /// the list and what floats, each over what came before. If the atlas
     /// fills up it is emptied and the frame is made again, so that every glyph
     /// of a frame is in it; with more of them than it holds, some are left out.
-    pub fn fill(&mut self, list: &DrawList, source: &dyn GlyphSource, atlas: &mut Atlas) {
-        if self.try_fill(list, source, atlas).is_err() {
+    pub fn fill(
+        &mut self,
+        list: &DrawList,
+        terminal: Option<&TerminalPicture<'_>>,
+        source: &dyn GlyphSource,
+        atlas: &mut Atlas,
+    ) {
+        if self.try_fill(list, terminal, source, atlas).is_err() {
             log_info!("the glyph atlas is full: it is emptied");
             atlas.clear();
-            if self.try_fill(list, source, atlas).is_err() {
+            if self.try_fill(list, terminal, source, atlas).is_err() {
                 log_info!("a frame has more glyphs than the atlas holds");
+                // The rows that lack glyphs are not to be kept.
+                self.grid.forget();
             }
         }
     }
@@ -86,60 +109,110 @@ impl Batch {
     fn try_fill(
         &mut self,
         list: &DrawList,
+        terminal: Option<&TerminalPicture<'_>>,
         source: &dyn GlyphSource,
         atlas: &mut Atlas,
     ) -> Result<(), Full> {
         self.instances.clear();
         self.uploads.clear();
-        let visible = list
-            .rects
-            .iter()
-            .filter(|(area, _)| area.width > 0 && area.height > 0);
-        self.instances
-            .extend(visible.map(|&(area, color)| solid(area, color)));
-        let mut result = Ok(());
+        self.solids(&list.rects);
+        let mut letters = Letters {
+            source,
+            atlas,
+            uploads: &mut self.uploads,
+        };
+        let mut result = match terminal {
+            Some(picture) => self.grid.draw(picture, &mut letters, &mut self.instances),
+            None => Ok(()),
+        };
         for run in &list.texts {
-            result = self.text(run, source, atlas).and(result);
+            result = letters.text(run, &mut self.instances).and(result);
+        }
+        self.solids(&list.floating_rects);
+        let mut letters = Letters {
+            source,
+            atlas,
+            uploads: &mut self.uploads,
+        };
+        for run in &list.floating_texts {
+            result = letters.text(run, &mut self.instances).and(result);
         }
         result
     }
 
-    fn text(
-        &mut self,
-        run: &TextRun,
-        source: &dyn GlyphSource,
-        atlas: &mut Atlas,
-    ) -> Result<(), Full> {
-        let baseline = run.y.saturating_add(source.ascent(run.font, run.size));
+    fn solids(&mut self, rects: &[(Rect, Rgb)]) {
+        let visible = rects
+            .iter()
+            .filter(|(area, _)| area.width > 0 && area.height > 0);
+        self.instances
+            .extend(visible.map(|&(area, color)| solid(area, color)));
+    }
+}
+
+/// Where glyphs come from and where their pictures are kept.
+struct Letters<'a> {
+    source: &'a dyn GlyphSource,
+    atlas: &'a mut Atlas,
+    uploads: &'a mut Vec<Upload>,
+}
+
+impl Letters<'_> {
+    fn text(&mut self, run: &TextRun, into: &mut Vec<Instance>) -> Result<(), Full> {
+        let ascent = self.source.ascent(run.font, run.size);
+        let baseline = run.y.saturating_add(ascent);
         // A place on a screen is far inside what an `f32` holds exactly.
         let mut pen = run.x as f32;
         let mut result = Ok(());
         for character in run.text.chars() {
-            let Some(shaped) = source.shape(run.font, character, run.size) else {
+            let Some(shaped) = self.source.shape(run.font, character, run.size) else {
                 continue;
             };
-            match self.slot(shaped.key, source, atlas) {
-                // Each glyph starts on a whole pixel, or it would be blurred.
-                Ok(slot) => self.glyph(slot, (pen.round() as i32, baseline), run.color),
-                Err(full) => result = Err(full),
-            }
+            // Each glyph starts on a whole pixel, or it would be blurred.
+            let at = (pen.round() as i32, baseline);
+            result = self.glyph(shaped.key, at, run.color, into).and(result);
             pen += shaped.advance;
         }
         result
     }
 
-    /// Where the glyph is in the atlas, putting it there if it is not. One that
-    /// cannot be pictured takes an empty place, so as not to ask again.
-    fn slot(
+    /// Adds the glyph with the pen at `pen`, on the baseline given.
+    fn glyph(
         &mut self,
         key: GlyphKey,
-        source: &dyn GlyphSource,
-        atlas: &mut Atlas,
-    ) -> Result<Slot, Full> {
-        if let Some(slot) = atlas.get(key) {
+        (pen, baseline): (i32, i32),
+        color: Rgb,
+        into: &mut Vec<Instance>,
+    ) -> Result<(), Full> {
+        let slot = self.slot(key)?;
+        if slot.width == 0 || slot.height == 0 {
+            return Ok(());
+        }
+        let area = Rect {
+            x: pen.saturating_add(slot.left),
+            y: baseline.saturating_add(slot.top),
+            width: slot.width,
+            height: slot.height,
+        };
+        into.push(Instance {
+            atlas: [
+                slot.x as f32,
+                slot.y as f32,
+                slot.width as f32,
+                slot.height as f32,
+            ],
+            glyph: 1.0,
+            ..solid(area, color)
+        });
+        Ok(())
+    }
+
+    /// Where the glyph is in the atlas, putting it there if it is not. One that
+    /// cannot be pictured takes an empty place, so as not to ask again.
+    fn slot(&mut self, key: GlyphKey) -> Result<Slot, Full> {
+        if let Some(slot) = self.atlas.get(key) {
             return Ok(slot);
         }
-        let picture = source.picture(key).unwrap_or_else(|error| {
+        let picture = self.source.picture(key).unwrap_or_else(|error| {
             log_info!("a glyph could not be drawn: {error}");
             Picture::default()
         });
@@ -150,7 +223,7 @@ impl Batch {
             top: picture.top,
             ..Slot::default()
         };
-        let slot = atlas.insert(key, wanted).ok_or(Full)?;
+        let slot = self.atlas.insert(key, wanted).ok_or(Full)?;
         if slot.width > 0 && slot.height > 0 {
             self.uploads.push(Upload {
                 slot,
@@ -158,28 +231,6 @@ impl Batch {
             });
         }
         Ok(slot)
-    }
-
-    fn glyph(&mut self, slot: Slot, (pen, baseline): (i32, i32), color: Rgb) {
-        if slot.width == 0 || slot.height == 0 {
-            return;
-        }
-        let area = Rect {
-            x: pen.saturating_add(slot.left),
-            y: baseline.saturating_add(slot.top),
-            width: slot.width,
-            height: slot.height,
-        };
-        self.instances.push(Instance {
-            atlas: [
-                slot.x as f32,
-                slot.y as f32,
-                slot.width as f32,
-                slot.height as f32,
-            ],
-            glyph: 1.0,
-            ..solid(area, color)
-        });
     }
 }
 

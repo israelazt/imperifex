@@ -1,10 +1,10 @@
 use super::*;
-use crate::testing::{data, FakeLauncher, FakeParser, Script};
+use crate::testing::{data, fake_parser, no_wake, FakeLauncher, Script};
 use imperifex_domain::ports::PtyLauncher;
 
-fn session<'a>(launcher: &FakeLauncher, parser: &'a mut FakeParser) -> Session<'a> {
-    let pty = launcher.start("shell", 10, 3).unwrap();
-    Session::new(pty, parser, Terminal::new(10, 3))
+fn session(launcher: &FakeLauncher) -> Session {
+    let pty = launcher.start("shell", 10, 3, no_wake()).unwrap();
+    Session::new(pty, fake_parser(), Terminal::new(10, 3))
 }
 
 #[test]
@@ -13,8 +13,7 @@ fn what_the_program_writes_reaches_the_screen() {
         output: vec![data("ho"), PtyRead::Nothing, data("la")],
         ..Script::default()
     });
-    let mut parser = FakeParser;
-    let mut session = session(&launcher, &mut parser);
+    let mut session = session(&launcher);
     let steps: Vec<_> = (0..4).map(|_| session.step(Duration::ZERO)).collect();
     assert_eq!(
         steps,
@@ -26,16 +25,14 @@ fn what_the_program_writes_reaches_the_screen() {
 #[test]
 fn what_the_user_types_goes_to_the_console() {
     let launcher = FakeLauncher::default();
-    let mut parser = FakeParser;
-    session(&launcher, &mut parser).send(b"dir\r").unwrap();
+    session(&launcher).send(b"dir\r").unwrap();
     assert_eq!(launcher.asked.borrow().written, b"dir\r");
 }
 
 #[test]
 fn a_new_size_reaches_the_console_and_the_screen() {
     let launcher = FakeLauncher::default();
-    let mut parser = FakeParser;
-    let mut session = session(&launcher, &mut parser);
+    let mut session = session(&launcher);
     session.resize(20, 5).unwrap();
     assert_eq!(launcher.asked.borrow().resized, [(20, 5)]);
     let screen = session.terminal.screen();
@@ -48,8 +45,7 @@ fn a_console_that_refuses_a_size_leaves_the_screen_as_it_was() {
         refuses_to_resize: true,
         ..Script::default()
     });
-    let mut parser = FakeParser;
-    let mut session = session(&launcher, &mut parser);
+    let mut session = session(&launcher);
     assert!(session.resize(20, 5).is_err());
     assert_eq!(session.terminal.screen().columns(), 10);
 }

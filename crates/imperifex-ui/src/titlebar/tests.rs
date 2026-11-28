@@ -14,6 +14,8 @@ fn model(scale: f32, maximized: bool) -> Model {
         window: (1000, 600),
         maximized,
         focused: true,
+        full_screen: false,
+        notice: Vec::new(),
     }
 }
 
@@ -216,7 +218,7 @@ fn resting(x: i32, y: i32) -> Pointer {
 }
 
 fn help_in(list: &DrawList) -> Option<&TextRun> {
-    list.texts.get(4)
+    list.floating_texts.first()
 }
 
 #[test]
@@ -257,7 +259,7 @@ fn the_help_stays_inside_the_window_under_the_bar() {
     assert_eq!(help_in(&found).map(|run| (run.x, run.y)), Some((938, 52)));
     // "Cerrar" is 60: centred it would reach 1000, so it is pushed 4 left.
     let found = drawn(&model, &resting(970, 20));
-    let framed = found.rects.iter().map(|&(area, _)| area);
+    let framed = found.floating_rects.iter().map(|&(area, _)| area);
     let help = framed.filter(|area| area.y >= 40).collect::<Vec<_>>();
     assert_eq!((help[0].x, help[0].width, help[0].y), (920, 76, 44));
 }

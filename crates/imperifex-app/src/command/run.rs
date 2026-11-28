@@ -114,10 +114,10 @@ impl RunOptions {
     pub(super) fn run(&self, shells: Shells<'_>, language: Language) -> Output {
         let Shells {
             launcher,
-            parser,
+            new_parser,
             clock,
         } = shells;
-        let finished = headless::run(launcher, parser, clock, &self.request);
+        let finished = headless::run(launcher, new_parser(), clock, &self.request);
         match finished {
             Ok(finished) => self.report(&finished, language),
             Err(error) => Output {

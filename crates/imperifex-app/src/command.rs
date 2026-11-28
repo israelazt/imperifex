@@ -42,9 +42,10 @@ impl Output {
 }
 
 /// What running a program needs from the system.
+#[derive(Clone, Copy)]
 pub struct Shells<'a> {
     pub launcher: &'a dyn PtyLauncher,
-    pub parser: &'a mut dyn SequenceParser,
+    pub new_parser: &'a dyn Fn() -> Box<dyn SequenceParser>,
     pub clock: &'a dyn Clock,
 }
 
