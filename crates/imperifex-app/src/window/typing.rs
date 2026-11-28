@@ -64,6 +64,18 @@ impl Typing {
         commands
     }
 
+    /// Writes a paste in the editor; `false` if there was nothing to write.
+    pub fn paste(&mut self, text: &str) -> bool {
+        self.editor.paste(text);
+        self.refused = false;
+        !text.is_empty()
+    }
+
+    /// Puts the cursor where the mouse was pressed.
+    pub fn place_cursor(&mut self, line: usize, column: usize) {
+        self.editor.move_to(line, column);
+    }
+
     /// Writes `command` in the history if it is to be kept, and says if it was.
     fn remember(&self, command: &str) -> bool {
         let kept = is_kept(command, self.editor.last());
@@ -118,6 +130,17 @@ impl Core {
 
     /// A key goes to the editor while it is shown, and else to the shell.
     pub fn typed(&mut self, input: &KeyInput) -> Vec<WindowCommand> {
+        // A key that writes something is a no to a paste that was asked about.
+        let writes = input.key.is_some() || input.text.is_some();
+        let warned = writes && self.pasting.forget();
+        let mut commands = self.key_to_editor_or_shell(input);
+        if warned && commands.is_empty() {
+            commands = redraw_if(true);
+        }
+        commands
+    }
+
+    fn key_to_editor_or_shell(&mut self, input: &KeyInput) -> Vec<WindowCommand> {
         let Some(tab) = self.output.tab_mut() else {
             return Vec::new();
         };

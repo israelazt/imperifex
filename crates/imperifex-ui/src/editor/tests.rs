@@ -1,6 +1,6 @@
 use imperifex_domain::i18n::{text, Language, Text};
 use imperifex_domain::theme::{palette, Theme};
-use imperifex_domain::view::Pointer;
+use imperifex_domain::view::{Action, Pointer};
 
 use super::*;
 use crate::testing::FixedWidth;
@@ -20,6 +20,7 @@ fn model(view: EditorView) -> Model {
         full_screen: false,
         notice: Vec::new(),
         editor: Some(view),
+        warning: None,
     }
 }
 
@@ -127,4 +128,27 @@ fn under_the_box_the_keys_are_told_in_the_language_or_why_it_was_not_sent() {
     assert_eq!(why.color, model.palette.warning);
     let run_hint = text(Language::Spanish, Text::EditorRun);
     assert!(found.texts.iter().all(|run| run.text != run_hint));
+}
+
+#[test]
+fn a_press_in_the_box_asks_for_the_cursor_at_the_closest_place_of_the_text() {
+    let model = model(view("hola\nmundo"));
+    let draw = frame_of(&model).draw;
+    let second = run(&draw, "mundo");
+    let press = |x, y| {
+        let pointer = Pointer {
+            position: Some((x, y)),
+            pressed: true,
+            held_from: Some((x, y)),
+            ..Pointer::default()
+        };
+        crate::frame(&model, &pointer, &FixedWidth).actions
+    };
+    let place = |line, column| vec![Action::PlaceCursor { line, column }];
+    // Letters are 16 wide: past the middle of the second is after it.
+    assert_eq!(press(second.x + 25, second.y + 5), place(1, 2));
+    assert_eq!(press(second.x + 700, second.y + 5), place(1, 5));
+    // On the prompt, over the command, it is the first row.
+    assert_eq!(press(second.x, second.y - 40), place(0, 0));
+    assert_eq!(press(400, 100), [], "the output is not the box");
 }

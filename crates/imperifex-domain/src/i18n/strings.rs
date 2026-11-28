@@ -97,6 +97,10 @@ crate::strings! {
         es: "Esta shell no admite órdenes de varias líneas.",
         en: "This shell does not take commands of several lines.",
     },
+    PasteLines {
+        es: "Pegar {} líneas las ejecutaría: pega otra vez para enviarlas.",
+        en: "Pasting {} lines would run them: paste again to send them.",
+    },
     CommandPrompt {
         es: "Símbolo del sistema",
         en: "Command Prompt",

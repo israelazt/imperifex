@@ -76,6 +76,7 @@ pub fn frame(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure) -> Fra
     };
     titlebar::draw_help(model, pointer, measure, &mut draw);
     let (action, cursor) = titlebar::input(model, pointer);
+    let action = action.or_else(|| in_editor(model, pointer, bottom.y, measure));
     Frame {
         draw,
         actions: action.into_iter().collect(),
@@ -83,6 +84,19 @@ pub fn frame(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure) -> Fra
         output_area,
         cursor,
     }
+}
+
+/// A press in the box of the editor puts its cursor there.
+fn in_editor(
+    model: &Model,
+    pointer: &Pointer,
+    bottom: i32,
+    measure: &dyn TextMeasure,
+) -> Option<Action> {
+    let view = model.editor.as_ref().filter(|_| pointer.pressed)?;
+    let at = pointer.position?;
+    let (line, column) = editor::place_at(model, view, bottom, at, measure)?;
+    Some(Action::PlaceCursor { line, column })
 }
 
 /// What of `area` is over `top`, with (`M`) between them.

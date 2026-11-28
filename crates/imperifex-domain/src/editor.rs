@@ -21,21 +21,26 @@ pub enum EditorKey {
     Home,
     End,
     Clear,
+    WordLeft,
+    WordRight,
+    DeleteWordLeft,
+    DeleteWordRight,
     /// `Ctrl`+`C`.
     Interrupt,
 }
 
 /// What a key asks of the editor; `None` for one that asks nothing.
 pub fn editor_key(input: &KeyInput) -> Option<EditorKey> {
+    let by_words = |word, character| if input.ctrl { word } else { character };
     Some(match input.key {
         Some(NamedKey::Enter) if input.shift => EditorKey::NewLine,
         Some(NamedKey::Enter) => EditorKey::Run,
         Some(NamedKey::Tab) => EditorKey::Insert(TAB.into()),
-        Some(NamedKey::Backspace) => EditorKey::Backspace,
-        Some(NamedKey::Delete) => EditorKey::Delete,
+        Some(NamedKey::Backspace) => by_words(EditorKey::DeleteWordLeft, EditorKey::Backspace),
+        Some(NamedKey::Delete) => by_words(EditorKey::DeleteWordRight, EditorKey::Delete),
         Some(NamedKey::Escape) => EditorKey::Clear,
-        Some(NamedKey::Left) => EditorKey::Left,
-        Some(NamedKey::Right) => EditorKey::Right,
+        Some(NamedKey::Left) => by_words(EditorKey::WordLeft, EditorKey::Left),
+        Some(NamedKey::Right) => by_words(EditorKey::WordRight, EditorKey::Right),
         Some(NamedKey::Up) => EditorKey::Up,
         Some(NamedKey::Down) => EditorKey::Down,
         Some(NamedKey::Home) => EditorKey::Home,
@@ -143,6 +148,13 @@ impl Editor {
             }
             EditorKey::Left => self.cursor = self.before(self.cursor).unwrap_or(0),
             EditorKey::Right => self.right(),
+            EditorKey::WordLeft => self.cursor = self.word_before(),
+            EditorKey::WordRight => self.cursor = self.word_after(),
+            EditorKey::DeleteWordLeft => self.remove(self.word_before(), self.cursor),
+            EditorKey::DeleteWordRight => {
+                let (from, to) = (self.cursor, self.word_after());
+                self.remove(from, to);
+            }
             EditorKey::Home => self.cursor = self.line_start(),
             EditorKey::End => self.cursor = self.line_end(),
             EditorKey::Up => self.up(),
@@ -153,6 +165,45 @@ impl Editor {
         } else {
             Outcome::Changed
         }
+    }
+
+    /// Writes `text` where the cursor is, as a paste does.
+    pub fn paste(&mut self, text: &str) {
+        self.insert(text);
+    }
+
+    /// Puts the cursor on the line `line`, after `characters` of it, or as
+    /// close as there is.
+    pub fn move_to(&mut self, line: usize, characters: usize) {
+        let mut start = 0;
+        for _ in 0..line {
+            match self.text[start..].find('\n') {
+                Some(at) => start += at + 1,
+                None => break,
+            }
+        }
+        let end = self.text[start..]
+            .find('\n')
+            .map_or(self.text.len(), |at| start + at);
+        self.cursor = self.along(start, end, characters);
+    }
+
+    /// Where the word before the cursor starts, past the spaces between.
+    fn word_before(&self) -> usize {
+        let before = self.text[..self.cursor].trim_end();
+        before
+            .rfind(char::is_whitespace)
+            .and_then(|at| self.after(at))
+            .unwrap_or(0)
+    }
+
+    /// Where the word after the cursor ends, past the spaces between.
+    fn word_after(&self) -> usize {
+        let rest = &self.text[self.cursor..];
+        let word = rest.trim_start();
+        let spaces = rest.len() - word.len();
+        let end = word.find(char::is_whitespace).unwrap_or(word.len());
+        self.cursor + spaces + end
     }
 
     /// Replaces the text, with the cursor at its end.

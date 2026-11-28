@@ -13,9 +13,24 @@ pub fn height(scale: f32) -> u32 {
     metrics::px(metrics::STATUS_BAR_HEIGHT, scale)
 }
 
+/// A warning, against the right of the bar.
+fn warning(model: &Model, area: Rect, measure: &dyn TextMeasure, into: &mut DrawList) {
+    let Some(said) = &model.warning else { return };
+    let letters = Ink {
+        font: UiFont::Text,
+        size: metrics::px(metrics::SECONDARY_TEXT, model.scale),
+        color: model.palette.warning,
+    };
+    let width = measure.width(said, letters.font, letters.size);
+    let side = Space::L.px(model.scale);
+    let x = signed(area.width.saturating_sub(width.saturating_add(side)));
+    letters.beside(area.x.saturating_add(x), area, said.clone(), measure, into);
+}
+
 /// The bar in `area`.
 pub fn draw(model: &Model, area: Rect, measure: &dyn TextMeasure, into: &mut DrawList) {
     into.rects.push((area, model.palette.background));
+    warning(model, area, measure, into);
     let Some(name) = &model.tab else { return };
     let scale = model.scale;
     let icon = metrics::px(metrics::STATUS_ICON, scale);

@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use imperifex_domain::ports::{
-    Clock, CommandHistory, Pty, PtyLauncher, PtyRead, SequenceParser, SettingsStore,
+    Clipboard, Clock, CommandHistory, Pty, PtyLauncher, PtyRead, SequenceParser, SettingsStore,
     SystemAppearance, Wake,
 };
 use imperifex_domain::sequence::Sequence;
@@ -123,6 +123,31 @@ impl CommandHistory for FakeHistory {
     }
 
     fn replace(&self, _profile: &str, _text: &str) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+/// A clipboard in memory. Its clones share it.
+#[derive(Clone, Default)]
+pub struct FakeClipboard {
+    pub text: Rc<RefCell<Option<String>>>,
+}
+
+impl FakeClipboard {
+    pub fn holding(text: &str) -> Self {
+        let clipboard = Self::default();
+        *clipboard.text.borrow_mut() = Some(text.into());
+        clipboard
+    }
+}
+
+impl Clipboard for FakeClipboard {
+    fn read(&self) -> Result<Option<String>, String> {
+        Ok(self.text.borrow().clone())
+    }
+
+    fn write(&self, text: &str) -> Result<(), String> {
+        *self.text.borrow_mut() = Some(text.into());
         Ok(())
     }
 }

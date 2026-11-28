@@ -18,6 +18,7 @@ fn model(scale: f32, maximized: bool) -> Model {
         full_screen: false,
         notice: Vec::new(),
         editor: None,
+        warning: None,
     }
 }
 

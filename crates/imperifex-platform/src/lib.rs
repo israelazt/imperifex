@@ -5,6 +5,8 @@
 
 #[cfg(windows)]
 mod appearance;
+#[cfg(windows)]
+mod clipboard;
 mod clock;
 mod history_file;
 #[cfg(any(windows, test))]
@@ -22,6 +24,8 @@ mod text;
 
 #[cfg(windows)]
 pub use appearance::WindowsAppearance;
+#[cfg(windows)]
+pub use clipboard::WindowsClipboard;
 pub use clock::SystemClock;
 pub use history_file::FileCommandHistory;
 #[cfg(windows)]

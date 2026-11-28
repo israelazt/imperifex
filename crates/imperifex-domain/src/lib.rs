@@ -18,6 +18,7 @@ pub mod integration;
 pub mod interpret;
 pub mod log;
 pub mod mouse;
+pub mod paste;
 pub mod picture;
 pub mod ports;
 pub mod prompt_icon;

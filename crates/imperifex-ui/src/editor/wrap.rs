@@ -29,6 +29,8 @@ pub fn all(lines: &[String], per_row: usize) -> Vec<String> {
 pub struct Command {
     /// The rows seen.
     pub rows: Vec<String>,
+    /// For each, its line of the text and how many characters of it are before.
+    pub starts: Vec<(usize, usize)>,
     /// The row of the cursor among them, and how many characters are before it.
     pub cursor: (usize, usize),
     /// What of the suggestion fits after the cursor in its row.
@@ -39,10 +41,12 @@ pub fn command(view: &EditorView, per_row: usize) -> Command {
     let per_row = per_row.max(1);
     let (line, column) = view.cursor;
     let mut rows = Vec::new();
+    let mut starts = Vec::new();
     let mut cursor = (0, 0);
     for (at, text) in view.lines.iter().enumerate() {
         let first = rows.len();
         rows.extend(pieces(text, per_row));
+        starts.extend((0..rows.len() - first).map(|piece| (at, piece * per_row)));
         if at == line {
             // At the end of a full row the cursor stays on it.
             let full_end = column > 0 && column % per_row == 0 && column == text.chars().count();
@@ -54,9 +58,11 @@ pub fn command(view: &EditorView, per_row: usize) -> Command {
     let from = (cursor.0 + 1).saturating_sub(MOST_ROWS);
     let to = rows.len().min(from + MOST_ROWS);
     let seen = rows.drain(from..to).collect();
+    let starts = starts.drain(from..to).collect();
     let first_line = view.suggestion.split('\n').next().unwrap_or("");
     Command {
         rows: seen,
+        starts,
         cursor: (cursor.0 - from, cursor.1),
         suggestion: first_line
             .chars()
@@ -84,6 +90,7 @@ mod tests {
         assert_eq!(found.rows, ["abc", "def", "g", "", "xy"]);
         assert_eq!(found.cursor, (1, 2));
         assert_eq!(command(&view(&["", "xy"], (1, 2), ""), 3).cursor, (1, 2));
+        assert_eq!(found.starts, [(0, 0), (0, 3), (0, 6), (1, 0), (2, 0)]);
     }
 
     #[test]

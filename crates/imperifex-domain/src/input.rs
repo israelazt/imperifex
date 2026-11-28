@@ -30,6 +30,8 @@ pub struct KeyInput {
     pub key: Option<NamedKey>,
     /// A Shift key is down. The shell is not told; the editor is.
     pub shift: bool,
+    /// A Ctrl key is down; the same.
+    pub ctrl: bool,
 }
 
 /// What to send to the shell, with the `modes` its program asked for. Empty

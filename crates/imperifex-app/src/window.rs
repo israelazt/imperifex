@@ -1,6 +1,7 @@
 //! The state of the window while it is open: what the interface is shown, and
 //! what the program is asked to do with the real window.
 
+mod clipboard;
 mod output;
 mod typing;
 
@@ -45,6 +46,7 @@ pub struct Core {
     shown: Option<DrawList>,
     output: output::Output,
     typing: typing::Typing,
+    pasting: clipboard::Pasting,
 }
 
 impl Core {
@@ -58,6 +60,7 @@ impl Core {
         let theme = current_theme(&settings, appearance.as_ref());
         let typing = typing::Typing::new(settings.command_editor);
         Self {
+            pasting: clipboard::Pasting::default(),
             typing,
             settings,
             appearance,
@@ -97,6 +100,7 @@ impl Core {
                 .is_some_and(|tab| tab.terminal().on_alternate_screen()),
             notice: self.notice(),
             editor: self.editor_view(),
+            warning: self.warning(),
         }
     }
 
@@ -124,6 +128,10 @@ impl Core {
 
     /// What the user asked through the interface, as orders for the window.
     pub fn apply(&mut self, action: Action) -> Vec<WindowCommand> {
+        if let Action::PlaceCursor { line, column } = action {
+            self.typing.place_cursor(line, column);
+            return redraw_if(true);
+        }
         vec![match action {
             Action::Minimize => WindowCommand::Minimize,
             Action::ToggleMaximize => WindowCommand::SetMaximized(!self.maximized),
@@ -131,6 +139,7 @@ impl Core {
             Action::Drag => WindowCommand::Drag,
             Action::Resize(edge) => WindowCommand::Resize(edge),
             Action::SystemMenu => WindowCommand::ShowSystemMenu,
+            Action::PlaceCursor { .. } => WindowCommand::Redraw,
         }]
     }
 

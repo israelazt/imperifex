@@ -49,7 +49,7 @@ pub fn point(position: PhysicalPosition<f64>) -> Point {
     (whole.x, whole.y)
 }
 
-pub fn key(event: &KeyEvent, shift: bool) -> KeyInput {
+pub fn key(event: &KeyEvent, modifiers: ModifiersState) -> KeyInput {
     let named = match event.logical_key {
         Key::Named(Named::Enter) => Some(NamedKey::Enter),
         Key::Named(Named::Backspace) => Some(NamedKey::Backspace),
@@ -67,7 +67,8 @@ pub fn key(event: &KeyEvent, shift: bool) -> KeyInput {
     KeyInput {
         text: event.text.as_ref().map(ToString::to_string),
         key: named,
-        shift,
+        shift: modifiers.shift_key(),
+        ctrl: modifiers.control_key(),
     }
 }
 
@@ -77,6 +78,8 @@ pub enum Shortcut {
     Page { back: bool },
     /// `Ctrl`+`Shift`+`E` (T-D25).
     ToggleEditor,
+    /// `Ctrl`+`V`, with Shift or not, and `Shift`+`Insert`.
+    Paste,
 }
 
 pub fn shortcut(event: &KeyEvent, modifiers: ModifiersState) -> Option<Shortcut> {
@@ -84,9 +87,15 @@ pub fn shortcut(event: &KeyEvent, modifiers: ModifiersState) -> Option<Shortcut>
     match &event.logical_key {
         Key::Named(Named::PageUp) if shift => Some(Shortcut::Page { back: true }),
         Key::Named(Named::PageDown) if shift => Some(Shortcut::Page { back: false }),
-        Key::Character(letter) if shift && modifiers.control_key() => letter
-            .eq_ignore_ascii_case("e")
-            .then_some(Shortcut::ToggleEditor),
+        Key::Named(Named::Insert) if shift => Some(Shortcut::Paste),
+        // With AltGr, which Windows gives as Ctrl and Alt, a letter writes.
+        Key::Character(letter) if modifiers.control_key() && !modifiers.alt_key() => {
+            if letter.eq_ignore_ascii_case("v") {
+                Some(Shortcut::Paste)
+            } else {
+                (shift && letter.eq_ignore_ascii_case("e")).then_some(Shortcut::ToggleEditor)
+            }
+        }
         _ => None,
     }
 }

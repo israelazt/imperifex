@@ -88,6 +88,13 @@ pub trait CommandHistory {
     fn replace(&self, profile: &str, text: &str) -> Result<(), String>;
 }
 
+/// The text of the system's clipboard.
+pub trait Clipboard {
+    /// `None` when it holds no text.
+    fn read(&self) -> Result<Option<String>, String>;
+    fn write(&self, text: &str) -> Result<(), String>;
+}
+
 /// What reading from a pseudoconsole gave.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PtyRead {

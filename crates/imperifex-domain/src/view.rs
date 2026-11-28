@@ -24,6 +24,8 @@ pub struct Model {
     pub notice: Vec<String>,
     /// The command editor, while a command is to be written in it.
     pub editor: Option<EditorView>,
+    /// A warning for the status bar.
+    pub warning: Option<String>,
 }
 
 /// The command editor as it is to be drawn.
@@ -86,6 +88,12 @@ pub enum Action {
     Resize(Edge),
     /// The menu of the window that Windows draws.
     SystemMenu,
+    /// Put the editor's cursor on a line of its text, after so many
+    /// characters.
+    PlaceCursor {
+        line: usize,
+        column: usize,
+    },
 }
 
 /// The shape the mouse takes.

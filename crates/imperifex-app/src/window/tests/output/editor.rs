@@ -5,7 +5,7 @@ use imperifex_domain::input::{KeyInput, NamedKey};
 use imperifex_domain::shell_state::ShellState;
 
 use super::*;
-use crate::testing::FakeHistory;
+use crate::testing::{FakeClipboard, FakeHistory};
 
 fn typed(text: &str) -> KeyInput {
     KeyInput {
@@ -201,4 +201,40 @@ fn with_the_editor_the_output_ends_where_its_room_does_without_the_prompts_row()
     core.fit(area(400, 200), area(400, 200), CELL, ms(0));
     let picture = core.picture(&damage).expect("a picture");
     assert_eq!((picture.area.y, picture.area.height), (196, 60));
+}
+
+#[test]
+fn a_paste_is_written_in_the_editor_and_runs_nothing() {
+    let (mut core, launcher) = waiting(&FakeHistory::default());
+    core.use_clipboard(Box::new(FakeClipboard::holding("a\r\nb\r\n")));
+    assert_eq!(core.paste(), [WindowCommand::Redraw]);
+    assert_eq!(core.model().editor.expect("shown").lines, ["a", "b"]);
+    assert_eq!(sent(&launcher), "");
+}
+
+#[test]
+fn several_lines_into_a_program_warn_and_go_only_if_pasted_again() {
+    let (mut core, launcher) = window(&FakeHistory::default(), powershell());
+    core.use_clipboard(Box::new(FakeClipboard::holding("a\nb")));
+    assert_eq!(core.paste(), [WindowCommand::Redraw]);
+    assert_eq!(sent(&launcher), "");
+    let warning = core.model().warning.expect("a warning");
+    assert!(warning.contains('2'), "{warning}");
+    // Anything else typed is a no: it is asked again.
+    core.typed(&typed("x"));
+    assert_eq!(core.model().warning, None);
+    core.paste();
+    assert_eq!(sent(&launcher), "x");
+    core.paste();
+    assert_eq!(sent(&launcher), "xa\rb");
+    assert_eq!(core.model().warning, None);
+}
+
+#[test]
+fn a_click_in_the_editor_moves_its_cursor() {
+    let (mut core, _) = waiting(&FakeHistory::default());
+    core.typed(&typed("hola"));
+    let place = Action::PlaceCursor { line: 0, column: 1 };
+    assert_eq!(core.apply(place), [WindowCommand::Redraw]);
+    assert_eq!(core.model().editor.expect("shown").cursor, (0, 1));
 }

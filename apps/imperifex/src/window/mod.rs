@@ -19,6 +19,7 @@ use imperifex_domain::view::Pointer;
 use imperifex_domain::{log_error, log_info, log_warn};
 use imperifex_platform::{
     D3dRenderer, DirectWriteText, FileCommandHistory, SystemClock, WindowsAppearance,
+    WindowsClipboard,
 };
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalPosition;
@@ -47,6 +48,7 @@ pub fn run(settings: Settings, language: Language) -> Result<(), String> {
         log_warn!("{} ({family})", text(language, Text::FontNotFound));
     }
     let mut core = Core::new(settings, language, Box::new(WindowsAppearance));
+    core.use_clipboard(Box::new(WindowsClipboard));
     match FileCommandHistory::in_app_data() {
         Ok(history) => core.keep_history(Box::new(history)),
         Err(error) => log_warn!("the commands run will not be remembered: {error}"),
@@ -201,10 +203,8 @@ impl App {
                 let commands = match translate::shortcut(event, self.modifiers) {
                     Some(Shortcut::Page { back }) => self.core.page(back),
                     Some(Shortcut::ToggleEditor) => self.core.toggle_editor(),
-                    None => {
-                        let shift = self.modifiers.shift_key();
-                        self.core.typed(&translate::key(event, shift))
-                    }
+                    Some(Shortcut::Paste) => self.core.paste(),
+                    None => self.core.typed(&translate::key(event, self.modifiers)),
                 };
                 self.obey_all(event_loop, commands);
             }

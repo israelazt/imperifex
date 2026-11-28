@@ -126,7 +126,7 @@ fn what_is_typed_reaches_the_shell_and_a_silent_key_sends_nothing() {
     let typed = |text: Option<&str>, key| KeyInput {
         text: text.map(str::to_string),
         key,
-        shift: false,
+        ..KeyInput::default()
     };
     tab.typed(&typed(Some("a"), None)).expect("sent");
     tab.typed(&typed(None, Some(NamedKey::Enter)))

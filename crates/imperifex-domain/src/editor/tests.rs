@@ -121,6 +121,7 @@ fn input(text: Option<&str>, key: Option<NamedKey>, shift: bool) -> KeyInput {
         text: text.map(str::to_string),
         key,
         shift,
+        ctrl: false,
     }
 }
 
@@ -140,4 +141,42 @@ fn each_key_asks_the_editor_for_its_thing() {
     // Other control characters, such as Ctrl+L, are not text.
     assert_eq!(typed("\u{c}"), None);
     assert_eq!(editor_key(&KeyInput::default()), None);
+}
+
+#[test]
+fn with_ctrl_the_arrows_and_the_erasing_keys_go_by_words() {
+    let mut e = editor(&[]);
+    write(&mut e, "git  añadir --todo");
+    press(&mut e, &[EditorKey::WordLeft]);
+    assert_eq!(e.cursor(), (0, 12));
+    press(&mut e, &[EditorKey::WordLeft]);
+    assert_eq!(e.cursor(), (0, 5));
+    press(&mut e, &[EditorKey::DeleteWordLeft]);
+    assert_eq!((e.text(), e.cursor()), ("añadir --todo", (0, 0)));
+    press(&mut e, &[EditorKey::WordRight]);
+    assert_eq!(e.cursor(), (0, 6));
+    press(&mut e, &[EditorKey::DeleteWordRight]);
+    assert_eq!(e.text(), "añadir");
+    assert_eq!(e.apply(EditorKey::DeleteWordRight), Outcome::Unchanged);
+    let ctrl = KeyInput {
+        key: Some(NamedKey::Left),
+        ctrl: true,
+        ..KeyInput::default()
+    };
+    assert_eq!(editor_key(&ctrl), Some(EditorKey::WordLeft));
+}
+
+#[test]
+fn the_cursor_can_be_put_anywhere_and_stays_inside_the_text() {
+    let mut e = editor(&[]);
+    write(&mut e, "uno\ndós tres");
+    for (place, found) in [
+        ((0, 1), (0, 1)),
+        ((1, 2), (1, 2)),
+        ((0, 99), (0, 3)),
+        ((9, 99), (1, 8)),
+    ] {
+        e.move_to(place.0, place.1);
+        assert_eq!(e.cursor(), found, "{place:?}");
+    }
 }

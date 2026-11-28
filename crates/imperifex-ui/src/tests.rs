@@ -18,6 +18,7 @@ fn model(theme: Theme) -> Model {
         full_screen: false,
         notice: Vec::new(),
         editor: None,
+        warning: None,
     }
 }
 
@@ -124,4 +125,17 @@ fn the_bar_at_the_bottom_says_the_profile_of_the_shell() {
             ("PowerShell".to_string(), 40, 15, muted)
         ]
     );
+}
+
+#[test]
+fn a_warning_goes_against_the_right_of_the_status_bar() {
+    let model = Model {
+        warning: Some("ojo".into()),
+        ..model(Theme::Dark)
+    };
+    let found = frame(&model, &Pointer::default(), &FixedWidth).draw;
+    let said = found.texts.iter().find(|run| run.text == "ojo");
+    let said = said.expect("the warning");
+    // 3 letters of 15 and 20 from the side, in a window of 800.
+    assert_eq!((said.x, said.color), (735, model.palette.warning));
 }
