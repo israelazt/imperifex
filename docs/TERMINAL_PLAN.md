@@ -609,6 +609,7 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Estado
 
+- [x] T2.1 (2026-11-27): `domain::i18n` (regla del idioma, `strings!`, plurales y números). La prueba `compile_fail` y su gemela que sí compila pasan.
 - [x] T1.7 (2026-11-26): perfiles como datos; `powershell` y `cmd` probados; `pwsh` y `wsl` sin probar. **T1 completo. PAUSA:** antes de T2 se cierran A2 a A5 y el planificador escribe sus pasos.
 - 2026-11-27: A2 a A5 cerradas (T-D13 a T-D16). Faltan los pasos de T2.
 - 2026-11-27: pasos de T2 escritos (Opus). T-D16 confirmada (`Cascadia Mono`, la instalada, `Consolas` si falta); nuevas T-D17 (contraste mínimo) y T-D18 (entrada mínima en T2). T2 pasa de 7 a 10 tareas: la sonda de winit (T2.6), el texto (T2.8) y los programas reales (T2.10) van aparte. Sigue T2.1.

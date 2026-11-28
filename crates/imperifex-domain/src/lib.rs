@@ -7,6 +7,7 @@
 pub mod command_line;
 pub mod example;
 pub mod grid;
+pub mod i18n;
 pub mod interpret;
 pub mod log;
 pub mod ports;
