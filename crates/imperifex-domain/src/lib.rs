@@ -11,6 +11,7 @@ pub mod grid;
 pub mod i18n;
 pub mod interpret;
 pub mod log;
+pub mod mouse;
 pub mod ports;
 pub mod sequence;
 pub mod settings;

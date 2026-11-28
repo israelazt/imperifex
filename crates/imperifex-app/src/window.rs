@@ -1,0 +1,137 @@
+//! The state of the window while it is open: what the interface is shown, and
+//! what the program is asked to do with the real window.
+
+use imperifex_domain::draw::DrawList;
+use imperifex_domain::i18n::{text, Language, Text};
+use imperifex_domain::log_warn;
+use imperifex_domain::ports::{SystemAppearance, Wake};
+use imperifex_domain::settings::Settings;
+use imperifex_domain::theme::{palette, resolve_theme, Theme};
+use imperifex_domain::view::{Action, Edge, Model};
+
+/// What the program does with the window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WindowCommand {
+    Minimize,
+    SetMaximized(bool),
+    Close,
+    /// Move it with the mouse.
+    Drag,
+    /// Change its size from that edge, with the mouse.
+    Resize(Edge),
+    /// The window's menu that the system draws, where the mouse is.
+    ShowSystemMenu,
+    /// What is shown is out of date.
+    Redraw,
+}
+
+pub struct Core {
+    settings: Settings,
+    appearance: Box<dyn SystemAppearance>,
+    theme: Theme,
+    language: Language,
+    /// Width and height in physical pixels.
+    size: (u32, u32),
+    scale: f32,
+    maximized: bool,
+    focused: bool,
+    /// What was last drawn.
+    shown: Option<DrawList>,
+}
+
+impl Core {
+    /// The window starts with no size: the program says it with
+    /// [`Core::resized`] and [`Core::set_scale`] before the first frame.
+    pub fn new(
+        settings: Settings,
+        language: Language,
+        appearance: Box<dyn SystemAppearance>,
+    ) -> Self {
+        let theme = current_theme(&settings, appearance.as_ref());
+        Self {
+            settings,
+            appearance,
+            theme,
+            language,
+            size: (0, 0),
+            scale: 1.0,
+            maximized: false,
+            focused: true,
+            shown: None,
+        }
+    }
+
+    /// From now on `changed` is called when the system's theme may have changed;
+    /// then [`Core::system_theme_changed`] is to be asked.
+    pub fn watch_system(&self, changed: Wake) -> Result<(), String> {
+        self.appearance.watch(changed)
+    }
+
+    pub fn model(&self) -> Model {
+        Model {
+            title: text(self.language, Text::AppName).into(),
+            language: self.language,
+            palette: palette(self.theme),
+            scale: self.scale,
+            window: self.size,
+            maximized: self.maximized,
+            focused: self.focused,
+        }
+    }
+
+    pub fn resized(&mut self, size: (u32, u32), maximized: bool) {
+        self.size = size;
+        self.maximized = maximized;
+    }
+
+    pub fn set_scale(&mut self, scale: f32) {
+        self.scale = scale;
+    }
+
+    pub fn set_focused(&mut self, focused: bool) {
+        self.focused = focused;
+    }
+
+    /// What the user asked through the interface, as orders for the window.
+    pub fn apply(&mut self, action: Action) -> Vec<WindowCommand> {
+        vec![match action {
+            Action::Minimize => WindowCommand::Minimize,
+            Action::ToggleMaximize => WindowCommand::SetMaximized(!self.maximized),
+            Action::Close => WindowCommand::Close,
+            Action::Drag => WindowCommand::Drag,
+            Action::Resize(edge) => WindowCommand::Resize(edge),
+            Action::SystemMenu => WindowCommand::ShowSystemMenu,
+        }]
+    }
+
+    pub fn system_theme_changed(&mut self) -> Vec<WindowCommand> {
+        let theme = current_theme(&self.settings, self.appearance.as_ref());
+        if theme == self.theme {
+            return Vec::new();
+        }
+        self.theme = theme;
+        vec![WindowCommand::Redraw]
+    }
+
+    /// Whether `list` differs from what the window shows: only then is there a
+    /// reason to draw (T-D6).
+    pub fn is_news(&self, list: &DrawList) -> bool {
+        self.shown.as_ref() != Some(list)
+    }
+
+    /// `list` is now on the window.
+    pub fn was_shown(&mut self, list: DrawList) {
+        self.shown = Some(list);
+    }
+}
+
+fn current_theme(settings: &Settings, appearance: &dyn SystemAppearance) -> Theme {
+    let dark = appearance
+        .dark()
+        .map_err(|e| log_warn!("the system theme is not known: {e}"))
+        .ok();
+    resolve_theme(settings.theme, dark)
+}
+
+#[cfg(test)]
+mod tests;

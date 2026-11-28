@@ -18,11 +18,16 @@ pub struct Model {
     pub focused: bool,
 }
 
+/// A place in physical pixels from the top left of the window.
+pub type Point = (i32, i32);
+
 /// What the mouse is doing, as the window saw it since the last frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Pointer {
-    /// In physical pixels; `None` when it is outside the window.
-    pub position: Option<(i32, i32)>,
+    /// `None` when it is outside the window.
+    pub position: Option<Point>,
+    /// Where the left button went down, while it is down and on its release.
+    pub held_from: Option<Point>,
     pub pressed: bool,
     pub released: bool,
     pub double_click: bool,

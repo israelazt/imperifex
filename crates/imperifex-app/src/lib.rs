@@ -11,6 +11,7 @@ pub mod settings;
 pub mod status;
 #[cfg(test)]
 mod testing;
+pub mod window;
 
 pub use command::{Command, Output, Shells};
 pub use status::StatusService;

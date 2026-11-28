@@ -383,6 +383,7 @@ dependencies = [
  "imperifex-app",
  "imperifex-domain",
  "imperifex-platform",
+ "imperifex-ui",
  "windows",
  "winit",
 ]

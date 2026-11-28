@@ -26,10 +26,13 @@ fn ran(line: &str, script: Script) -> Output {
 }
 
 #[test]
-fn help_is_the_default_and_status_takes_its_options() {
+fn the_window_is_the_default_and_help_and_status_take_their_options() {
     let none: [&str; 0] = [];
-    let help = Command::parse(&none, Language::Spanish).unwrap();
-    assert_eq!(help, Command::Help);
+    let window = Command::parse(&none, Language::Spanish).unwrap();
+    assert_eq!(window, Command::Window);
+    assert_eq!(parse("window").unwrap(), Command::Window);
+    assert!(parse("window --big").unwrap_err().contains("--big"));
+    assert_eq!(parse("help").unwrap(), Command::Help);
     assert_eq!(
         parse("status --json").unwrap(),
         Command::Status { json: true }

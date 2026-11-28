@@ -13,8 +13,12 @@ pub use run::RunOptions;
 /// What the command line asks for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
-    Status { json: bool },
+    Status {
+        json: bool,
+    },
     Run(RunOptions),
+    /// Open the window: what happens with no arguments.
+    Window,
     Help,
 }
 
@@ -45,12 +49,14 @@ pub struct Shells<'a> {
 }
 
 impl Command {
-    /// Reads the arguments after the program's name. `help` is the default.
+    /// Reads the arguments after the program's name. `window` is the default.
     /// What is wrong with them is said in `language`.
     pub fn parse<S: AsRef<str>>(args: &[S], language: Language) -> Result<Self, String> {
         let mut args = args.iter().map(AsRef::as_ref);
         match args.next() {
-            None | Some("help" | "--help" | "-h") => Ok(Self::Help),
+            None => Ok(Self::Window),
+            Some("window") => no_options(args, language).map(|()| Self::Window),
+            Some("help" | "--help" | "-h") => Ok(Self::Help),
             Some("status") => {
                 let mut json = false;
                 for arg in args {
@@ -66,7 +72,8 @@ impl Command {
         }
     }
 
-    /// Runs it against the services.
+    /// Runs it against the services. The window is not opened here: the program
+    /// has its loop, and for [`Command::Window`] there is nothing to print.
     pub fn run<C: Clock>(
         &self,
         status: &StatusService<C>,
@@ -74,6 +81,7 @@ impl Command {
         language: Language,
     ) -> Output {
         match self {
+            Self::Window => Output::fine(String::new()),
             Self::Help => Output::fine(text(language, Text::Help).to_string()),
             Self::Status { json } => {
                 let report = status.check();
@@ -85,6 +93,17 @@ impl Command {
             }
             Self::Run(options) => options.run(shells, language),
         }
+    }
+}
+
+/// For an order that takes no options.
+fn no_options<'a>(
+    mut args: impl Iterator<Item = &'a str>,
+    language: Language,
+) -> Result<(), String> {
+    match args.next() {
+        None => Ok(()),
+        Some(other) => Err(fill(language, Text::UnknownOption, &[&other])),
     }
 }
 

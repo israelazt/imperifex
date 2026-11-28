@@ -103,7 +103,7 @@ impl RunOptions {
             }
         }
         if !headless {
-            return Err(text(language, Text::NoWindowYet).to_string());
+            return Err(text(language, Text::NeedsHeadless).to_string());
         }
         let rest: Vec<&str> = reader.args.collect();
         options.request.command_line =

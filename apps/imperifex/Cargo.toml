@@ -13,6 +13,7 @@ workspace = true
 imperifex-domain = { path = "../../crates/imperifex-domain" }
 imperifex-platform = { path = "../../crates/imperifex-platform" }
 imperifex-app = { path = "../../crates/imperifex-app" }
+imperifex-ui = { path = "../../crates/imperifex-ui" }
 
 [target.'cfg(windows)'.dependencies]
 winit.workspace = true

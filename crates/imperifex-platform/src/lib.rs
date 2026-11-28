@@ -6,11 +6,15 @@
 #[cfg(windows)]
 mod appearance;
 mod clock;
+#[cfg(any(windows, test))]
+mod instances;
 mod language;
 mod log_console;
 mod parser;
 #[cfg(windows)]
 mod pty;
+#[cfg(windows)]
+mod render;
 mod settings_file;
 
 #[cfg(windows)]
@@ -22,4 +26,6 @@ pub use log_console::install_stderr_log;
 pub use parser::VteParser;
 #[cfg(windows)]
 pub use pty::ConPtyLauncher;
+#[cfg(windows)]
+pub use render::D3dRenderer;
 pub use settings_file::FileSettingsStore;

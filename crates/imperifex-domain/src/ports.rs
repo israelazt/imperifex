@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::draw::UiFont;
+use crate::draw::{DrawList, UiFont};
 use crate::sequence::Sequence;
 
 /// The clock: a monotonic time to measure how long things take, and waiting.
@@ -31,6 +31,16 @@ pub trait SequenceParser {
 pub trait TextMeasure {
     fn width(&self, text: &str, font: UiFont, scale: f32) -> u32;
     fn line_height(&self, font: UiFont, scale: f32) -> u32;
+}
+
+/// Putting on the window what the interface asks to have drawn.
+pub trait Renderer {
+    /// The window now measures this, in physical pixels. A size with nothing in
+    /// it, as of a minimized window, is ignored.
+    fn resize(&mut self, width: u32, height: u32) -> Result<(), String>;
+    /// Draws a whole frame and shows it. After an error the renderer may be of
+    /// no more use: a new one is made.
+    fn draw(&mut self, list: &DrawList) -> Result<(), String>;
 }
 
 /// Telling whoever waits that there is something new. It may be called from any

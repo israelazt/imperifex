@@ -4,12 +4,18 @@
 
 #![forbid(unsafe_code)]
 
-/// The language of what is printed: the one chosen in the settings, or the
-/// system's. What is wrong with the settings file is said in it.
 #[cfg(windows)]
-fn language() -> imperifex_domain::i18n::Language {
+mod window;
+
+/// The settings, and the language of what is printed and shown: the one chosen
+/// in them, or the system's. What is wrong with their file is said in it.
+#[cfg(windows)]
+fn settings() -> (
+    imperifex_domain::settings::Settings,
+    imperifex_domain::i18n::Language,
+) {
     use imperifex_app::settings::SettingsService;
-    use imperifex_domain::i18n::{resolve_language, LanguageChoice};
+    use imperifex_domain::i18n::resolve_language;
     use imperifex_domain::ports::SystemLanguage;
     use imperifex_platform::{FileSettingsStore, WindowsLanguage};
 
@@ -20,16 +26,15 @@ fn language() -> imperifex_domain::i18n::Language {
             None
         }
     };
-    let choice = loaded
+    let settings = loaded
         .as_ref()
-        .map_or(LanguageChoice::System, |(service, _)| {
-            service.settings().language
-        });
-    let language = resolve_language(choice, WindowsLanguage.locale().as_deref());
+        .map(|(service, _)| service.settings().clone())
+        .unwrap_or_default();
+    let language = resolve_language(settings.language, WindowsLanguage.locale().as_deref());
     if let Some(notice) = loaded.and_then(|(_, notice)| notice) {
         imperifex_domain::log_warn!("{}", notice.text(language));
     }
-    language
+    (settings, language)
 }
 
 #[cfg(windows)]
@@ -39,7 +44,7 @@ fn main() {
 
     install_stderr_log();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let language = language();
+    let (settings, language) = settings();
     let command = match Command::parse(&args, language) {
         Ok(command) => command,
         Err(error) => {
@@ -47,6 +52,13 @@ fn main() {
             std::process::exit(2);
         }
     };
+    if command == Command::Window {
+        if let Err(error) = window::run(settings, language) {
+            imperifex_domain::log_error!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     let status = StatusService::new(SystemClock::new());
     let shells = Shells {
         launcher: &ConPtyLauncher,

@@ -1,6 +1,6 @@
 # Imperifex · La terminal y su diseño (plan, 2026-11-25)
 
-> Estado: **T1 completo** (2026-11-26). **Pasos de T2 escritos** (2026-11-27); se empieza por T2.1. Las demás decisiones abiertas (tabla «Decisiones abiertas») esperan confirmación antes de su bloque.
+> Estado: **T1 completo** (2026-11-26). **T2.1 a T2.7 hechas** (2026-11-27); sigue T2.8. Las demás decisiones abiertas (tabla «Decisiones abiertas») esperan confirmación antes de su bloque.
 > Sustituye al resumen «Fase T» de `docs/PLAN.md`. La línea base de Warp **se aplaza hasta T4** (T-D10).
 > Las reglas de trabajo son las de `docs/PLAN.md` («Cómo se usa este plan») y D11.
 
@@ -545,6 +545,17 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Hechos medidos
 
+### T2.7 · La ventana en reposo (2026-11-27, `imperifex window` en release, una ejecución)
+
+La abrió un script, esperó 5 s, midió 60 s y la cerró pidiéndoselo (`CloseMainWindow`); salió con código 0. No se registró si tenía el foco ni dónde estaba el ratón.
+
+| Medida | Valor |
+|---|---|
+| CPU en los 60 s | 46,875 ms (un 0,08 % de un núcleo) |
+| CPU en los 5 s anteriores, arranque incluido | 390,625 ms |
+| Cuadros dibujados en toda la ejecución, el de antes de mostrarla incluido | **2** |
+| Memoria privada / conjunto de trabajo | 57,5 MB / 44,1 MB (MB = 1 048 576 bytes), 24 hilos |
+
 ### T2.6 · Barra de título propia con winit (2026-11-27, `probe_titlebar` en debug, winit 0.30.13, Windows 10.0.26200, dos monitores de 1920×1080; el autor hizo las pruebas)
 
 «Registro» es lo que imprimió la sonda; «autor», lo que él vio.
@@ -624,11 +635,13 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 **Qué implica:**
 - OSC 133 sirve: T5 no se replantea.
 - **La posición de OSC 7 y OSC 9 no es de fiar.** OSC 7 se trata como «la carpeta actual» y OSC 9 como un aviso, sin ligarlos a una fila. Un bloque toma la carpeta al llegar su 133;A (T5). Sin comprobar: si se adelantan también a texto que la consola ya había entregado.
-- El motor (T1.3, T1.4) tiene que aceptar `?9001` y `?1004` sin romperse. Escribir texto normal y `` en la entrada funcionó con `?9001` activo.
+- El motor (T1.3, T1.4) tiene que aceptar `?9001` y `?1004` sin romperse. Escribir texto normal y `
+` en la entrada funcionó con `?9001` activo.
 - La sonda usa `STARTF_USESTDHANDLES` con manejadores vacíos, lanzada con la salida redirigida, y todo llegó por la consola falsa. No se probó sin eso.
 
 ## Estado
 
+- [x] T2.7 (2026-11-27): programada, con `tools/check.ps1` en verde. A mano: el autor probó la ventana en su PC y dijo «Todo funciona como es esperado», en respuesta a la lista de diez puntos (barra, mover y redimensionar, ajuste de Windows, maximizar y minimizar, menú, otro monitor y escala, sombra y esquinas, cambio de tema sin reiniciar); no dio detalle por punto. CPU en reposo medida (ver «Hechos medidos»). **Sigue T2.8 🖥.** Cambios respecto a los pasos: `Renderer::draw` aún no recibe `TerminalPicture` (llega con T2.9); `ui::frame` ya no recibe `TextMeasure` hasta T2.8, para no poner un doble en el binario; no se usa `Win32_Graphics_Dwm`: lo de Luminifex sirve para volver de pantalla completa, que aquí no hay (en la sonda las esquinas ya salían redondeadas; falta verlo en la ventana real); los botones actúan al soltar, si se pulsó en el mismo (`Pointer::held_from`); el doble clic lo decide `domain::mouse`; cerrar se dibuja como un cuadro lleno, porque con rectángulos no sale una equis.
 - [x] T2.6 (2026-11-27): sonda de winit. Pasa todo menos el menú de diseños de ajuste, y el autor decide vivir sin él (T-D19). **Sigue T2.7 🖥.**
 - [x] T2.5 (2026-11-27): crate `imperifex-ui` con `layout`, los tipos que cruzan capas en `domain` y las dos guardas nuevas, que fallaron al meter a mano un color y un texto sueltos en `ui`. `frame` solo pone el fondo y el lugar de la salida. **Sigue T2.6 🖥:** necesita el permiso del autor.
 - [x] T2.4 (2026-11-27): programada y probada. La CLI habla español o inglés; los textos con datos usan `{}` y `i18n::fill`. En este PC se leyó `es-MX` y tema oscuro, y la vigilancia arrancó. A mano: el autor cambió el tema de Windows y confirmó que los cambios llegan; no se midió cuánto tardan. Siguen en español los errores que vienen de `platform` y el nombre «Símbolo del sistema» (se ve en el menú de T3.4).

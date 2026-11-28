@@ -6,8 +6,46 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 use std::time::Duration;
 
-use imperifex_domain::ports::{Clock, Pty, PtyLauncher, PtyRead, SequenceParser, SettingsStore};
+use imperifex_domain::ports::{
+    Clock, Pty, PtyLauncher, PtyRead, SequenceParser, SettingsStore, SystemAppearance, Wake,
+};
 use imperifex_domain::sequence::Sequence;
+
+/// The system's theme as the test sets it. Its clones share it.
+#[derive(Clone)]
+pub struct FakeAppearance {
+    says: Rc<RefCell<Result<bool, String>>>,
+    watched: Rc<Cell<usize>>,
+}
+
+impl FakeAppearance {
+    pub fn dark(dark: bool) -> Self {
+        Self {
+            says: Rc::new(RefCell::new(Ok(dark))),
+            watched: Rc::default(),
+        }
+    }
+
+    pub fn set(&self, says: Result<bool, String>) {
+        *self.says.borrow_mut() = says;
+    }
+
+    /// How many times it was asked to watch.
+    pub fn watched(&self) -> usize {
+        self.watched.get()
+    }
+}
+
+impl SystemAppearance for FakeAppearance {
+    fn dark(&self) -> Result<bool, String> {
+        self.says.borrow().clone()
+    }
+
+    fn watch(&self, _changed: Wake) -> Result<(), String> {
+        self.watched.set(self.watched.get() + 1);
+        Ok(())
+    }
+}
 
 /// A settings file in memory that records what it was asked to write.
 #[derive(Default)]

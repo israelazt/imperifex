@@ -6,9 +6,9 @@
 #![forbid(unsafe_code)]
 
 pub mod layout;
+pub mod titlebar;
 
 use imperifex_domain::draw::{DrawList, Rect};
-use imperifex_domain::ports::TextMeasure;
 use imperifex_domain::space::Space;
 use imperifex_domain::view::{Action, CursorIcon, Model, Pointer};
 
@@ -22,9 +22,9 @@ pub struct Frame {
     pub cursor: CursorIcon,
 }
 
-/// The window so far: its background and the place of the output. The title bar
-/// brings the use of the mouse and of the text measure.
-pub fn frame(model: &Model, _pointer: &Pointer, _measure: &dyn TextMeasure) -> Frame {
+/// The window: its title bar, and under it the place of the output with the
+/// base space around it.
+pub fn frame(model: &Model, pointer: &Pointer) -> Frame {
     let (width, height) = model.window;
     let window = Rect {
         x: 0,
@@ -32,14 +32,23 @@ pub fn frame(model: &Model, _pointer: &Pointer, _measure: &dyn TextMeasure) -> F
         width,
         height,
     };
-    let terminal_area = layout::inset(window, Space::L, model.scale);
+    let bar = titlebar::height(model.scale).min(height);
+    let below = Rect {
+        y: i32::try_from(bar).unwrap_or(0),
+        height: height - bar,
+        ..window
+    };
+    let terminal_area = layout::inset(below, Space::L, model.scale);
     let mut draw = DrawList::default();
     draw.rects.push((window, model.palette.background));
     draw.rects.push((terminal_area, model.palette.surface));
+    titlebar::draw(model, pointer, &mut draw);
+    let (action, cursor) = titlebar::input(model, pointer);
     Frame {
         draw,
+        actions: action.into_iter().collect(),
         terminal_area,
-        ..Frame::default()
+        cursor,
     }
 }
 

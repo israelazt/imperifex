@@ -69,6 +69,7 @@ crate::strings! {
         es: "Imperifex: la terminal de desarrollo de la familia Fexarium
 
 Uso:
+  imperifex [window]          Abre la ventana
   imperifex status [--json]   Comprueba que la app funciona
   imperifex run --headless [--columns N] [--rows N] [--timeout S] [--history]
                 -- <programa> [argumentos]
@@ -82,6 +83,7 @@ Uso:
         en: "Imperifex: the development terminal of the Fexarium family
 
 Usage:
+  imperifex [window]          Opens the window
   imperifex status [--json]   Checks that the app works
   imperifex run --headless [--columns N] [--rows N] [--timeout S] [--history]
                 -- <program> [arguments]
@@ -125,9 +127,9 @@ Usage:
         es: "con --profile va una sola orden entre comillas después de --",
         en: "with --profile, put one single command in quotes after --",
     },
-    NoWindowYet {
-        es: "todavía no hay ventana: usa run --headless",
-        en: "there is no window yet: use run --headless",
+    NeedsHeadless {
+        es: "por ahora run solo corre sin ventana: usa run --headless",
+        en: "for now run only works with no window: use run --headless",
     },
     ExitedWith {
         es: "el programa salió con el código {}",
