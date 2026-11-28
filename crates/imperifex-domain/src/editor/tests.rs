@@ -121,7 +121,7 @@ fn input(text: Option<&str>, key: Option<NamedKey>, shift: bool) -> KeyInput {
         text: text.map(str::to_string),
         key,
         shift,
-        ctrl: false,
+        ..KeyInput::default()
     }
 }
 

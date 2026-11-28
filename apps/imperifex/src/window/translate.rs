@@ -5,6 +5,7 @@ use imperifex_domain::view::{CursorIcon, Edge, Point};
 use winit::dpi::{LogicalSize, PhysicalPosition};
 use winit::event::{KeyEvent, MouseScrollDelta};
 use winit::keyboard::{Key, ModifiersState, NamedKey as Named};
+use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{CursorIcon as Cursor, ResizeDirection, Window, WindowAttributes};
@@ -49,27 +50,78 @@ pub fn point(position: PhysicalPosition<f64>) -> Point {
     (whole.x, whole.y)
 }
 
-pub fn key(event: &KeyEvent, modifiers: ModifiersState) -> KeyInput {
-    let named = match event.logical_key {
-        Key::Named(Named::Enter) => Some(NamedKey::Enter),
-        Key::Named(Named::Backspace) => Some(NamedKey::Backspace),
-        Key::Named(Named::Tab) => Some(NamedKey::Tab),
-        Key::Named(Named::Escape) => Some(NamedKey::Escape),
-        Key::Named(Named::ArrowUp) => Some(NamedKey::Up),
-        Key::Named(Named::ArrowDown) => Some(NamedKey::Down),
-        Key::Named(Named::ArrowRight) => Some(NamedKey::Right),
-        Key::Named(Named::ArrowLeft) => Some(NamedKey::Left),
-        Key::Named(Named::Home) => Some(NamedKey::Home),
-        Key::Named(Named::End) => Some(NamedKey::End),
-        Key::Named(Named::Delete) => Some(NamedKey::Delete),
-        _ => None,
+fn named_key(key: &Key) -> Option<NamedKey> {
+    let Key::Named(named) = key else { return None };
+    Some(match named {
+        Named::Enter => NamedKey::Enter,
+        Named::Backspace => NamedKey::Backspace,
+        Named::Tab => NamedKey::Tab,
+        Named::Escape => NamedKey::Escape,
+        Named::ArrowUp => NamedKey::Up,
+        Named::ArrowDown => NamedKey::Down,
+        Named::ArrowRight => NamedKey::Right,
+        Named::ArrowLeft => NamedKey::Left,
+        Named::Home => NamedKey::Home,
+        Named::End => NamedKey::End,
+        Named::Insert => NamedKey::Insert,
+        Named::Delete => NamedKey::Delete,
+        Named::PageUp => NamedKey::PageUp,
+        Named::PageDown => NamedKey::PageDown,
+        Named::F1 => NamedKey::Function(1),
+        Named::F2 => NamedKey::Function(2),
+        Named::F3 => NamedKey::Function(3),
+        Named::F4 => NamedKey::Function(4),
+        Named::F5 => NamedKey::Function(5),
+        Named::F6 => NamedKey::Function(6),
+        Named::F7 => NamedKey::Function(7),
+        Named::F8 => NamedKey::Function(8),
+        Named::F9 => NamedKey::Function(9),
+        Named::F10 => NamedKey::Function(10),
+        Named::F11 => NamedKey::Function(11),
+        Named::F12 => NamedKey::Function(12),
+        _ => return None,
+    })
+}
+
+/// `Alt`+`F4` closes the window and `Alt`+`Space` opens its menu: Windows has
+/// them, and the program in the terminal is told nothing.
+fn is_the_systems(event: &KeyEvent, modifiers: ModifiersState) -> bool {
+    modifiers.alt_key()
+        && !modifiers.control_key()
+        && matches!(event.logical_key, Key::Named(Named::F4 | Named::Space))
+}
+
+/// What the key writes. `winit`'s own `text` leaves `Ctrl` out, so with it
+/// `Ctrl`+`C` would write a `c`: with `Ctrl` held, the other one is asked.
+fn text_of(event: &KeyEvent, modifiers: ModifiersState) -> Option<String> {
+    let text = if modifiers.control_key() {
+        event.text_with_all_modifiers()
+    } else {
+        event.text.as_deref()
     };
+    let text = text.filter(|text| !text.is_empty()).map(str::to_string);
+    // With only Alt, Windows may give no text: the key's own character is it.
+    text.or_else(|| {
+        let alone = modifiers.alt_key() && !modifiers.control_key();
+        match event.key_without_modifiers() {
+            Key::Character(character) if alone => Some(character.to_string()),
+            _ => None,
+        }
+    })
+}
+
+pub fn key(event: &KeyEvent, modifiers: ModifiersState) -> KeyInput {
+    if is_the_systems(event, modifiers) {
+        return KeyInput::default();
+    }
     KeyInput {
-        text: event.text.as_ref().map(ToString::to_string),
-        key: named,
+        text: text_of(event, modifiers),
+        key: named_key(&event.logical_key),
         shift: modifiers.shift_key(),
         ctrl: modifiers.control_key(),
+        alt: modifiers.alt_key(),
     }
+    .without_alt_graph()
 }
 
 /// The keys that are for the window and not for what is written.

@@ -51,8 +51,11 @@ pub fn editor_key(input: &KeyInput) -> Option<EditorKey> {
         Some(NamedKey::Down) => EditorKey::Down,
         Some(NamedKey::Home) => EditorKey::Home,
         Some(NamedKey::End) => EditorKey::End,
+        Some(NamedKey::Insert | NamedKey::PageUp | NamedKey::PageDown | NamedKey::Function(_)) => {
+            return None;
+        }
         None => {
-            let text = input.text.as_deref()?;
+            let text = input.text.as_deref().filter(|_| !input.alt)?;
             if text == "\u{3}" {
                 return Some(EditorKey::Interrupt);
             }

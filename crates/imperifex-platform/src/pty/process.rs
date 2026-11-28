@@ -6,7 +6,7 @@ use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 use imperifex_domain::ports::Wake;
 use windows::core::PWSTR;
 use windows::Win32::Foundation::{HANDLE, WAIT_OBJECT_0};
-use windows::Win32::System::Console::HPCON;
+use windows::Win32::System::Console::{SetConsoleCtrlHandler, HPCON};
 use windows::Win32::System::Threading::{
     CreateProcessW, DeleteProcThreadAttributeList, GetExitCodeProcess,
     InitializeProcThreadAttributeList, UpdateProcThreadAttribute, WaitForSingleObject,
@@ -112,8 +112,19 @@ impl Drop for Attributes {
     }
 }
 
+/// A process may be started by one that ignores `Ctrl`+`C`, and what it starts
+/// would ignore it too: in its console, `Ctrl`+`C` would stop nothing. This
+/// takes that off before a program is started.
+fn do_not_pass_on_ignored_ctrl_c() {
+    // SAFETY: with no handler, the call only says that Ctrl+C is not ignored.
+    if let Err(error) = unsafe { SetConsoleCtrlHandler(None, false) } {
+        imperifex_domain::log_warn!("Ctrl+C may not stop programs: {error}");
+    }
+}
+
 /// Starts `command_line` in the console whose handle is `console`.
 pub(super) fn launch(console: *const c_void, command_line: &str) -> Result<Process, String> {
+    do_not_pass_on_ignored_ctrl_c();
     let mut attributes = Attributes::new()?;
     attributes.attach(console)?;
     let mut startup = STARTUPINFOEXW {
