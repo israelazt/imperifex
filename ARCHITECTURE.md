@@ -8,18 +8,21 @@ Creada el 2026-11-25 con la arquitectura Fexarium (la de Luminifex/dockview y Pu
 |---|---|---|---|
 | `imperifex-domain` | El **qué** | Datos y reglas puras, los textos, los informes (`to_text`, `to_json`), los **puertos** (traits) y el log | Windows, disco, red, hilos, reloj |
 | `imperifex-platform` | El **cómo** en Windows | Adaptadores que implementan los puertos. Lo que decodifica bytes del sistema es código portable con tests | Conocer la app |
-| `imperifex-app` | El **cuándo** | Los servicios y las órdenes (`Command`), solo contra puertos; se prueban con dobles | Windows, la plataforma |
-| `imperifex` (binario) | La **raíz de composición** | Crea los adaptadores reales, se los da a `app`, imprime o dibuja | Lógica |
+| `imperifex-app` | El **cuándo** | Los servicios y las órdenes (`Command`), solo contra puertos; se prueban con dobles. El estado de la ventana y su shell (`window::Core`) | Windows, la plataforma |
+| `imperifex-ui` | La **vista** | De un `Model` y el ratón a lo que se dibuja (`DrawList`), lo que el usuario pidió (`Action`) y dónde va la cuadrícula. Sus medidas están en `metrics.rs` | Depender de algo que no sea `domain`; colores y textos visibles sueltos |
+| `imperifex` (binario) | La **raíz de composición** | Crea los adaptadores reales, traduce los eventos de la ventana (`winit`), se los da a `app` y a `ui`, imprime o dibuja | Lógica |
 
 ```
-              imperifex (binario)
-              /        |       \
-   imperifex-app         |   imperifex-platform
-              \        |       /
-              imperifex-domain
+                      imperifex (binario)
+              /              |              \
+   imperifex-app       imperifex-ui      imperifex-platform
+              \              |              /
+                      imperifex-domain
 ```
 
-Las flechas solo van hacia abajo. `app` y `platform` no se ven entre sí.
+Las flechas solo van hacia abajo. `app`, `ui` y `platform` no se ven entre sí.
+
+**Un cuadro de la ventana:** el binario pide a `ui` el dibujo del `Model` de `Core`; `Core` ajusta la shell al sitio que `ui` deja a la cuadrícula; el renderizador (puerto `Renderer`) recibe la lista de `ui` y, aparte, el terminal (`TerminalPicture`). `ui` no dibuja la cuadrícula celda a celda: sería el cuello de botella. Solo se dibuja cuando algo cambia.
 
 ## El banco de medidas
 
@@ -77,7 +80,7 @@ El autor trabaja **dentro** de la terminal que se mide. Estas reglas no se rompe
 
 1. Lo que toca hardware, disco, red, reloj o ventana va detrás de un puerto de `domain`, con un nombre por lo que se necesita (`Clock`), no por cómo se hace. El adaptador real vive en `platform`.
 2. Receta de una función nueva: reglas en `domain` con tests → puerto → servicio en `app` con un doble → adaptador en `platform` (medido en el PC real) → salida o vista → cableado en el binario.
-3. Guardas (`crates/imperifex-domain/tests/architecture.rs`): dependencias permitidas por crate, ninguna fuente de más de 400 líneas (1000 en `tests.rs`), nada de `println!` salvo excepciones con su motivo, y `unsafe` solo en los dos crates de plataforma (`imperifex-platform` e `imperifex-bench-platform`).
+3. Guardas (`crates/imperifex-domain/tests/architecture.rs`): dependencias permitidas por crate, ningún color ni texto visible suelto en `ui`, ninguna fuente de más de 400 líneas (1000 en `tests.rs`), nada de `println!` salvo excepciones con su motivo, y `unsafe` solo en los dos crates de plataforma (`imperifex-platform` e `imperifex-bench-platform`).
    `unsafe` es solo para lo que la biblioteca estándar no ofrece (llamar al sistema): `domain`, `app` y los binarios lo prohíben (`#![forbid(unsafe_code)]`), y en la plataforma los lints exigen una sola operación por bloque, cada uno con su `// SAFETY:`, también dentro de una `unsafe fn`. Una dependencia que evite `unsafe` propio se decide con el autor, caso por caso.
 4. Errores: `Result<_, String>` a través de los puertos; lo que el usuario debe saber sale en la salida de la orden; lo demás, a `log_info!`/`log_warn!`/`log_error!`.
 5. Portátil: el crate `windows` solo en los crates de plataforma; fuera de Windows el binario dice que aún no tiene adaptadores.
@@ -105,6 +108,6 @@ El autor trabaja **dentro** de la terminal que se mide. Estas reglas no se rompe
 - [ ] Bloque 6 · Pantalla y teclado: latencia y salida vista. Programado y probado con dobles; **falta correrlo en el PC real** (6.10), incluida la comprobación de que la captura de pantalla entrega imágenes.
 - [ ] Bloque 7 · Línea base. Las órdenes `all` y `report` están programadas y probadas con dobles; **las dos tandas (7.3) no se han corrido**.
 
-- [ ] **La terminal** (`docs/TERMINAL_PLAN.md`), bloque T1, el motor sin ventana: hechos la sonda de ConPTY, la cuadrícula con estilos, historial y reajuste (`domain::grid`), el intérprete (puerto `SequenceParser` con `vte`, y `domain::interpret`), el `Terminal`, y la sesión sobre ConPTY (puertos `PtyLauncher` y `Pty`) con `run --headless` y los perfiles de shell como datos. **T1 completo** (2026-11-26); sigue T2 (ventana, dibujo, tema e idioma). La línea base se aplaza hasta T4.
+- [ ] **La terminal** (`docs/TERMINAL_PLAN.md`), bloque T1, el motor sin ventana: hechos la sonda de ConPTY, la cuadrícula con estilos, historial y reajuste (`domain::grid`), el intérprete (puerto `SequenceParser` con `vte`, y `domain::interpret`), el `Terminal`, y la sesión sobre ConPTY (puertos `PtyLauncher` y `Pty`) con `run --headless` y los perfiles de shell como datos. **T1 completo** (2026-11-26). La línea base se aplaza hasta T4. T2 (ventana, dibujo, tema e idioma): publicado hasta el diseño nuevo en lo ya hecho (2026-11-27), con una shell que se ve y se usa en la ventana (Direct3D 11 y DirectWrite) y, adelantado de T3, el desplazamiento. Falta de T2 mirar programas reales con el autor (T2.11) y su revisión del diseño (T2.10, paso 6).
 
 El detalle de cada bloque del banco está en `docs/PLAN.md`.
