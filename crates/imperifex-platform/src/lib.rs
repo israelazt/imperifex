@@ -8,9 +8,11 @@ mod log_console;
 mod parser;
 #[cfg(windows)]
 mod pty;
+mod settings_file;
 
 pub use clock::SystemClock;
 pub use log_console::install_stderr_log;
 pub use parser::VteParser;
 #[cfg(windows)]
 pub use pty::ConPtyLauncher;
+pub use settings_file::FileSettingsStore;

@@ -5,11 +5,14 @@ pub mod cell_colors;
 pub mod contrast;
 pub mod palette;
 
+use serde::{Deserialize, Serialize};
+
 pub use cell_colors::cell_colors;
 pub use palette::{palette, Palette, Rgb};
 
 /// What the user chose.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ThemeChoice {
     #[default]
     System,

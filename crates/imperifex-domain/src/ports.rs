@@ -24,6 +24,18 @@ pub trait SequenceParser {
     fn parse(&mut self, bytes: &[u8], receive: &mut dyn FnMut(Sequence<'_>));
 }
 
+/// Where the settings file is kept.
+pub trait SettingsStore {
+    /// The text of the file; `None` if there is none yet. Bytes that are not
+    /// text give the replacement character.
+    fn load(&self) -> Result<Option<String>, String>;
+    /// Replaces the file, whole or not at all.
+    fn save(&self, text: &str) -> Result<(), String>;
+    /// Keeps a copy of a file that was damaged, without writing over any other
+    /// copy, and says where it is.
+    fn keep_damaged(&self, text: &str) -> Result<String, String>;
+}
+
 /// What reading from a pseudoconsole gave.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PtyRead {

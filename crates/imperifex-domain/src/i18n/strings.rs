@@ -52,6 +52,10 @@ crate::strings! {
         es: "El archivo de ajustes está dañado: lo que no se pudo leer usa su valor por defecto. Se guardó una copia.",
         en: "The settings file is damaged: what could not be read uses its default value. A copy was kept.",
     },
+    SettingsLocked {
+        es: "No se pudo leer o copiar el archivo de ajustes. No se escribirá sobre él.",
+        en: "The settings file could not be read or copied. It will not be written over.",
+    },
     FontNotFound {
         es: "No se encontró la fuente elegida; se usa Consolas.",
         en: "The chosen font was not found; Consolas is used.",

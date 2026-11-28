@@ -7,6 +7,7 @@
 pub mod command;
 pub mod headless;
 pub mod session;
+pub mod settings;
 pub mod status;
 #[cfg(test)]
 mod testing;

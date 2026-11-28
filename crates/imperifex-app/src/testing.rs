@@ -6,8 +6,50 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 use std::time::Duration;
 
-use imperifex_domain::ports::{Clock, Pty, PtyLauncher, PtyRead, SequenceParser};
+use imperifex_domain::ports::{Clock, Pty, PtyLauncher, PtyRead, SequenceParser, SettingsStore};
 use imperifex_domain::sequence::Sequence;
+
+/// A settings file in memory that records what it was asked to write.
+#[derive(Default)]
+pub struct FakeStore {
+    /// What `load` answers.
+    pub file: Option<String>,
+    pub load_fails: bool,
+    pub save_fails: bool,
+    pub copy_fails: bool,
+    pub written: Rc<RefCell<Written>>,
+}
+
+#[derive(Debug, Default)]
+pub struct Written {
+    pub saved: Vec<String>,
+    pub copies: Vec<String>,
+}
+
+impl SettingsStore for FakeStore {
+    fn load(&self) -> Result<Option<String>, String> {
+        if self.load_fails {
+            return Err("acceso denegado".into());
+        }
+        Ok(self.file.clone())
+    }
+
+    fn save(&self, text: &str) -> Result<(), String> {
+        if self.save_fails {
+            return Err("disco lleno".into());
+        }
+        self.written.borrow_mut().saved.push(text.to_string());
+        Ok(())
+    }
+
+    fn keep_damaged(&self, text: &str) -> Result<String, String> {
+        if self.copy_fails {
+            return Err("disco lleno".into());
+        }
+        self.written.borrow_mut().copies.push(text.to_string());
+        Ok("la-copia.json".into())
+    }
+}
 
 /// A clock that moves `step_ms` every time it is read, and jumps when waited on.
 pub struct FakeClock {
