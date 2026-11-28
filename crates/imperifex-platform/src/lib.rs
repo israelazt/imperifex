@@ -16,6 +16,8 @@ mod pty;
 #[cfg(windows)]
 mod render;
 mod settings_file;
+#[cfg(windows)]
+mod text;
 
 #[cfg(windows)]
 pub use appearance::WindowsAppearance;
@@ -29,3 +31,5 @@ pub use pty::ConPtyLauncher;
 #[cfg(windows)]
 pub use render::D3dRenderer;
 pub use settings_file::FileSettingsStore;
+#[cfg(windows)]
+pub use text::DirectWriteText;

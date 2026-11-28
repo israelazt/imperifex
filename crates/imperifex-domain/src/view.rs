@@ -32,6 +32,8 @@ pub struct Pointer {
     pub released: bool,
     pub double_click: bool,
     pub right_click: bool,
+    /// It has been still long enough to be told what is under it.
+    pub rested: bool,
 }
 
 /// A side or a corner of the window.

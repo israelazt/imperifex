@@ -2,10 +2,11 @@
 //! buttons and the edges that resize it. The tabs will go in the strip.
 
 use imperifex_domain::draw::{DrawList, Rect};
+use imperifex_domain::ports::TextMeasure;
 use imperifex_domain::theme::{Palette, Rgb};
 use imperifex_domain::view::{Action, CursorIcon, Edge, Model, Point, Pointer};
 
-mod icons;
+mod labels;
 
 /// In logical pixels: sizes of their own, not steps of the spacing scale.
 const HEIGHT: f32 = 40.0;
@@ -138,8 +139,8 @@ fn action(model: &Model, pointer: &Pointer, zone: Zone) -> Option<Action> {
     }
 }
 
-/// The strip and its buttons, the one under the mouse lit.
-pub fn draw(model: &Model, pointer: &Pointer, into: &mut DrawList) {
+/// The strip, its name and its buttons, the one under the mouse lit.
+pub fn draw(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure, into: &mut DrawList) {
     let strip = Rect {
         x: 0,
         y: 0,
@@ -147,16 +148,36 @@ pub fn draw(model: &Model, pointer: &Pointer, into: &mut DrawList) {
         height: height(model.scale),
     };
     into.rects.push((strip, model.palette.background));
-    let hovered = pointer.position.map(|at| zone(model, at));
+    let name = if model.focused {
+        model.palette.text
+    } else {
+        model.palette.muted
+    };
+    labels::title(model, name, measure, into);
+    let hovered = hovered(model, pointer);
     for button in Button::ALL {
         let area = button_area(button, model.window.0, model.scale);
-        let lit = hovered == Some(Zone::Button(button));
+        let lit = hovered == Some(button);
         let (back, ink) = colours(button, lit, model.focused, model.palette);
         if let Some(back) = back {
             into.rects.push((area, back));
         }
-        let under = back.unwrap_or(model.palette.background);
-        icons::draw(button, model, area, (ink, under), into);
+        labels::icon(button, model, area, ink, measure, into);
+    }
+}
+
+/// The help of the button the mouse rests on. It goes over everything else, so
+/// it is drawn last.
+pub fn draw_help(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure, into: &mut DrawList) {
+    if let Some(button) = hovered(model, pointer).filter(|_| pointer.rested) {
+        labels::help(button, model, measure, into);
+    }
+}
+
+fn hovered(model: &Model, pointer: &Pointer) -> Option<Button> {
+    match zone(model, pointer.position?) {
+        Zone::Button(button) => Some(button),
+        _ => None,
     }
 }
 

@@ -4,9 +4,11 @@
 
 #![forbid(unsafe_code)]
 
+pub mod atlas;
 pub mod command_line;
 pub mod draw;
 pub mod example;
+pub mod font;
 pub mod grid;
 pub mod i18n;
 pub mod interpret;

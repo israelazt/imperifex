@@ -21,6 +21,8 @@ windows = { workspace = true, features = [
     "Win32_Graphics_Direct3D",
     "Win32_Graphics_Direct3D_Fxc",
     "Win32_Graphics_Direct3D11",
+    # The letters and icons (T-D14).
+    "Win32_Graphics_DirectWrite",
     "Win32_Graphics_Dxgi",
     "Win32_Graphics_Dxgi_Common",
     "Win32_Security",
@@ -30,3 +32,5 @@ windows = { workspace = true, features = [
     "Win32_System_Registry",
     "Win32_System_Threading",
 ] }
+# Named by `#[implement]`, for the font fallback of DirectWrite.
+windows-core.workspace = true

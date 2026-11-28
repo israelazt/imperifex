@@ -6,9 +6,12 @@
 #![forbid(unsafe_code)]
 
 pub mod layout;
+#[cfg(test)]
+mod testing;
 pub mod titlebar;
 
 use imperifex_domain::draw::{DrawList, Rect};
+use imperifex_domain::ports::TextMeasure;
 use imperifex_domain::space::Space;
 use imperifex_domain::view::{Action, CursorIcon, Model, Pointer};
 
@@ -24,7 +27,7 @@ pub struct Frame {
 
 /// The window: its title bar, and under it the place of the output with the
 /// base space around it.
-pub fn frame(model: &Model, pointer: &Pointer) -> Frame {
+pub fn frame(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure) -> Frame {
     let (width, height) = model.window;
     let window = Rect {
         x: 0,
@@ -42,7 +45,8 @@ pub fn frame(model: &Model, pointer: &Pointer) -> Frame {
     let mut draw = DrawList::default();
     draw.rects.push((window, model.palette.background));
     draw.rects.push((terminal_area, model.palette.surface));
-    titlebar::draw(model, pointer, &mut draw);
+    titlebar::draw(model, pointer, measure, &mut draw);
+    titlebar::draw_help(model, pointer, measure, &mut draw);
     let (action, cursor) = titlebar::input(model, pointer);
     Frame {
         draw,

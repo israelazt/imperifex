@@ -1,11 +1,13 @@
+use imperifex_domain::draw::{Icon, TextRun, UiFont};
 use imperifex_domain::i18n::Language;
 use imperifex_domain::theme::{palette, Theme};
 
 use super::*;
+use crate::testing::FixedWidth;
 
 fn model(scale: f32, maximized: bool) -> Model {
     Model {
-        title: String::new(),
+        title: "Imperifex".into(),
         language: Language::Spanish,
         palette: palette(Theme::Dark),
         scale,
@@ -121,7 +123,8 @@ fn a_maximized_window_has_no_edges_and_its_corner_closes() {
 
 fn drawn(model: &Model, pointer: &Pointer) -> DrawList {
     let mut list = DrawList::default();
-    draw(model, pointer, &mut list);
+    draw(model, pointer, &FixedWidth, &mut list);
+    draw_help(model, pointer, &FixedWidth, &mut list);
     list
 }
 
@@ -157,17 +160,104 @@ fn moving_over_the_strip_does_not_change_what_is_drawn() {
     assert_eq!(drawn(&model, &at(500, 300)), away);
 }
 
+fn icons(list: &DrawList) -> Vec<&TextRun> {
+    list.texts
+        .iter()
+        .filter(|run| run.font == UiFont::Icons)
+        .collect()
+}
+
 #[test]
-fn the_icon_of_maximize_changes_when_maximized_and_the_icons_dim_without_focus() {
+fn each_button_has_its_icon_in_its_middle_and_maximized_offers_to_restore() {
+    let characters = |list: &DrawList| {
+        let all: String = icons(list).iter().map(|run| run.text.clone()).collect();
+        all
+    };
+    let of = |icons: [Icon; 3]| icons.map(Icon::character).iter().collect::<String>();
     let normal = drawn(&model(1.0, false), &Pointer::default());
+    let expected = of([Icon::Minimize, Icon::Maximize, Icon::Close]);
+    assert_eq!(characters(&normal), expected);
     let maximized = drawn(&model(1.0, true), &Pointer::default());
-    assert_ne!(normal, maximized);
+    let expected = of([Icon::Minimize, Icon::Restore, Icon::Close]);
+    assert_eq!(characters(&maximized), expected);
+    // The fake font is 10 wide and 16 high, in a button of 46 by 40.
+    let found: Vec<_> = icons(&normal).iter().map(|run| (run.x, run.y)).collect();
+    assert_eq!(found, [(880, 12), (926, 12), (972, 12)]);
+    assert!(icons(&normal).iter().all(|run| run.size == 10));
+}
+
+#[test]
+fn the_name_of_the_app_is_at_the_left_of_the_strip_at_the_windows_scale() {
+    let found = drawn(&model(1.25, false), &Pointer::default());
+    let name = &found.texts[0];
+    assert_eq!(name.text, "Imperifex");
+    assert_eq!((name.x, name.y, name.size), (15, 15, 15));
+}
+
+#[test]
+fn without_focus_the_name_and_the_icons_dim() {
     let unfocused = Model {
         focused: false,
         ..model(1.0, false)
     };
     let dim = drawn(&unfocused, &Pointer::default());
     let muted = unfocused.palette.muted;
-    assert!(dim.rects.iter().any(|&(_, colour)| colour == muted));
-    assert!(!normal.rects.iter().any(|&(_, colour)| colour == muted));
+    assert!(dim.texts.iter().all(|run| run.color == muted));
+    let normal = drawn(&model(1.0, false), &Pointer::default());
+    let text = model(1.0, false).palette.text;
+    assert!(normal.texts.iter().all(|run| run.color == text));
+}
+
+fn resting(x: i32, y: i32) -> Pointer {
+    Pointer {
+        rested: true,
+        ..at(x, y)
+    }
+}
+
+fn help_in(list: &DrawList) -> Option<&TextRun> {
+    list.texts.get(4)
+}
+
+#[test]
+fn a_mouse_resting_on_a_button_is_told_what_it_does_in_the_chosen_language() {
+    for (language, maximized, x, said) in [
+        (Language::Spanish, false, 880, "Minimizar"),
+        (Language::Spanish, false, 930, "Maximizar"),
+        (Language::Spanish, true, 930, "Restaurar"),
+        (Language::English, false, 970, "Close"),
+    ] {
+        let model = Model {
+            language,
+            ..model(1.0, maximized)
+        };
+        let found = drawn(&model, &resting(x, 20));
+        let help = help_in(&found).map(|run| run.text.as_str());
+        assert_eq!(help, Some(said));
+    }
+}
+
+#[test]
+fn the_help_waits_for_the_rest_and_is_only_for_buttons() {
+    let model = model(1.0, false);
+    assert_eq!(help_in(&drawn(&model, &at(930, 20))), None);
+    assert_eq!(help_in(&drawn(&model, &resting(300, 20))), None);
+    assert_eq!(help_in(&drawn(&model, &resting(930, 200))), None);
+}
+
+#[test]
+fn the_help_stays_inside_the_window_under_the_bar() {
+    let model = model(1.0, false);
+    // "Close" is 50 wide and its box 66: centred under the last button.
+    let english = Model {
+        language: Language::English,
+        ..model.clone()
+    };
+    let found = drawn(&english, &resting(970, 20));
+    assert_eq!(help_in(&found).map(|run| (run.x, run.y)), Some((938, 52)));
+    // "Cerrar" is 60: centred it would reach 1000, so it is pushed 4 left.
+    let found = drawn(&model, &resting(970, 20));
+    let framed = found.rects.iter().map(|&(area, _)| area);
+    let help = framed.filter(|area| area.y >= 40).collect::<Vec<_>>();
+    assert_eq!((help[0].x, help[0].width, help[0].y), (920, 76, 44));
 }

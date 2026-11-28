@@ -448,6 +448,7 @@ dependencies = [
  "imperifex-domain",
  "vte",
  "windows",
+ "windows-core",
 ]
 
 [[package]]

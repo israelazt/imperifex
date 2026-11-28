@@ -3,19 +3,21 @@
 
 mod translate;
 
+use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Instant;
 
 use imperifex_app::window::{Core, WindowCommand};
-use imperifex_domain::i18n::Language;
+use imperifex_domain::i18n::{text, Language, Text};
 use imperifex_domain::mouse::Mouse;
 use imperifex_domain::ports::{Clock, Renderer, Wake};
 use imperifex_domain::settings::Settings;
 use imperifex_domain::view::Pointer;
 use imperifex_domain::{log_error, log_info, log_warn};
-use imperifex_platform::{D3dRenderer, SystemClock, WindowsAppearance};
+use imperifex_platform::{D3dRenderer, DirectWriteText, SystemClock, WindowsAppearance};
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalPosition;
-use winit::event::{ElementState, MouseButton, WindowEvent};
+use winit::event::{ElementState, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
@@ -31,6 +33,11 @@ pub fn run(settings: Settings, language: Language) -> Result<(), String> {
         .build()
         .map_err(|e| format!("no event loop: {e}"))?;
     events.set_control_flow(ControlFlow::Wait);
+    let letters = Rc::new(DirectWriteText::new(&settings.font.family)?);
+    if !letters.found_grid_font() {
+        let family = &settings.font.family;
+        log_warn!("{} ({family})", text(language, Text::FontNotFound));
+    }
     let core = Core::new(settings, language, Box::new(WindowsAppearance));
     let proxy = events.create_proxy();
     let changed: Wake = Arc::new(move || {
@@ -44,6 +51,7 @@ pub fn run(settings: Settings, language: Language) -> Result<(), String> {
         core,
         mouse: Mouse::default(),
         clock: SystemClock::new(),
+        letters,
         shown: None,
         frames: 0,
     };
@@ -58,6 +66,8 @@ struct App {
     core: Core,
     mouse: Mouse,
     clock: SystemClock,
+    /// Measures the texts for the interface and pictures them for the renderer.
+    letters: Rc<DirectWriteText>,
     shown: Option<Shown>,
     /// How many frames were drawn, to see that an idle window draws none.
     frames: u64,
@@ -83,11 +93,12 @@ impl Shown {
         }
     }
 
-    fn renderer(&mut self) -> Result<&mut D3dRenderer, String> {
+    fn renderer(&mut self, letters: &Rc<DirectWriteText>) -> Result<&mut D3dRenderer, String> {
         if self.renderer.is_none() {
             let size = self.window.inner_size();
             let handle = translate::handle(&self.window)?;
-            self.renderer = Some(D3dRenderer::new(handle, size.width, size.height)?);
+            let made = D3dRenderer::new(handle, size.width, size.height, Rc::clone(letters))?;
+            self.renderer = Some(made);
         }
         self.renderer.as_mut().ok_or_else(|| "no renderer".into())
     }
@@ -101,8 +112,10 @@ impl App {
         if model.window.0 == 0 || model.window.1 == 0 {
             return;
         }
-        let list = imperifex_ui::frame(&model, &self.mouse.hover()).draw;
-        match shown.renderer().and_then(|renderer| renderer.draw(&list)) {
+        let pointer = self.mouse.hover(self.clock.monotonic());
+        let list = imperifex_ui::frame(&model, &pointer, self.letters.as_ref()).draw;
+        let renderer = shown.renderer(&self.letters);
+        match renderer.and_then(|renderer| renderer.draw(&list)) {
             Ok(()) => {
                 shown.failed = false;
                 self.frames += 1;
@@ -114,7 +127,7 @@ impl App {
 
     /// Does what the mouse asks, and asks for a redraw if what is seen changed.
     fn mouse_did(&mut self, event_loop: &ActiveEventLoop, pointer: Pointer) {
-        let frame = imperifex_ui::frame(&self.core.model(), &pointer);
+        let frame = imperifex_ui::frame(&self.core.model(), &pointer, self.letters.as_ref());
         if let Some(shown) = &self.shown {
             shown.window.set_cursor(translate::cursor(frame.cursor));
         }
@@ -128,7 +141,8 @@ impl App {
 
     fn redraw_if_changed(&self) {
         let Some(shown) = &self.shown else { return };
-        let list = imperifex_ui::frame(&self.core.model(), &self.mouse.hover()).draw;
+        let pointer = self.mouse.hover(self.clock.monotonic());
+        let list = imperifex_ui::frame(&self.core.model(), &pointer, self.letters.as_ref()).draw;
         if self.core.is_news(&list) {
             shown.window.request_redraw();
         }
@@ -155,7 +169,7 @@ impl App {
             WindowCommand::Drag => window.drag_window(),
             WindowCommand::Resize(edge) => window.drag_resize_window(translate::direction(edge)),
             WindowCommand::ShowSystemMenu => {
-                if let Some((x, y)) = self.mouse.hover().position {
+                if let Some((x, y)) = self.mouse.position() {
                     window.show_window_menu(PhysicalPosition::new(x, y));
                 }
                 Ok(())
@@ -188,7 +202,8 @@ impl App {
     fn mouse_event(&mut self, event: &WindowEvent) -> Option<Pointer> {
         Some(match *event {
             WindowEvent::CursorMoved { position, .. } => {
-                self.mouse.moved(translate::point(position))
+                let at = self.clock.monotonic();
+                self.mouse.moved(translate::point(position), at)
             }
             WindowEvent::CursorLeft { .. } | WindowEvent::Focused(false) => self.mouse.left(),
             WindowEvent::MouseInput { state, button, .. } => match (button, state) {
@@ -233,6 +248,21 @@ impl ApplicationHandler<Told> for App {
         }
     }
 
+    fn new_events(&mut self, _: &ActiveEventLoop, cause: StartCause) {
+        // The only wait with an end is for the mouse to rest.
+        if matches!(cause, StartCause::ResumeTimeReached { .. }) {
+            self.redraw_if_changed();
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let rest = self.mouse.rests_in(self.clock.monotonic());
+        event_loop.set_control_flow(match rest {
+            Some(left) => ControlFlow::WaitUntil(Instant::now() + left),
+            None => ControlFlow::Wait,
+        });
+    }
+
     fn user_event(&mut self, event_loop: &ActiveEventLoop, told: Told) {
         match told {
             Told::ThemeChanged => {
@@ -257,6 +287,10 @@ impl ApplicationHandler<Told> for App {
             WindowEvent::Resized(_) => self.resized(),
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.core.set_scale(scale_factor as f32);
+                let renderer = self.shown.as_mut().and_then(|s| s.renderer.as_mut());
+                if let Some(renderer) = renderer {
+                    renderer.forget_glyphs();
+                }
                 self.redraw_if_changed();
             }
             WindowEvent::Focused(true) => self.redraw_if_changed(),

@@ -3,15 +3,17 @@
 
 use std::mem::offset_of;
 
+use imperifex_domain::log_warn;
 use windows::core::{s, PCSTR};
 use windows::Win32::Graphics::Direct3D::D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 use windows::Win32::Graphics::Direct3D11::{
     ID3D11BlendState, ID3D11Buffer, ID3D11Device, ID3D11DeviceContext, ID3D11InputLayout,
-    ID3D11PixelShader, ID3D11ShaderResourceView, ID3D11VertexShader, D3D11_BIND_CONSTANT_BUFFER,
-    D3D11_BIND_SHADER_RESOURCE, D3D11_BLEND_DESC, D3D11_BLEND_INV_SRC_ALPHA, D3D11_BLEND_ONE,
-    D3D11_BLEND_OP_ADD, D3D11_BLEND_SRC_ALPHA, D3D11_BUFFER_DESC, D3D11_COLOR_WRITE_ENABLE_ALL,
-    D3D11_INPUT_ELEMENT_DESC, D3D11_INPUT_PER_INSTANCE_DATA, D3D11_RENDER_TARGET_BLEND_DESC,
-    D3D11_TEXTURE2D_DESC, D3D11_USAGE_DEFAULT,
+    ID3D11PixelShader, ID3D11ShaderResourceView, ID3D11Texture2D, ID3D11VertexShader,
+    D3D11_BIND_CONSTANT_BUFFER, D3D11_BIND_SHADER_RESOURCE, D3D11_BLEND_DESC,
+    D3D11_BLEND_INV_SRC_ALPHA, D3D11_BLEND_ONE, D3D11_BLEND_OP_ADD, D3D11_BLEND_SRC_ALPHA,
+    D3D11_BOX, D3D11_BUFFER_DESC, D3D11_COLOR_WRITE_ENABLE_ALL, D3D11_INPUT_ELEMENT_DESC,
+    D3D11_INPUT_PER_INSTANCE_DATA, D3D11_RENDER_TARGET_BLEND_DESC, D3D11_TEXTURE2D_DESC,
+    D3D11_USAGE_DEFAULT,
 };
 use windows::Win32::Graphics::Dxgi::Common::{
     DXGI_FORMAT, DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R8_UNORM,
@@ -20,11 +22,10 @@ use windows::Win32::Graphics::Dxgi::Common::{
 
 use super::shader::compile;
 use super::{created, failed};
-use crate::instances::Instance;
+use crate::instances::{Instance, Upload};
 
-/// The side of the glyph atlas, in pixels: one byte of coverage each. It is
-/// empty until there are fonts.
-const ATLAS_SIDE: u32 = 2048;
+/// The side of the glyph atlas, in pixels: one byte of coverage each.
+pub const ATLAS_SIDE: u32 = 2048;
 
 pub struct Pipeline {
     vertex_shader: ID3D11VertexShader,
@@ -34,6 +35,7 @@ pub struct Pipeline {
     /// The size of what is drawn on, for the vertex shader.
     frame: ID3D11Buffer,
     atlas: ID3D11ShaderResourceView,
+    atlas_texture: ID3D11Texture2D,
 }
 
 impl Pipeline {
@@ -48,14 +50,51 @@ impl Pipeline {
         // SAFETY: the same.
         unsafe { device.CreatePixelShader(pixel_code.bytes(), None, Some(&mut pixel_shader)) }
             .map_err(failed("CreatePixelShader"))?;
+        let (atlas_texture, atlas) = atlas(device)?;
         Ok(Self {
             vertex_shader: created(vertex_shader)?,
             pixel_shader: created(pixel_shader)?,
             layout: layout(device, vertex_code.bytes())?,
             blend: blend(device)?,
             frame: frame_buffer(device)?,
-            atlas: atlas(device)?,
+            atlas,
+            atlas_texture,
         })
+    }
+
+    /// Copies the pictures of new glyphs to their places in the atlas.
+    pub fn upload_glyphs(&self, context: &ID3D11DeviceContext, uploads: &[Upload]) {
+        for upload in uploads {
+            if fits(upload) {
+                self.copy(context, upload);
+            } else {
+                log_warn!("a glyph does not fit its place: {:?}", upload.slot);
+            }
+        }
+    }
+
+    /// `upload` must pass [`fits`].
+    fn copy(&self, context: &ID3D11DeviceContext, Upload { slot, coverage }: &Upload) {
+        let place = D3D11_BOX {
+            left: slot.x,
+            top: slot.y,
+            front: 0,
+            right: slot.x + slot.width,
+            bottom: slot.y + slot.height,
+            back: 1,
+        };
+        // SAFETY: the box is inside the texture, and the picture has one byte
+        // for each of its pixels, in rows as wide as it, as `fits` checked.
+        unsafe {
+            context.UpdateSubresource(
+                &self.atlas_texture,
+                0,
+                Some(&place),
+                coverage.as_ptr().cast(),
+                slot.width,
+                0,
+            )
+        };
     }
 
     /// Leaves `context` ready to draw instances on a target of `size` pixels.
@@ -79,6 +118,13 @@ impl Pipeline {
         // SAFETY: the same.
         unsafe { context.OMSetBlendState(&self.blend, None, u32::MAX) };
     }
+}
+
+/// Whether the place is inside the texture and the picture is of its size.
+fn fits(Upload { slot, coverage }: &Upload) -> bool {
+    let pixels = u64::from(slot.width) * u64::from(slot.height);
+    let inside = slot.x + slot.width <= ATLAS_SIDE && slot.y + slot.height <= ATLAS_SIDE;
+    inside && coverage.len() as u64 == pixels
 }
 
 /// How the fields of an [`Instance`] reach the vertex shader.
@@ -147,7 +193,8 @@ fn frame_buffer(device: &ID3D11Device) -> Result<ID3D11Buffer, String> {
     created(buffer)
 }
 
-fn atlas(device: &ID3D11Device) -> Result<ID3D11ShaderResourceView, String> {
+/// The texture of the atlas, and how the shader sees it.
+fn atlas(device: &ID3D11Device) -> Result<(ID3D11Texture2D, ID3D11ShaderResourceView), String> {
     let description = D3D11_TEXTURE2D_DESC {
         Width: ATLAS_SIDE,
         Height: ATLAS_SIDE,
@@ -171,6 +218,5 @@ fn atlas(device: &ID3D11Device) -> Result<ID3D11ShaderResourceView, String> {
     // SAFETY: the texture is of this device and the output lives through it.
     unsafe { device.CreateShaderResourceView(&texture, None, Some(&mut view)) }
         .map_err(failed("CreateShaderResourceView"))?;
-    // The view keeps the texture alive.
-    created(view)
+    Ok((texture, created(view)?))
 }

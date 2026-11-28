@@ -2,82 +2,63 @@
 
 mod buffer;
 mod device;
+mod painter;
 mod pipeline;
 mod shader;
 
+use std::rc::Rc;
+
 use imperifex_domain::draw::DrawList;
 use imperifex_domain::ports::Renderer;
-use windows::Win32::Graphics::Direct3D11::{
-    ID3D11Device, ID3D11DeviceContext, ID3D11RenderTargetView, ID3D11Texture2D, D3D11_VIEWPORT,
-};
+use windows::Win32::Graphics::Direct3D11::{ID3D11RenderTargetView, ID3D11Texture2D};
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN;
 use windows::Win32::Graphics::Dxgi::{IDXGISwapChain1, DXGI_PRESENT, DXGI_SWAP_CHAIN_FLAG};
 
-use crate::instances::{self, Instance};
-use buffer::InstanceBuffer;
-use pipeline::Pipeline;
+use crate::text::DirectWriteText;
+use painter::Painter;
 
 pub struct D3dRenderer {
-    device: ID3D11Device,
-    context: ID3D11DeviceContext,
+    painter: Painter,
     swap_chain: IDXGISwapChain1,
     /// What is drawn on: the swap chain's buffer of the moment.
     target: Option<ID3D11RenderTargetView>,
-    pipeline: Pipeline,
-    buffer: InstanceBuffer,
-    instances: Vec<Instance>,
     size: (u32, u32),
 }
 
 impl D3dRenderer {
-    /// For the window whose handle is `window`, of that size in physical pixels.
-    pub fn new(window: isize, width: u32, height: u32) -> Result<Self, String> {
+    /// For the window whose handle is `window`, of that size in physical
+    /// pixels, with its letters from `text`.
+    pub fn new(
+        window: isize,
+        width: u32,
+        height: u32,
+        text: Rc<DirectWriteText>,
+    ) -> Result<Self, String> {
         let size = (width.max(1), height.max(1));
-        let (device, context) = device::device()?;
-        let swap_chain = device::swap_chain(&device, window, size)?;
+        let painter = Painter::new(text)?;
+        let swap_chain = device::swap_chain(painter.device(), window, size)?;
         let mut renderer = Self {
-            pipeline: Pipeline::new(&device)?,
-            target: None,
-            buffer: InstanceBuffer::default(),
-            instances: Vec::new(),
-            device,
-            context,
+            painter,
             swap_chain,
+            target: None,
             size,
         };
         renderer.make_target()?;
         Ok(renderer)
     }
 
+    /// Forgets the glyphs drawn so far: after a change of scale the old sizes
+    /// would only take up room.
+    pub fn forget_glyphs(&mut self) {
+        self.painter.forget_glyphs();
+    }
+
     fn make_target(&mut self) -> Result<(), String> {
         // SAFETY: buffer 0 of a live swap chain, asked for as the texture it is.
         let back: ID3D11Texture2D =
             unsafe { self.swap_chain.GetBuffer(0) }.map_err(failed("GetBuffer"))?;
-        let mut target = None;
-        // SAFETY: the texture is of this device and the output lives through it.
-        unsafe {
-            self.device
-                .CreateRenderTargetView(&back, None, Some(&mut target))
-        }
-        .map_err(failed("CreateRenderTargetView"))?;
-        self.target = Some(created(target)?);
+        self.target = Some(self.painter.target(&back)?);
         Ok(())
-    }
-
-    /// Points the context at the window. Showing a frame undoes it, so it is
-    /// done for each one.
-    fn aim(&self) {
-        let viewport = D3D11_VIEWPORT {
-            Width: self.size.0 as f32,
-            Height: self.size.1 as f32,
-            MaxDepth: 1.0,
-            ..Default::default()
-        };
-        let targets = [self.target.clone()];
-        // SAFETY: the view is alive, and so is the list through the call.
-        unsafe { self.context.OMSetRenderTargets(Some(&targets), None) };
-        // SAFETY: one viewport, which lives through the call.
-        unsafe { self.context.RSSetViewports(Some(&[viewport])) };
     }
 }
 
@@ -88,8 +69,7 @@ impl Renderer for D3dRenderer {
         }
         // The buffers cannot change while anything holds them.
         self.target = None;
-        // SAFETY: lets go of everything bound; each frame binds what it uses.
-        unsafe { self.context.ClearState() };
+        self.painter.let_go();
         // SAFETY: no view of the buffers is left; 0 and unknown keep their
         // number and format, and the flags are those of its creation.
         unsafe {
@@ -110,16 +90,10 @@ impl Renderer for D3dRenderer {
         if self.target.is_none() {
             self.make_target()?;
         }
-        instances::fill(list, &mut self.instances);
-        self.aim();
-        self.pipeline.bind(&self.context, self.size);
-        if !self.instances.is_empty() {
-            self.buffer
-                .upload(&self.device, &self.context, &self.instances)?;
-            let count = u32::try_from(self.instances.len()).map_err(|_| "too much to draw")?;
-            // SAFETY: four corners per instance, and the buffer holds `count`.
-            unsafe { self.context.DrawInstanced(4, count, 0, 0) };
-        }
+        let Some(target) = &self.target else {
+            return Err("nothing to draw on".into());
+        };
+        self.painter.paint(list, target, self.size)?;
         // SAFETY: a live swap chain; 1 waits for the screen's next refresh.
         unsafe { self.swap_chain.Present(1, DXGI_PRESENT(0)) }
             .ok()
@@ -136,3 +110,6 @@ fn failed(call: &'static str) -> impl Fn(windows::core::Error) -> String {
 fn created<T>(object: Option<T>) -> Result<T, String> {
     object.ok_or_else(|| "Direct3D gave no object".into())
 }
+
+#[cfg(test)]
+mod tests;

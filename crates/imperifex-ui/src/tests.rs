@@ -2,6 +2,7 @@ use imperifex_domain::i18n::{text, Language, Text};
 use imperifex_domain::theme::{palette, Theme};
 
 use super::*;
+use crate::testing::FixedWidth;
 
 fn model(theme: Theme) -> Model {
     Model {
@@ -17,14 +18,14 @@ fn model(theme: Theme) -> Model {
 
 #[test]
 fn without_the_mouse_nothing_is_asked() {
-    let found = frame(&model(Theme::Dark), &Pointer::default());
+    let found = frame(&model(Theme::Dark), &Pointer::default(), &FixedWidth);
     assert!(found.actions.is_empty());
     assert_eq!(found.cursor, CursorIcon::Default);
 }
 
 #[test]
 fn the_output_goes_under_the_bar_with_the_base_space_around_it() {
-    let found = frame(&model(Theme::Dark), &Pointer::default());
+    let found = frame(&model(Theme::Dark), &Pointer::default(), &FixedWidth);
     let expected = Rect {
         x: 20,
         y: 70,
@@ -37,7 +38,7 @@ fn the_output_goes_under_the_bar_with_the_base_space_around_it() {
 #[test]
 fn the_colours_are_those_of_the_models_theme() {
     for theme in Theme::ALL {
-        let found = frame(&model(theme), &Pointer::default());
+        let found = frame(&model(theme), &Pointer::default(), &FixedWidth);
         let colours: Vec<_> = found.draw.rects.iter().map(|&(_, colour)| colour).collect();
         let expected = [palette(theme).background, palette(theme).surface];
         assert_eq!(colours[..2], expected);
@@ -51,6 +52,6 @@ fn what_the_bar_is_asked_comes_out_of_the_frame() {
         pressed: true,
         ..Pointer::default()
     };
-    let found = frame(&model(Theme::Dark), &pointer);
+    let found = frame(&model(Theme::Dark), &pointer, &FixedWidth);
     assert_eq!(found.actions, [Action::Drag]);
 }

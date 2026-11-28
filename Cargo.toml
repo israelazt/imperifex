@@ -34,6 +34,8 @@ needless_pass_by_value = "warn"
 
 [workspace.dependencies]
 windows = "0.62"
+# What the macro that makes COM objects of ours names; `windows` already brings it.
+windows-core = "0.62"
 # The window and its events (T-D15), used only by the program.
 winit = "0.30"
 serde = { version = "1", features = ["derive"] }

@@ -70,9 +70,11 @@ const ALLOWED: [(&str, &[&str]); 9] = [
     ),
     // vte: splits the bytes of a shell into sequences (T-D11), behind
     // the `SequenceParser` port. What they mean is decided in domain.
+    // windows-core: part of `windows`, which the `#[implement]` macro names;
+    // DirectWrite asks for the text of a font fallback through an object of ours.
     (
         "imperifex-platform",
-        &["imperifex-domain", "vte", "windows"],
+        &["imperifex-domain", "vte", "windows", "windows-core"],
     ),
     ("imperifex-app", &["imperifex-domain"]),
     // The interface only knows the domain: what it shows arrives in a
