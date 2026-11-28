@@ -13,3 +13,10 @@ workspace = true
 imperifex-domain = { path = "../../crates/imperifex-domain" }
 imperifex-platform = { path = "../../crates/imperifex-platform" }
 imperifex-app = { path = "../../crates/imperifex-app" }
+
+[target.'cfg(windows)'.dependencies]
+winit.workspace = true
+
+# Only for the throwaway probe of the title bar, which paints its window with GDI.
+[target.'cfg(windows)'.dev-dependencies]
+windows = { workspace = true, features = ["Win32_Foundation", "Win32_Graphics_Gdi"] }

@@ -64,6 +64,7 @@ La imagen es la referencia de estilo, no una especificación.
 | T-D16 | La fuente por defecto es **`Cascadia Mono`** (de `github.com/microsoft/cascadia-code`; sin ligaduras, porque la cuadrícula dibuja celda a celda), no JetBrains Mono (cierra A5). **No va incluida:** se busca por nombre en las fuentes instaladas (Windows 11 la trae en `C:\Windows\Fonts\CascadiaMono.ttf`; DirectWrite ve también las del usuario). Si no está, se usa `Consolas` y se avisa. Se puede cambiar en Ajustes | El autor respondió con el enlace (2026-11-27) y eligió variante y la fuente instalada el mismo día. Al no repartirla, no hay que llevar la licencia OFL |
 | T-D17 | **Contraste mínimo en la cuadrícula:** si la letra y el fondo de una celda contrastan menos de **2:1**, el color de la letra se acerca al blanco o al negro (el que más contraste dé con ese fondo) hasta llegar a **3:1**. Por encima de 2:1, los colores son los del programa. Se puede apagar (`Settings`; pantalla en T3.5) | Elegido por el autor (2026-11-27). Ejemplo: la sugerencia de PSReadLine (`ESC[97;2;3m`, blanco brillante atenuado) no se vería sobre el fondo claro |
 | T-D18 | **Entrada mínima provisional en T2** (T2.9): el texto tal como lo da Windows, Enter, Retroceso, Tab, Esc y las flechas. Lo demás (`AltGr`, teclas muertas, IME, atajos) sigue en T3.1, que la sustituye | Elegido por el autor (2026-11-27): sin escribir no se puede ver PSReadLine ni Claude Code reales, que A7 necesita |
+| T-D19 | La barra de título propia **no tendrá el menú de diseños de ajuste** de Windows 11 (el que sale al dejar el ratón sobre maximizar). No se reemplaza el procedimiento de ventana de winit. T-D15 queda confirmada: se usa `winit` | Elegido por el autor (2026-11-27), tras la sonda T2.6. Ajustar arrastrando y con `Win`+flechas sí funciona |
 
 ## Decisiones abiertas (cada una se cierra antes de su bloque)
 
@@ -414,7 +415,7 @@ Sonda desechable en `apps/imperifex/examples/probe_titlebar.rs`, con la técnica
 5. `app/window.rs`: `Core` con `Settings`, `Theme` y `Language` resueltos, tamaño, escala, `maximized` y `focused`; `model()`, `apply(Action) -> Vec<WindowCommand>` (lo que el binario pide a winit) y `system_theme_changed()`. Pruebas con dobles: un cambio de tema del sistema con `ThemeChoice::System` cambia la paleta del `Model`; con `Dark`, no.
 6. Binario: con `imperifex` sin argumentos (o `imperifex window`; hoy sin argumentos es la ayuda: pasa a abrir la ventana, y `help` sigue) se abre la ventana. `src/window/` traduce eventos de winit a `Pointer`, tamaño y escala, llama a `ui::frame` y al renderizador, y ejecuta los `WindowCommand`. `EventLoopProxy` lleva a la ventana el aviso de `SystemAppearance::watch`. Tamaño mínimo: 640 × 400 lógicos.
 7. Se dibuja solo con un evento que lo pida; anotar el uso de CPU con la ventana quieta 60 s (Administrador de tareas o `footprint` del banco).
-8. Comprobar a mano (a) a (i) de T2.6 con la barra real, más: cambiar el tema de Windows con la ventana abierta y verla cambiar sin reiniciar.
+8. Comprobar a mano (a) a (i) de T2.6 con la barra real (salvo (d), T-D19), más: cambiar el tema de Windows con la ventana abierta y verla cambiar sin reiniciar.
 
 **Commit:** `feat(terminal): a window with its own title bar, drawn with Direct3D 11 only when something changes`
 
@@ -544,6 +545,25 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Hechos medidos
 
+### T2.6 · Barra de título propia con winit (2026-11-27, `probe_titlebar` en debug, winit 0.30.13, Windows 10.0.26200, dos monitores de 1920×1080; el autor hizo las pruebas)
+
+«Registro» es lo que imprimió la sonda; «autor», lo que él vio.
+
+| Punto | Veredicto | Con qué se sabe |
+|---|---|---|
+| (a) mover y redimensionar | sí | Autor. El registro solo tiene redimensiones desde la esquina superior izquierda |
+| (b) ajuste al arrastrar | sí | Autor |
+| (c) `Win`+flechas | sí | Autor; en la primera apertura el registro muestra las mitades de 960×1032 en los dos monitores |
+| (d) menú de diseños de ajuste | **no** | Autor: no aparece. Coincide con el código de winit, que no responde `HTMAXBUTTON`. T-D19 |
+| (e) maximizada | sí | Registro: área interior en 0,0 y 1920×1032, igual que el área de trabajo leída aparte (a 100 %). Al 125 %, en el segundo monitor: 1920,0 y 1920×1020 (esa área de trabajo no se leyó aparte) |
+| (f) minimizar y restaurar | sí | Autor y registro |
+| (g) menú de la ventana | sí | Autor; el clic derecho está en el registro |
+| (h) otro monitor y escala | sí | Autor y registro: llega `ScaleFactorChanged` con 1.25 y al volver con 1. Se probó maximizada: al pasar a 125 % el tamaño cambió después de 1920×1032 a 1920×1020. No se vio el tamaño propuesto sin maximizar |
+| (i) sombra y esquinas | sí | Autor |
+
+- **El plan se equivocaba en que la sonda no necesitaba dibujar:** sin pintar, la ventana se vio como un cuadro blanco sobre negro que cambiaba al redimensionar y acababa desapareciendo, y no se podía juzgar. Se pintó con GDI, con `windows` como dependencia **de desarrollo** del binario, solo para la sonda (aprobado por el autor). Para T2.7: la ventana tiene que dibujarse desde el principio.
+- El doble clic lo detecta la sonda por tiempo (400 ms): winit no lo avisa.
+
 ### T1.7 · Perfiles (2026-11-26, en release, una ejecución)
 
 | Perfil | Resultado |
@@ -609,8 +629,9 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Estado
 
+- [x] T2.6 (2026-11-27): sonda de winit. Pasa todo menos el menú de diseños de ajuste, y el autor decide vivir sin él (T-D19). **Sigue T2.7 🖥.**
 - [x] T2.5 (2026-11-27): crate `imperifex-ui` con `layout`, los tipos que cruzan capas en `domain` y las dos guardas nuevas, que fallaron al meter a mano un color y un texto sueltos en `ui`. `frame` solo pone el fondo y el lugar de la salida. **Sigue T2.6 🖥:** necesita el permiso del autor.
-- [ ] T2.4 (2026-11-27): programada. La CLI habla español o inglés; los textos con datos usan `{}` y `i18n::fill`. En este PC se leyó `es-MX` y tema oscuro, y la vigilancia arrancó. **Falta la prueba a mano:** cambiar el tema de Windows con `watch_appearance` corriendo y anotar cuánto tarda. Siguen en español los errores que vienen de `platform` y el nombre «Símbolo del sistema» (se ve en el menú de T3.4).
+- [x] T2.4 (2026-11-27): programada y probada. La CLI habla español o inglés; los textos con datos usan `{}` y `i18n::fill`. En este PC se leyó `es-MX` y tema oscuro, y la vigilancia arrancó. A mano: el autor cambió el tema de Windows y confirmó que los cambios llegan; no se midió cuánto tardan. Siguen en español los errores que vienen de `platform` y el nombre «Símbolo del sistema» (se ve en el menú de T3.4).
 - [x] T2.3 (2026-11-27): `Settings`, lectura campo a campo, `SettingsService` y el archivo (probado en carpetas temporales; nada lo usa todavía). Decidido al programar: si el archivo no se puede leer o copiar, **no se escribe sobre él** (texto `SettingsLocked`); una copia dañada igual a una anterior no se repite; `SettingsService::load` devuelve el servicio, no solo los ajustes.
 - [x] T2.2 (2026-11-27): `domain::theme` (tema, paletas, contraste, colores de una celda) y `domain::space`. Las pruebas confirman los contrastes que dice el plan.
 - [x] T2.1 (2026-11-27): `domain::i18n` (regla del idioma, `strings!`, plurales y números). La prueba `compile_fail` y su gemela que sí compila pasan.
