@@ -609,6 +609,7 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Estado
 
+- [x] T2.2 (2026-11-27): `domain::theme` (tema, paletas, contraste, colores de una celda) y `domain::space`. Las pruebas confirman los contrastes que dice el plan.
 - [x] T2.1 (2026-11-27): `domain::i18n` (regla del idioma, `strings!`, plurales y números). La prueba `compile_fail` y su gemela que sí compila pasan.
 - [x] T1.7 (2026-11-26): perfiles como datos; `powershell` y `cmd` probados; `pwsh` y `wsl` sin probar. **T1 completo. PAUSA:** antes de T2 se cierran A2 a A5 y el planificador escribe sus pasos.
 - 2026-11-27: A2 a A5 cerradas (T-D13 a T-D16). Faltan los pasos de T2.

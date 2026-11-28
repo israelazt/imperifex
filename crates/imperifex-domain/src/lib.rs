@@ -13,4 +13,6 @@ pub mod log;
 pub mod ports;
 pub mod sequence;
 pub mod shell;
+pub mod space;
 pub mod terminal;
+pub mod theme;
