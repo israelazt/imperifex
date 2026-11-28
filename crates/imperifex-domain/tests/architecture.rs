@@ -58,52 +58,64 @@ fn dependencies_of(krate: &str) -> Vec<String> {
     names
 }
 
+/// crate -> every dependency it may have. Dependencies go only downward:
+/// domain <- platform, app and ui <- the binary. A new one is added here with
+/// a reason.
+const ALLOWED: [(&str, &[&str]); 9] = [
+    // unicode-width: how many columns a character takes (T-D12). Pure
+    // tables kept up to date with Unicode, better than our own.
+    (
+        "imperifex-domain",
+        &["serde", "serde_json", "unicode-width"],
+    ),
+    // vte: splits the bytes of a shell into sequences (T-D11), behind
+    // the `SequenceParser` port. What they mean is decided in domain.
+    (
+        "imperifex-platform",
+        &["imperifex-domain", "vte", "windows"],
+    ),
+    ("imperifex-app", &["imperifex-domain"]),
+    // The interface only knows the domain: what it shows arrives in a
+    // `Model` and it answers with a `DrawList` and `Action`s.
+    ("imperifex-ui", &["imperifex-domain"]),
+    // winit: the window and its events (T-D15), only in the program.
+    (
+        "imperifex",
+        &[
+            "imperifex-domain",
+            "imperifex-platform",
+            "imperifex-app",
+            "imperifex-ui",
+            "winit",
+        ],
+    ),
+    (
+        "imperifex-bench-domain",
+        &["imperifex-domain", "serde", "serde_json"],
+    ),
+    (
+        "imperifex-bench-platform",
+        &["imperifex-bench-domain", "imperifex-domain", "windows"],
+    ),
+    (
+        "imperifex-bench-app",
+        &["imperifex-bench-domain", "imperifex-domain"],
+    ),
+    (
+        "imperifex-bench",
+        &[
+            "imperifex-domain",
+            "imperifex-platform",
+            "imperifex-bench-domain",
+            "imperifex-bench-platform",
+            "imperifex-bench-app",
+        ],
+    ),
+];
+
 #[test]
 fn each_crate_depends_only_on_what_the_layers_allow() {
-    // crate -> every dependency it may have. Dependencies go only downward:
-    // domain <- platform, app <- the binary. A new one is added here with a reason.
-    let allowed: [(&str, &[&str]); 8] = [
-        // unicode-width: how many columns a character takes (T-D12). Pure
-        // tables kept up to date with Unicode, better than our own.
-        (
-            "imperifex-domain",
-            &["serde", "serde_json", "unicode-width"],
-        ),
-        // vte: splits the bytes of a shell into sequences (T-D11), behind
-        // the `SequenceParser` port. What they mean is decided in domain.
-        (
-            "imperifex-platform",
-            &["imperifex-domain", "vte", "windows"],
-        ),
-        ("imperifex-app", &["imperifex-domain"]),
-        (
-            "imperifex",
-            &["imperifex-domain", "imperifex-platform", "imperifex-app"],
-        ),
-        (
-            "imperifex-bench-domain",
-            &["imperifex-domain", "serde", "serde_json"],
-        ),
-        (
-            "imperifex-bench-platform",
-            &["imperifex-bench-domain", "imperifex-domain", "windows"],
-        ),
-        (
-            "imperifex-bench-app",
-            &["imperifex-bench-domain", "imperifex-domain"],
-        ),
-        (
-            "imperifex-bench",
-            &[
-                "imperifex-domain",
-                "imperifex-platform",
-                "imperifex-bench-domain",
-                "imperifex-bench-platform",
-                "imperifex-bench-app",
-            ],
-        ),
-    ];
-    for (krate, may) in allowed {
+    for (krate, may) in ALLOWED {
         assert!(
             !dependencies_of(krate).is_empty(),
             "no dependencies read for {krate}: the parser is broken"
@@ -268,6 +280,94 @@ fn unsafe_lives_only_in_platform() {
         "unsafe code belongs in a platform crate, behind a port:\n{}",
         offenders.join("\n")
     );
+}
+
+/// A colour written by hand: built from numbers, one of the constants, or as
+/// `#RRGGBB`, `0xRRGGBB` or `0xAARRGGBB`.
+fn has_a_loose_colour(code: &str) -> bool {
+    let hex_after = |mark: &str, lengths: &[usize]| {
+        code.match_indices(mark).any(|(at, _)| {
+            let rest = &code[at + mark.len()..];
+            let digits = rest
+                .chars()
+                .take_while(|c| c.is_ascii_hexdigit() || *c == '_')
+                .filter(|c| *c != '_')
+                .count();
+            lengths.contains(&digits)
+        })
+    };
+    code.contains("Rgb(")
+        || code.contains("Rgb::")
+        || hex_after("#", &[6])
+        || hex_after("0x", &[6, 8])
+}
+
+/// A text written by hand: any quote that is not part of an empty `""`.
+fn has_a_loose_text(code: &str) -> bool {
+    code.replace("\"\"", "").contains('"')
+}
+
+/// The lines of the interface's own code, tests aside, where `wrong` is found.
+/// Whole lines are looked at, comments removed only when they start the line: a
+/// `//` inside a text must not hide it.
+fn in_the_interface(wrong: fn(&str) -> bool) -> Vec<String> {
+    let interface = "crates/imperifex-ui/";
+    let files: Vec<_> = product_files()
+        .into_iter()
+        .filter(|(_, shown)| shown.starts_with(interface) && !shown.ends_with("/tests.rs"))
+        .collect();
+    assert!(!files.is_empty(), "no file of the interface was read");
+    let mut offenders = Vec::new();
+    for (path, shown) in files {
+        let text = fs::read_to_string(&path).unwrap();
+        for (at, line) in before_the_tests_module(&text).lines().enumerate() {
+            if !line.trim_start().starts_with("//") && wrong(line) {
+                offenders.push(format!("{shown}:{}", at + 1));
+            }
+        }
+    }
+    offenders
+}
+
+#[test]
+fn ui_has_no_loose_colours() {
+    let offenders = in_the_interface(has_a_loose_colour);
+    assert!(
+        offenders.is_empty(),
+        "the interface takes its colours from the model's palette:\n{}",
+        offenders.join("\n")
+    );
+}
+
+#[test]
+fn ui_has_no_loose_visible_text() {
+    let offenders = in_the_interface(has_a_loose_text);
+    assert!(
+        offenders.is_empty(),
+        "the interface takes its texts from `Text` or from the model:\n{}",
+        offenders.join("\n")
+    );
+}
+
+#[test]
+fn the_guards_of_the_interface_know_what_they_look_for() {
+    for code in [
+        "let c = Rgb(1, 2, 3);",
+        "let c = Rgb::BLACK;",
+        "fill(#A0b1C2)",
+        "hex(0x0F0F10)",
+        "hex(0xFF_0F_0F_10)",
+    ] {
+        assert!(has_a_loose_colour(code), "{code}");
+    }
+    for code in ["#[derive(Debug)]", "let mask = 0xFF;", "palette.surface"] {
+        assert!(!has_a_loose_colour(code), "{code}");
+    }
+    assert!(has_a_loose_text(r#"label("Close")"#));
+    assert!(has_a_loose_text(r#"open("https://x")"#));
+    assert!(has_a_loose_text(r#"join("", " ")"#));
+    assert!(!has_a_loose_text(r#"let empty = "";"#));
+    assert!(!has_a_loose_text("text(model.language, Text::Close)"));
 }
 
 #[test]

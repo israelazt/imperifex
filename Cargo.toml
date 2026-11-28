@@ -4,6 +4,7 @@ members = [
     "crates/imperifex-domain",
     "crates/imperifex-platform",
     "crates/imperifex-app",
+    "crates/imperifex-ui",
     "apps/imperifex",
     "crates/imperifex-bench-domain",
     "crates/imperifex-bench-platform",

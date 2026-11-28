@@ -1,0 +1,13 @@
+[package]
+name = "imperifex-ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+# The interface: from a model to what is drawn and what the user asked for. It
+# only knows the domain, and has no colours or texts of its own.
+[dependencies]
+imperifex-domain = { path = "../imperifex-domain" }

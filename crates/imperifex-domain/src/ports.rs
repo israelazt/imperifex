@@ -5,6 +5,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::draw::UiFont;
 use crate::sequence::Sequence;
 
 /// The clock: a monotonic time to measure how long things take, and waiting.
@@ -23,6 +24,13 @@ pub trait Clock {
 /// passed on, except an OSC, which arrives cut short.
 pub trait SequenceParser {
     fn parse(&mut self, bytes: &[u8], receive: &mut dyn FnMut(Sequence<'_>));
+}
+
+/// How much room the texts of the interface take, in physical pixels at the
+/// system's `scale`.
+pub trait TextMeasure {
+    fn width(&self, text: &str, font: UiFont, scale: f32) -> u32;
+    fn line_height(&self, font: UiFont, scale: f32) -> u32;
 }
 
 /// Telling whoever waits that there is something new. It may be called from any

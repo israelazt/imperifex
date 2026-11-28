@@ -5,6 +5,7 @@
 #![forbid(unsafe_code)]
 
 pub mod command_line;
+pub mod draw;
 pub mod example;
 pub mod grid;
 pub mod i18n;
@@ -17,3 +18,4 @@ pub mod shell;
 pub mod space;
 pub mod terminal;
 pub mod theme;
+pub mod view;
