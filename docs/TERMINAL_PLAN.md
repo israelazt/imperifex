@@ -609,6 +609,7 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 
 ## Estado
 
+- [ ] T2.4 (2026-11-27): programada. La CLI habla español o inglés; los textos con datos usan `{}` y `i18n::fill`. En este PC se leyó `es-MX` y tema oscuro, y la vigilancia arrancó. **Falta la prueba a mano:** cambiar el tema de Windows con `watch_appearance` corriendo y anotar cuánto tarda. Siguen en español los errores que vienen de `platform` y el nombre «Símbolo del sistema» (se ve en el menú de T3.4).
 - [x] T2.3 (2026-11-27): `Settings`, lectura campo a campo, `SettingsService` y el archivo (probado en carpetas temporales; nada lo usa todavía). Decidido al programar: si el archivo no se puede leer o copiar, **no se escribe sobre él** (texto `SettingsLocked`); una copia dañada igual a una anterior no se repite; `SettingsService::load` devuelve el servicio, no solo los ajustes.
 - [x] T2.2 (2026-11-27): `domain::theme` (tema, paletas, contraste, colores de una celda) y `domain::space`. Las pruebas confirman los contrastes que dice el plan.
 - [x] T2.1 (2026-11-27): `domain::i18n` (regla del idioma, `strings!`, plurales y números). La prueba `compile_fail` y su gemela que sí compila pasan.

@@ -3,6 +3,8 @@
 
 use serde::Serialize;
 
+use crate::i18n::{fill, Language, Text};
+
 /// What `status` found.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct StatusReport {
@@ -12,8 +14,8 @@ pub struct StatusReport {
 }
 
 impl StatusReport {
-    pub fn to_text(&self) -> String {
-        format!("Imperifex {} funciona · {} ms", self.version, self.took_ms)
+    pub fn to_text(&self, language: Language) -> String {
+        fill(language, Text::StatusWorks, &[&self.version, &self.took_ms])
     }
 
     pub fn to_json(&self) -> String {
@@ -34,7 +36,8 @@ mod tests {
 
     #[test]
     fn the_text_says_it_works_and_how_long_it_took() {
-        assert_eq!(report().to_text(), "Imperifex 0.1.0 funciona · 3 ms");
+        let text = report().to_text(Language::Spanish);
+        assert_eq!(text, "Imperifex 0.1.0 funciona · 3 ms");
     }
 
     #[test]

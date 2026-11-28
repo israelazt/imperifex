@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use imperifex_domain::i18n::Language;
 use imperifex_domain::theme::ThemeChoice;
 
 use super::*;
@@ -90,4 +91,12 @@ fn a_failed_write_is_an_error_and_can_be_tried_again() {
     assert!(service.save(dark()).is_err());
     assert_eq!(service.settings(), &Settings::default());
     assert!(service.save(dark()).is_err());
+}
+
+#[test]
+fn a_notice_is_said_in_the_users_language_with_its_detail() {
+    let kept = "la-copia.json".to_string();
+    let said = Notice::Damaged { kept }.text(Language::English);
+    assert!(said.starts_with("The settings file is damaged"), "{said}");
+    assert!(said.ends_with("(la-copia.json)"), "{said}");
 }

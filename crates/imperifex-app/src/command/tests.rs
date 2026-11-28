@@ -1,11 +1,13 @@
 use std::time::Duration;
 
+use imperifex_domain::i18n::{text, Text};
+
 use super::*;
 use crate::testing::{data, FakeClock, FakeLauncher, FakeParser, Script};
 
 fn parse(line: &str) -> Result<Command, String> {
     let args: Vec<&str> = line.split_whitespace().collect();
-    Command::parse(&args)
+    Command::parse(&args, Language::Spanish)
 }
 
 fn output(command: &Command, launcher: &FakeLauncher) -> Output {
@@ -16,7 +18,7 @@ fn output(command: &Command, launcher: &FakeLauncher) -> Output {
         parser: &mut FakeParser,
         clock: &clock,
     };
-    command.run(&service, shells)
+    command.run(&service, shells, Language::Spanish)
 }
 
 fn ran(line: &str, script: Script) -> Output {
@@ -26,7 +28,8 @@ fn ran(line: &str, script: Script) -> Output {
 #[test]
 fn help_is_the_default_and_status_takes_its_options() {
     let none: [&str; 0] = [];
-    assert_eq!(Command::parse(&none).unwrap(), Command::Help);
+    let help = Command::parse(&none, Language::Spanish).unwrap();
+    assert_eq!(help, Command::Help);
     assert_eq!(
         parse("status --json").unwrap(),
         Command::Status { json: true }
@@ -60,7 +63,7 @@ fn run_takes_a_size_a_time_and_the_program_with_its_arguments() {
 #[test]
 fn with_a_profile_the_one_command_is_written_for_its_shell() {
     let args = ["run", "--headless", "--profile", "cmd", "--", "echo a b"];
-    let Command::Run(options) = Command::parse(&args).unwrap() else {
+    let Command::Run(options) = Command::parse(&args, Language::Spanish).unwrap() else {
         panic!("not a run");
     };
     assert_eq!(
@@ -71,8 +74,11 @@ fn with_a_profile_the_one_command_is_written_for_its_shell() {
 
 #[test]
 fn the_help_names_every_profile() {
-    for profile in imperifex_domain::shell::PROFILES {
-        assert!(HELP.contains(profile.id), "{}", profile.id);
+    for language in Language::ALL {
+        for profile in imperifex_domain::shell::PROFILES {
+            let help = text(language, Text::Help);
+            assert!(help.contains(profile.id), "{language:?} {}", profile.id);
+        }
     }
 }
 
@@ -134,4 +140,21 @@ fn a_bad_ending_is_not_fine_and_is_explained() {
     let stuck = ran("run --headless --timeout 1 -- p", Script::default());
     assert!(!stuck.ok);
     assert!(stuck.notice.unwrap().contains("4321"));
+}
+
+#[test]
+fn in_english_the_help_and_the_errors_are_in_english() {
+    let service = StatusService::new(FakeClock::ticking(2));
+    let launcher = FakeLauncher::default();
+    let clock = FakeClock::ticking(10);
+    let shells = Shells {
+        launcher: &launcher,
+        parser: &mut FakeParser,
+        clock: &clock,
+    };
+    let help = Command::Help.run(&service, shells, Language::English);
+    assert!(help.text.contains("Usage:"), "{}", help.text);
+    assert!(help.text.contains("-- \"<command>\""), "{}", help.text);
+    let error = Command::parse(&["fly"], Language::English).unwrap_err();
+    assert_eq!(error, "unknown command: fly");
 }

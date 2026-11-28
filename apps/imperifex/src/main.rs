@@ -4,6 +4,34 @@
 
 #![forbid(unsafe_code)]
 
+/// The language of what is printed: the one chosen in the settings, or the
+/// system's. What is wrong with the settings file is said in it.
+#[cfg(windows)]
+fn language() -> imperifex_domain::i18n::Language {
+    use imperifex_app::settings::SettingsService;
+    use imperifex_domain::i18n::{resolve_language, LanguageChoice};
+    use imperifex_domain::ports::SystemLanguage;
+    use imperifex_platform::{FileSettingsStore, WindowsLanguage};
+
+    let loaded = match FileSettingsStore::in_app_data() {
+        Ok(store) => Some(SettingsService::load(Box::new(store))),
+        Err(error) => {
+            imperifex_domain::log_warn!("no settings: {error}");
+            None
+        }
+    };
+    let choice = loaded
+        .as_ref()
+        .map_or(LanguageChoice::System, |(service, _)| {
+            service.settings().language
+        });
+    let language = resolve_language(choice, WindowsLanguage.locale().as_deref());
+    if let Some(notice) = loaded.and_then(|(_, notice)| notice) {
+        imperifex_domain::log_warn!("{}", notice.text(language));
+    }
+    language
+}
+
 #[cfg(windows)]
 fn main() {
     use imperifex_app::{Command, Shells, StatusService};
@@ -11,7 +39,8 @@ fn main() {
 
     install_stderr_log();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let command = match Command::parse(&args) {
+    let language = language();
+    let command = match Command::parse(&args, language) {
         Ok(command) => command,
         Err(error) => {
             imperifex_domain::log_error!("{error}");
@@ -24,7 +53,7 @@ fn main() {
         parser: &mut VteParser::new(),
         clock: &SystemClock::new(),
     };
-    let output = command.run(&status, shells);
+    let output = command.run(&status, shells, language);
     if !output.text.is_empty() {
         println!("{}", output.text);
     }

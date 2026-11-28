@@ -1,6 +1,7 @@
 //! The settings while the program runs: read once, and written only when they
 //! change. A damaged file is copied before anything can write over it.
 
+use imperifex_domain::i18n::{text, Language, Text};
 use imperifex_domain::ports::SettingsStore;
 use imperifex_domain::settings::Settings;
 use imperifex_domain::{log_info, log_warn};
@@ -12,6 +13,17 @@ pub enum Notice {
     Damaged { kept: String },
     /// It could not be read, or not copied: it is left alone.
     Locked { reason: String },
+}
+
+impl Notice {
+    /// What to tell the user, with where the copy is or why nothing is written.
+    pub fn text(&self, language: Language) -> String {
+        let (key, detail) = match self {
+            Self::Damaged { kept } => (Text::SettingsDamaged, kept),
+            Self::Locked { reason } => (Text::SettingsLocked, reason),
+        };
+        format!("{} ({detail})", text(language, key))
+    }
 }
 
 pub struct SettingsService {

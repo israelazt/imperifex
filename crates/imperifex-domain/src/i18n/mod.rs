@@ -7,7 +7,7 @@ pub mod strings;
 
 use serde::{Deserialize, Serialize};
 
-pub use strings::{text, Text};
+pub use strings::{fill, text, Text};
 
 /// What the user chose.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]

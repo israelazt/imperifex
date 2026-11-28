@@ -2,6 +2,7 @@
 //! and not by how Windows (or another system) gives it. The real adapters live
 //! in `imperifex-platform`; the tests use fakes.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::sequence::Sequence;
@@ -22,6 +23,24 @@ pub trait Clock {
 /// passed on, except an OSC, which arrives cut short.
 pub trait SequenceParser {
     fn parse(&mut self, bytes: &[u8], receive: &mut dyn FnMut(Sequence<'_>));
+}
+
+/// Telling whoever waits that there is something new. It may be called from any
+/// thread, so it only passes the word on.
+pub type Wake = Arc<dyn Fn() + Send + Sync>;
+
+/// Whether the system is set to light or dark.
+pub trait SystemAppearance {
+    fn dark(&self) -> Result<bool, String>;
+    /// From now until the program ends, calls `changed` when the setting may
+    /// have changed: `dark` says what it is now.
+    fn watch(&self, changed: Wake) -> Result<(), String>;
+}
+
+/// The language the system speaks to the user.
+pub trait SystemLanguage {
+    /// A tag such as `es-MX`; `None` when it cannot be known.
+    fn locale(&self) -> Option<String>;
 }
 
 /// Where the settings file is kept.
