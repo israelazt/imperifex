@@ -6,11 +6,27 @@
 
 ## Objetivo
 
-Una terminal que el autor use a diario en lugar de Warp, con el aspecto de `design/screen.png` (sin lo que no hace falta), tema claro y oscuro, español e inglés, y un panel que diga qué hacen sus agentes de consola.
+Una terminal que el autor use a diario en lugar de Warp, con el aspecto de las imágenes de `design/` (T-D20), tema claro y oscuro, español e inglés, y un panel que diga qué hacen sus agentes de consola.
 
-## Qué se queda y qué se va del diseño
+## La referencia de diseño (desde el 2026-11-27)
 
-La imagen es la referencia de estilo, no una especificación.
+Siete imágenes en `design/`, exportadas del lienzo de diseño del autor «Imperifex — terminal para Windows». Sustituyen a la primera imagen, `design/screen.png`, que se borró. Para eso se escribió la sección siguiente, y el diseño nuevo ya aplica lo que esa sección decide.
+
+| Imagen | Muestra |
+|---|---|
+| `Oscuro · español · panel de agentes.png` | La ventana completa: pestañas, barra de contexto, bloques, panel abierto y barra de estado |
+| `Claro · español.png` | Lo mismo en tema claro |
+| `Light · English.png` | Lo mismo en inglés |
+| `Sin integración con la shell terminal normal.png` | Sin OSC 133: la salida seguida, sin bloques ni márgenes entre órdenes |
+| `Pantalla completa (vim) todo el ancho.png` | Pantalla alternativa: sin margen alrededor de la salida (T-D5) |
+| `Panel de agentes estados.png` | Las cinco tarjetas, en los dos temas |
+| `Color, espaciado y letra.png` | Los tokens, los ANSI, la escala y la letra |
+
+Los números exactos (colores, tamaños) están en «Diseño: tema» y «Diseño: medidas». Las imágenes son 1280×800 lógicos exportados a 2×: un píxel de las imágenes es medio píxel lógico.
+
+## Qué se queda y qué se va de la primera imagen
+
+La imagen era la referencia de estilo, no una especificación.
 
 ### Se queda
 
@@ -21,7 +37,7 @@ La imagen es la referencia de estilo, no una especificación.
 | Carpeta, botón de copiar, rama y commits por subir | Barra de contexto de la pestaña activa; se oculta lo que no se sabe |
 | Bloques por orden: prompt, orden, duración y resultado | Resultado = bien o código de salida |
 | Panel de agentes | Con datos reales; oculto por defecto, con atajo y un contador en la barra de estado |
-| Paleta oscura con acento cian y fuente monoespaciada | Como tokens de tema, más su versión clara |
+| Paleta oscura con acento cian y fuente monoespaciada | Como tokens de tema, más su versión clara. Desde T-D20, gris neutro con acento verde menta |
 | Barra de estado | Mínima: perfil de la pestaña, agentes (trabajando / esperando) y avisos |
 
 ### Se va
@@ -65,6 +81,8 @@ La imagen es la referencia de estilo, no una especificación.
 | T-D17 | **Contraste mínimo en la cuadrícula:** si la letra y el fondo de una celda contrastan menos de **2:1**, el color de la letra se acerca al blanco o al negro (el que más contraste dé con ese fondo) hasta llegar a **3:1**. Por encima de 2:1, los colores son los del programa. Se puede apagar (`Settings`; pantalla en T3.5) | Elegido por el autor (2026-11-27). Ejemplo: la sugerencia de PSReadLine (`ESC[97;2;3m`, blanco brillante atenuado) no se vería sobre el fondo claro |
 | T-D18 | **Entrada mínima provisional en T2** (T2.9): el texto tal como lo da Windows, Enter, Retroceso, Tab, Esc y las flechas. Lo demás (`AltGr`, teclas muertas, IME, atajos) sigue en T3.1, que la sustituye | Elegido por el autor (2026-11-27): sin escribir no se puede ver PSReadLine ni Claude Code reales, que A7 necesita |
 | T-D19 | La barra de título propia **no tendrá el menú de diseños de ajuste** de Windows 11 (el que sale al dejar el ratón sobre maximizar). No se reemplaza el procedimiento de ventana de winit. T-D15 queda confirmada: se usa `winit` | Elegido por el autor (2026-11-27), tras la sonda T2.6. Ajustar arrastrando y con `Win`+flechas sí funciona |
+| T-D20 | **El diseño nuevo de `design/` es la referencia** (ver «La referencia de diseño»). Trae: paleta gris neutra con acento **verde menta** en lugar del cian; **ANSI nuevos**, con el «blanco» (7 y 15) **gris oscuro en el tema claro**; la interfaz en **Segoe UI Variable** (13 px; 12 px los secundarios) y la salida en Cascadia Mono; el panel de agentes de 340 px **quita columnas** a la salida; las pestañas llevan el icono del agente que espera o terminó; el panel ordena Esperando, Trabajando, Terminado, Inactivo, Desconocido | Elegido por el autor (2026-11-27): «Este va a ser el nuevo diseño» |
+| T-D21 | Para que la paleta nueva pase la prueba de 4,5:1 en el tema claro, dos ANSI se oscurecen lo mínimo: 9 `#C9372C` → **`#C2352A`** y 10 `#467A00` → **`#437600`** (4,52 y 4,53:1 sobre `raised`; antes 4,26 y 4,29). A simple vista no cambian | Propuesta del planificador (2026-11-27), aplicando la regla de contraste del plan; el autor puede volver a los del lienzo |
 
 ## Decisiones abiertas (cada una se cierra antes de su bloque)
 
@@ -72,6 +90,9 @@ La imagen es la referencia de estilo, no una especificación.
 |---|---|---|---|
 | A7 | ¿Qué ancho damos a lo que ConPTY cuenta distinto (acentos sueltos, emojis compuestos, banderas)? Ver «Hechos medidos», T1.6 | Antes de decidir, ver en T2 qué pasa con PSReadLine y Claude Code reales. Candidata: contar como ConPTY, que es quien coloca el cursor en Windows; falta comprobar qué hacen los programas de WSL | T3 |
 | A6 | ¿Qué otras funciones de Warp necesitas? | Decidirlo al terminar T3, usando ya Imperifex | T5 |
+| A8 | El diseño nombra las pestañas por perfil, y dos «PowerShell» no se distinguen. ¿Qué nombre lleva una pestaña? | El título que pone el programa (OSC 0); si no pone ninguno, el perfil | T3.4 |
+| A9 | La duración, el resultado y «Copiar salida» van en la fila de la orden, a la derecha, encima de la cuadrícula. Si la orden llega hasta ahí, ¿qué pasa? | Se dibujan solo si esas celdas están vacías; si no, al pasar el ratón por el bloque. Nunca tapan texto ni se reservan columnas (la shell no lo sabría) | T5.2 |
+| A10 | El diseño deja unos 8 px y una línea entre bloques. Las filas de la cuadrícula van pegadas y la shell cuenta con un número fijo de filas. ¿Espacio de verdad entre bloques? | No: la línea se dibuja en el borde entre dos filas y el fondo del bloque elegido ocupa sus filas enteras. Espacio de verdad haría variar las filas que caben según cuántos bloques se vean | T5.2 |
 
 ## Fuera de este plan
 
@@ -115,20 +136,38 @@ Crate nuevo: `imperifex-ui` (depende solo de `domain`), añadido a la tabla de l
 
 Regla pura: `resolve_theme(choice, system) -> Theme`. El sistema llega por un puerto (`SystemAppearance`), que también avisa cuando cambia.
 
+Valores del diseño nuevo (T-D20), copiados del código del lienzo el 2026-11-27. Los de antes (cian, `#131315`…) quedan en el historial de git.
+
 | Token | Oscuro | Claro | Uso |
 |---|---|---|---|
-| `background` | `#131315` | `#F4F4F5` | Ventana |
-| `surface` | `#0F0F10` | `#FFFFFF` | Salida |
-| `raised` | `#1C1C1F` | `#E9E9EC` | Pestaña activa, tarjetas |
-| `text` | `#E4E4E7` | `#18181B` | Texto |
-| `muted` | `#9A9AA3` | `#55555E` | Texto secundario |
-| `accent` | `#4CD7F6` | `#006781` | Prompt, cursor, selección |
-| `ok` | `#4ADE9B` | `#0F6B42` | Bien, trabajando |
+| `background` | `#202020` | `#F4F4F5` | Ventana, barras, panel |
+| `surface` | `#1A1A1A` | `#FFFFFF` | Salida |
+| `raised` | `#2D2D2D` | `#E9E9EC` | Pestaña activa, tarjetas, bloque elegido, botón de la paleta |
+| `text` | `#E4E4E4` | `#18181B` | Texto |
+| `muted` | `#A6A6A6` | `#55555E` | Texto secundario, iconos de la barra |
+| `accent` | `#6EE7C0` | `#006B54` | Prompt (si lo pinta Imperifex), cursor, selección |
+| `ok` | `#A5D66F` | `#3D6B00` | Bien, trabajando |
 | `warning` | `#F5C451` | `#7A5200` | Aviso |
 | `error` | `#FF7B72` | `#B3261E` | Falló |
 | `waiting` | `#C4A7FF` | `#6A3FC0` | El agente espera al autor |
+| `line` (nuevo) | `#383838` | `#DEDEE2` | Separador entre bloques y borde del panel. Es decoración: no lleva texto |
+| `close_hover` (nuevo) | `#C42B1C` | `#C42B1C` | Fondo de cerrar al pasar el ratón, con la equis en `#FFFFFF` (5,66:1), como en Windows |
 
-Los valores oscuros son una aproximación a ojo de la imagen, no medidos de ella; el gris se aclaró para que se lea. Medido el 2026-11-25: los siete colores de texto dan al menos 5,3:1 sobre los tres fondos de su tema. Una prueba exige 4,5:1.
+Medido el 2026-11-27 con la fórmula de WCAG sobre los tres fondos de cada tema (`background`, `surface`, `raised`): los siete colores de texto dan **al menos 5,25:1** (el peor, `ok` claro). La prueba sigue exigiendo 4,5:1. El cursor (letra `surface` sobre `accent`) da 11,5:1 en oscuro y 6,5:1 en claro.
+
+**ANSI del diseño nuevo** (sustituyen a los de los pasos de T2.2; con T-D21 aplicada):
+
+| Índice | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|---|
+| Oscuro | `#5C5C5C` | `#FF7B72` | `#A5D66F` | `#F5C451` | `#7AA7FF` | `#E08BF0` | `#4CD7F6` | `#CACACA` |
+| Claro | `#18181B` | `#B3261E` | `#3D6B00` | `#7A5200` | `#1F4FBF` | `#8A2E9E` | `#006781` | `#55555E` |
+
+| Índice | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
+|---|---|---|---|---|---|---|---|---|
+| Oscuro | `#8C8C8C` | `#FFA198` | `#C2E89A` | `#FFD97A` | `#A5C3FF` | `#EDB1F7` | `#8BE6FA` | `#F4F4F5` |
+| Claro | `#6B6B74` | `#C2352A` | `#437600` | `#8A5D00` | `#2B5FD9` | `#9E3BB3` | `#00708C` | `#3F3F46` |
+
+Contraste medido (el peor de los tres fondos): índices 1 a 7 y 9 a 15, **al menos 4,52:1** en los dos temas; el 8, 4,10:1 en oscuro y 4,35:1 en claro. El 0 oscuro (`#5C5C5C`, 2,06:1) es el «negro», que se usa sobre todo como fondo. **El blanco del tema claro es gris oscuro** (T-D20): lo que un programa escribe en blanco se lee sobre blanco. Lo que pinta «negro sobre blanco» a propósito (`ESC[30;47m`) queda negro sobre gris oscuro, y lo sostiene el contraste mínimo (T-D17).
 
 El estado nunca se dice solo con color: lleva también icono o palabra.
 
@@ -151,7 +190,21 @@ La idea se toma del `rem` de CSS, y **solo la idea** (T-D9): una base, normalmen
 - **En el código:** un `enum Space` en `domain`; `ui` no escribe márgenes ni rellenos como números sueltos. Si hace falta un paso más (48, 64), se añade a la escala.
 - **No es espaciado:** bordes de 1 px, radios, iconos y tamaño de letra tienen sus propios valores.
 - **La cuadrícula queda fuera:** dentro de la salida mandan las celdas, cuyo ancho y alto vienen de la fuente. La escala se aplica alrededor, no entre filas ni columnas. Lo que sobre al dividir el área en celdas queda como margen abajo y a la derecha.
-- **Coste en la salida:** 16 a cada lado quita unas 4 columnas (estimado para celdas de unos 8,4 px de ancho; se confirma con la fuente elegida). La pantalla alternativa sigue sin márgenes (T-D5).
+- **Coste en la salida:** 16 a cada lado quita unas 3,5 columnas (celdas de 9 px a 100 %, medidas en T2.8). La pantalla alternativa sigue sin márgenes (T-D5).
+
+## Diseño: medidas (del lienzo, 2026-11-27)
+
+En píxeles lógicos a 100 %. Lo que es espacio usa `Space` (entre paréntesis); el resto son constantes con nombre en `ui/src/metrics.rs`.
+
+| Parte | Medidas |
+|---|---|
+| Letra | Interfaz: `Segoe UI Variable Text` (si no está, `Segoe UI`), 13 px; secundarios y atajos, 12 px; títulos del panel, 14 px en peso 600. Salida: Cascadia Mono, 12 pt = 16 px, celda de 9×19. Iconos: Segoe Fluent Icons; el código de cada glifo se elige mirando la fuente y se anota en el commit |
+| Barra de título | 40 de alto, fondo `background`, sangría izquierda (`S`). Pestaña: 32 de alto, radio 6, relleno lateral (`M`), icono de 16 a (`S`) del nombre, (`Xs`) entre pestañas. La activa va en `raised` con `text`; las demás, sin fondo y en `muted`. Icono de agente a la derecha del nombre: `waiting` si espera, `ok` si terminó. `+` de 32×32 y `⌄` de 24×32, juntos. Botón de la paleta: 28 de alto, `raised`, texto `muted` de 12 px con el atajo, relleno (`M`), a (`M`) de los botones de ventana. Botones de ventana: 46×40, iconos de 10 |
+| Barra de contexto | 32 de alto, relleno lateral (`L`), (`Xl`) entre grupos, 12 px `muted`. Carpeta en Cascadia y en `text`, botón de copiar de 28×28 con radio 6. Rama y `↑N` en `text`; sin repositorio no se muestran |
+| Salida | Fondo `surface`, (`L`) alrededor; en la pantalla alternativa, 0 |
+| Bloques | Separador de 1 px en `line`. Bloque elegido: fondo `raised`, radio 4, sobresale (`S`) a cada lado. En la fila de la orden, a la derecha y separados por (`M`): «Copiar salida» (solo en el elegido; 24 de alto, radio 4, fondo `surface`), la duración (12 px `muted`, coma decimal en español) y ✓ en `ok`, o ✗ y el código en `error` y en Cascadia. Ver A9 y A10 |
+| Panel de agentes | 340 de ancho, fondo `background`, borde izquierdo de 1 px en `line`, relleno (`L`), (`M`) entre partes. Cabecera: «Agentes», el atajo `Ctrl+Shift+A` y cerrar (28×28). Tarjetas a (`S`) entre sí: relleno (`M`), radio 8, fondo `raised`, y un borde de 1 px en `waiting` si espera. Dentro, a (`S`): nombre (600) con el estado a la derecha (icono de 16 y palabra, 12 px, 600, en su color: `waiting`, `ok`, `text`, `muted`, `muted`); «pestaña · carpeta» (12 px `muted`, carpeta en Cascadia); el aviso en `text` («sin datos» en `muted`); desde cuándo (12 px `muted`). Abajo, el enlace «Ajustes → Agentes» |
+| Barra de estado | 28 de alto, relleno lateral (`L`), (`Xl`) entre grupos, 12 px `muted`. Izquierda: icono y perfil de la pestaña. Derecha: el botón de los contadores (trabajando en `ok`, esperando en `waiting`, el número en `text`; 24 de alto, radio 4, fondo `raised` con el panel abierto), que abre el panel, y los avisos con su campana |
 
 ## Diseño: idioma
 
@@ -177,7 +230,7 @@ Una tarjeta por agente: nombre, pestaña, carpeta, estado, desde cuándo y su ú
 | `Unknown` | Se detectó el proceso, pero no informa su estado |
 | (desaparece) | El proceso salió |
 
-Primero van los que esperan. Un clic lleva a su pestaña. Si la ventana no está a la vista, `Waiting` y `Done` pueden avisar en Windows (se apaga en Ajustes).
+Orden (T-D20): Esperando, Trabajando, Terminado, Inactivo, Desconocido. La pestaña del agente lleva también su icono cuando espera o terminó, para verlo con el panel cerrado. Un clic lleva a su pestaña. Abrir el panel quita columnas a la salida, como cambiar el tamaño de la ventana (con la espera de T2.9). Si la ventana no está a la vista, `Waiting` y `Done` pueden avisar en Windows (se apaga en Ajustes).
 
 ### De dónde salen los datos (sin verificar: lo confirma la sonda A0)
 
@@ -446,7 +499,18 @@ Sonda desechable en `apps/imperifex/examples/probe_titlebar.rs`, con la técnica
 
 **Commit:** `feat(terminal): a shell in the window: damaged rows, cursor, colours, a minimal keyboard and a resize that waits`
 
-#### Pasos de T2.10 · 🖥 programas reales y la respuesta del color de fondo
+#### Pasos de T2.10 · 🖥 el diseño nuevo en lo ya hecho (T-D20, T-D21)
+Va después del commit de T2.9 y antes de mirar programas reales: así T2.11 los mira ya con los colores definitivos.
+1. `domain/theme/palette.rs`: los tokens y los ANSI de «Diseño: tema». Tokens nuevos `line` y `close_hover`, y la letra blanca de cerrar como token `on_close_hover`: la guarda prohíbe colores sueltos en `ui`.
+2. Pruebas de contraste (`theme/contrast.rs`): los tokens de texto siguen en 4,5:1. Los ANSI 1 a 7 y 9 a 15 pasan de exigir 5,0 a exigir **4,5:1** sobre los tres fondos de su tema, y el 8 pasa de 3,2 a **4,0**. Lo que se mide cambia (el 7 y el 15 del tema claro ya no son blancos), así que cambiar los umbrales es parte de la tarea y se dice en el commit. Una prueba nueva: con la paleta clara, `ESC[37m` sobre `surface` se lee sin que actúe T-D17.
+3. Letra de la interfaz: `Segoe UI Variable Text`, con `Segoe UI` de reserva (hoy es `Segoe UI`, en `platform/src/text`). Tamaños de «Diseño: medidas» como constantes de `ui/src/metrics.rs`.
+4. `ui/src/titlebar.rs` según «Diseño: medidas»: la pestaña de la shell abierta (icono y nombre del perfil, en `raised`), y cerrar en `close_hover`. Lo que aún no hace nada **no se dibuja**: `+`, `⌄` y el botón de la paleta llegan con T3.4 y T5.4. Con eso no hay botones muertos.
+5. Barra de estado mínima (28 px, abajo): solo el icono y el nombre del perfil. Los contadores de agentes llegan con T6.4 y los avisos con su tarea. Así el área de la salida ya tiene su alto definitivo.
+6. A mano, con el autor: la ventana junto a `Oscuro · español · panel de agentes.png`, `Claro · español.png` y `Light · English.png`, mirando solo lo que existe (barra de título, salida, barra de estado). Lo que difiera se arregla o se anota en «Hechos medidos».
+
+**Commit:** `feat(terminal): the new design's colours, type and bars`
+
+#### Pasos de T2.11 · 🖥 programas reales y la respuesta del color de fondo
 1. OSC 10 y 11 con `?`: `Terminal` guarda respuestas pendientes (`take_replies() -> Vec<u8>`), `interpret` responde `ESC]11;rgb:rrrr/gggg/bbbb ESC\` con el `surface` del tema (y `text` para el 10), y `Core` las escribe en la consola. El `Terminal` recibe los dos colores al crearse y al cambiar el tema. **Antes**, comprobar con `run --headless` y un `printf` de la consulta si ConPTY la deja pasar hasta nosotros; si la contesta él o la borra, no se programa y se anota.
 2. Mirar con el autor, en los dos temas: el prompt y la sugerencia de PSReadLine, `git log --color`, `Get-ChildItem` en color, una aplicación de pantalla completa (`edit`, o `vim` si está) y **Claude Code**. Anotar en «Hechos medidos» lo que se ve mal, y para A7 si el cursor se descuadra con textos de la tabla de T1.6 (emojis, banderas, acentos sueltos).
 3. Medidas anotadas, una ejecución cada una: CPU y memoria en reposo 60 s; frame con la pantalla entera cambiando (`cmd /c dir /s C:\Windows` unos segundos); `Terminal::resize` de T2.9.
@@ -465,7 +529,8 @@ Sonda desechable en `apps/imperifex/examples/probe_titlebar.rs`, con la técnica
 | T2.7 🖥 | Ventana con barra de título propia: mover, maximizar, ajuste de Windows, varios monitores y DPI | Lista de comprobación en el PC real; el tema de Windows cambia la ventana sin reiniciar |
 | T2.8 🖥 | Texto e iconos con DirectWrite y el atlas de glifos | La barra muestra su texto e iconos a 100 % y a otra escala |
 | T2.9 🖥 | La cuadrícula en la ventana, con daños, cursor, fuente, entrada mínima y reajuste con espera | Se ve y se usa una shell; sin cambios no se dibuja (número anotado) |
-| T2.10 🖥 | OSC 10/11 y revisión con programas reales, Claude Code incluido | Hechos anotados, también para A7 |
+| T2.10 🖥 | El diseño nuevo (T-D20) en la paleta, la letra, la barra de título y una barra de estado mínima | Pruebas de contraste con los umbrales nuevos; comparada a ojo con tres imágenes de `design/` |
+| T2.11 🖥 | OSC 10/11 y revisión con programas reales, Claude Code incluido | Hechos anotados, también para A7 |
 
 ### T3 · Uso diario
 | # | Tarea | Hecho cuando |
@@ -494,7 +559,7 @@ Sonda desechable en `apps/imperifex/examples/probe_titlebar.rs`, con la técnica
 | T5.2 | `CommandBlock`: bloques con duración y código de salida; saltar entre ellos y copiar su salida | Sin integración, la terminal se ve y funciona normal |
 | T5.3 | Barra de contexto: carpeta, copiar, rama y commits por subir, sin frenar el prompt | Un repo grande no retrasa la escritura; fuera de un repo no muestra rama |
 | T5.4 | Paleta `Ctrl+Shift+P` | Órdenes, pestañas y ajustes en el idioma elegido |
-| T5.5 | Repaso visual contra `design/screen.png` en ambos temas e idiomas | Cuatro capturas aprobadas por el autor |
+| T5.5 | Repaso visual contra las imágenes de `design/` (T-D20): los dos temas, los dos idiomas, sin integración y pantalla completa | Capturas aprobadas por el autor |
 
 ### T6 · Agentes (requiere A0)
 | # | Tarea | Hecho cuando |
@@ -544,6 +609,22 @@ Camino más corto a algo que se vea: T1 → T2. A algo que se use: hasta T3. Si 
 | El diseño y los agentes retrasan una terminal usable | Hito de uso diario antes de T5 y T6 |
 
 ## Hechos medidos
+
+### T2.9 · La shell en la ventana (2026-11-27, `imperifex window` en release, 960×600 a 100 %, Windows PowerShell; PowerShell 7 no está instalado)
+
+- **Reposo:** con la ventana abierta y la shell esperando, cerrar sin espera o tras 60 s da **los mismos 4 dibujos** (dos parejas de ejecuciones): en reposo no se dibuja. CPU en 60 s quieta: 62,5 ms en una ejecución y 109 ms en otra anterior (en T2.7, sin shell, 47 ms). 59,7 MB privados, 47,6 MB de conjunto de trabajo, 26 hilos.
+- **Ráfaga:** durante `1..20000` la ventana siguió respondiendo y dibujando, y acabó en la línea 20000. `exit` la cerró con código 0; al cerrar con la shell abierta o tras `exit` no quedó ningún proceso hijo.
+- **Minimizar:** winit entrega `Resized(160×28)` con `is_minimized() == true`, no cero. Sin tratarlo, el terminal se reajustaba a 14 columnas y se perdía casi toda la pantalla. Minimizada, la ventana cuenta ahora como 0×0.
+- **Marcas sueltas:** en `Cascadia Mono` y `Consolas`, U+0301 y U+0303 se dibujan **dentro** de la celda desde el lápiz de la letra (en `Cascadia Mono` con avance 0); U+20D7, de otra fuente, cuelga a la izquierda del lápiz.
+- **Vistos en capturas:** negrita, cursiva, subrayado, tachado, los 16 colores en los dos temas, 24 bits, inverso, atenuado, caracteres anchos, cajas y bloques, la pantalla alternativa sin márgenes y el aviso cuando la shell no arranca. Los emojis salen en un color, como estaba previsto.
+- **Pendiente de mirar (inferido de capturas, sin comprobar en el historial):** al encoger la ventana y volver a agrandarla, queda un hueco abajo en vez de volver las filas de arriba. `Grid::resize` sí las trae del historial, así que parece que el repintado de ConPTY escribe encima; si es así, esas filas se pierden del historial. Hay que comprobarlo cuando haya desplazamiento (T3) o antes con una sonda.
+
+### T2.9 · Reajuste con el historial por defecto (2026-11-27, `measure_history` en release, una ejecución por caso, 80×25, 10 000 filas)
+
+| | 40 caracteres sin color | 86 caracteres con 4 colores |
+|---|---|---|
+| Reajustar a 100, 60 y 80 columnas | 5, 5 y 5 ms | 7, 8 y 9 ms |
+| Memoria privada de más / pico del proceso | 1 a 2 MB / 4 MB | 2 MB / 5 MB |
 
 ### T2.7 · La ventana en reposo (2026-11-27, `imperifex window` en release, una ejecución)
 
@@ -641,6 +722,9 @@ La abrió un script, esperó 5 s, midió 60 s y la cerró pidiéndoselo (`CloseM
 
 ## Estado
 
+- 2026-11-27: **diseño nuevo** (T-D20): siete imágenes en `design/`, del lienzo del autor; `design/screen.png` se borra. Paleta, ANSI y medidas en «Diseño: tema» y «Diseño: medidas»; T-D21 oscurece dos ANSI del tema claro; nuevas decisiones abiertas A8 a A10. T2 gana una tarea: **T2.10** aplica el diseño a lo ya hecho, y la revisión con programas reales pasa a **T2.11**. Lo que T2.8 y T2.9 llevan programado no cambia de pasos: se terminan, se suben y después va T2.10.
+- [ ] T2.9 (2026-11-27): **programada y conectada a la ventana**, con `tools/check.ps1` y el `clippy` de Linux de las capas portables en verde; **falta la revisión del autor** y el commit (después del de T2.8). Probada en la ventana real por Claude, con permiso del autor: teclas enviadas solo a esa ventana y capturas solo de ella (ver «Hechos medidos»); ajustes de prueba en un `%APPDATA%` temporal. Decidido al programar, **para que el autor lo confirme**: (a) el fondo `surface` ocupa toda la zona bajo la barra y la cuadrícula va dentro, a `Space::L` (antes `surface` era solo `terminal_area`: la letra habría tocado su borde); (b) **al terminar la shell se cierra la ventana**; (c) mientras hay un dibujo pendiente no se lee más salida, para que un programa que no para de escribir no deje la ventana sin turno para dibujar. Añadido que los pasos no decían: ConPTY no cierra su salida cuando el programa sale, así que el adaptador vigila el proceso y avisa; `DrawList` tiene una capa que flota, para que la cuadrícula no tape la ayuda de la barra; una marca suelta se coloca según dónde está su dibujo, no según su avance. Dos fallos que solo se vieron en la ventana, corregidos: minimizar cortaba las líneas a 14 columnas, y los acentos sueltos salían a la derecha de su letra.
+- [ ] T2.8 (2026-11-27): programada, con `tools/check.ps1` en verde; **falta la prueba a mano** (barra a 100 % y a otra escala) y el commit. Comprobado sin ventana: se dibujó `ui::frame` en una textura y se miró la imagen (temas oscuro y claro, escalas 100, 125 y 150 %, español e inglés, maximizada y la ayuda sin salirse); y una prueba nueva del renderizador lee los píxeles de un rectángulo y una letra (necesita tarjeta gráfica; se salta en la CI). En este PC, `Cascadia Mono` está instalada y sus cuatro caras salen **sin simulación** y distintas entre sí. Su celda a 12 pt: 9×19 px a 100 %, 12×23 a 125 % y 14×28 a 150 %. La ayuda de los botones se programó (no pasa a T3). Decidido al programar: **dependencia nueva `windows-core`** (la que nombra `#[implement]`, para la fuente de reserva; **pendiente de que el autor la apruebe**); el texto se coloca letra a letra, sin kerning, y cada glifo empieza en un píxel entero, así que el espacio entre letras puede variar hasta medio píxel (en las capturas se nota un poco en «Minimizar» a 100 %); `GlyphKey` es cara, glifo y tamaño, porque negrita y cursiva ya son caras distintas; si el atlas se llena, se vacía y se rehace **el mismo** cuadro; el aviso de fuente no encontrada sale solo en el registro (la ventana aún no tiene dónde mostrar avisos); la celda se mide con `DirectWriteText::cell`, que nada usa hasta T2.9.
 - [x] T2.7 (2026-11-27): programada, con `tools/check.ps1` en verde. A mano: el autor probó la ventana en su PC y dijo «Todo funciona como es esperado», en respuesta a la lista de diez puntos (barra, mover y redimensionar, ajuste de Windows, maximizar y minimizar, menú, otro monitor y escala, sombra y esquinas, cambio de tema sin reiniciar); no dio detalle por punto. CPU en reposo medida (ver «Hechos medidos»). **Sigue T2.8 🖥.** Cambios respecto a los pasos: `Renderer::draw` aún no recibe `TerminalPicture` (llega con T2.9); `ui::frame` ya no recibe `TextMeasure` hasta T2.8, para no poner un doble en el binario; no se usa `Win32_Graphics_Dwm`: lo de Luminifex sirve para volver de pantalla completa, que aquí no hay (en la sonda las esquinas ya salían redondeadas; falta verlo en la ventana real); los botones actúan al soltar, si se pulsó en el mismo (`Pointer::held_from`); el doble clic lo decide `domain::mouse`; cerrar se dibuja como un cuadro lleno, porque con rectángulos no sale una equis.
 - [x] T2.6 (2026-11-27): sonda de winit. Pasa todo menos el menú de diseños de ajuste, y el autor decide vivir sin él (T-D19). **Sigue T2.7 🖥.**
 - [x] T2.5 (2026-11-27): crate `imperifex-ui` con `layout`, los tipos que cruzan capas en `domain` y las dos guardas nuevas, que fallaron al meter a mano un color y un texto sueltos en `ui`. `frame` solo pone el fondo y el lugar de la salida. **Sigue T2.6 🖥:** necesita el permiso del autor.
