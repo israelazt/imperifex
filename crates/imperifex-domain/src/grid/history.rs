@@ -102,6 +102,8 @@ pub(super) struct History {
     lines: VecDeque<Line>,
     /// How many lines are kept; 0 keeps none.
     limit: usize,
+    /// How many were ever added, those forgotten too.
+    added: u64,
 }
 
 impl History {
@@ -109,11 +111,16 @@ impl History {
         Self {
             lines: VecDeque::new(),
             limit,
+            added: 0,
         }
     }
 
     pub fn limit(&self) -> usize {
         self.limit
+    }
+
+    pub fn added(&self) -> u64 {
+        self.added
     }
 
     pub fn len(&self) -> usize {
@@ -133,6 +140,7 @@ impl History {
             self.lines.pop_front();
         }
         self.lines.push_back(line);
+        self.added += 1;
     }
 
     pub fn push_row(&mut self, row: &Row) {

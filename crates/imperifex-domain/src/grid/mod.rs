@@ -10,6 +10,7 @@ mod reflow;
 mod resize;
 mod row;
 mod scroll;
+mod seen;
 mod style;
 mod write;
 
@@ -132,6 +133,12 @@ impl Grid {
     /// How many rows of history there are.
     pub fn history_len(&self) -> usize {
         self.history.len()
+    }
+
+    /// How many rows the history was ever given, those it forgot too. A change
+    /// of size starts the count again.
+    pub fn history_added(&self) -> u64 {
+        self.history.added()
     }
 
     /// A row of history, 0 being the oldest, without the spaces at its end.

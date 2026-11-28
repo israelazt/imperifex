@@ -52,6 +52,7 @@ pub fn run(settings: Settings, language: Language) -> Result<(), String> {
         clock: SystemClock::new(),
         letters,
         shown: None,
+        shift: false,
         frames: 0,
     };
     let result = events
@@ -79,6 +80,8 @@ struct App {
     /// Measures the texts for the interface and pictures them for the renderer.
     letters: Rc<DirectWriteText>,
     shown: Option<Shown>,
+    /// Whether a Shift key is down.
+    shift: bool,
     /// How many frames were drawn, to see that an idle window draws none.
     frames: u64,
 }
@@ -178,7 +181,7 @@ impl App {
 
     /// A key going down goes to the shell. Those the system makes up when the
     /// window gets the focus do not.
-    fn key_event(&mut self, event: &WindowEvent) {
+    fn key_event(&mut self, event_loop: &ActiveEventLoop, event: &WindowEvent) {
         if let WindowEvent::KeyboardInput {
             event,
             is_synthetic: false,
@@ -186,9 +189,23 @@ impl App {
         } = event
         {
             if event.state == ElementState::Pressed {
-                self.core.typed(&translate::key(event));
+                let commands = match translate::page(event, self.shift) {
+                    Some(back) => self.core.page(back),
+                    None => self.core.typed(&translate::key(event)),
+                };
+                self.obey_all(event_loop, commands);
             }
         }
+    }
+
+    /// The wheel goes to the application with where the mouse is.
+    fn wheel_event(&mut self, event_loop: &ActiveEventLoop, event: &WindowEvent) {
+        let WindowEvent::MouseWheel { delta, .. } = event else {
+            return;
+        };
+        let at = self.mouse.position().unwrap_or_default();
+        let commands = self.core.wheel(translate::notches(*delta), at);
+        self.obey_all(event_loop, commands);
     }
 
     /// The window's size changed, or whether it is maximized.
@@ -293,7 +310,11 @@ impl ApplicationHandler<Told> for App {
         if let WindowEvent::Focused(focused) = event {
             self.core.set_focused(focused);
         }
-        self.key_event(&event);
+        if let WindowEvent::ModifiersChanged(modifiers) = &event {
+            self.shift = modifiers.state().shift_key();
+        }
+        self.key_event(event_loop, &event);
+        self.wheel_event(event_loop, &event);
         if let Some(pointer) = self.mouse_event(&event) {
             self.mouse_did(event_loop, pointer);
             return;

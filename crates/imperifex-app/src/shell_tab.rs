@@ -9,6 +9,7 @@ use imperifex_domain::input::{bytes, KeyInput};
 use imperifex_domain::log_warn;
 use imperifex_domain::ports::{Clock, PtyLauncher, SequenceParser, Wake};
 use imperifex_domain::resize_wait::ResizeWait;
+use imperifex_domain::scrollback::{Turned, View, Wheel};
 use imperifex_domain::shell::opening_lines;
 use imperifex_domain::terminal::Terminal;
 
@@ -37,6 +38,8 @@ pub struct ShellTab {
     line: String,
     wait: ResizeWait,
     cursor: Cursor,
+    view: View,
+    wheel: Wheel,
 }
 
 /// What opening a shell needs.
@@ -66,6 +69,8 @@ impl ShellTab {
                         session: Session::new(pty, (opening.new_parser)(), terminal),
                         wait: ResizeWait::new(opening.size),
                         cursor: None,
+                        view: View::default(),
+                        wheel: Wheel::default(),
                     });
                 }
                 Err(why) => {
@@ -112,6 +117,7 @@ impl ShellTab {
         if !read.ended && matches!(self.session.exit_code(), Ok(Some(_))) {
             self.session.close();
         }
+        self.view.follow(self.session.terminal.screen());
         read.redraw = self.looks_different();
         read
     }
@@ -126,13 +132,49 @@ impl ShellTab {
         moved || terminal.screen().is_damaged()
     }
 
-    /// Sends what a key writes. A key that writes nothing sends nothing.
-    pub fn typed(&mut self, input: &KeyInput) -> Result<(), String> {
+    /// Sends what a key writes, and goes back to the screen, where what it
+    /// does is seen. A key that writes nothing sends nothing. `true` if the
+    /// view moved.
+    pub fn typed(&mut self, input: &KeyInput) -> Result<bool, String> {
         let sent = bytes(input, self.session.terminal.modes);
         if sent.is_empty() {
-            return Ok(());
+            return Ok(false);
         }
-        self.session.send(&sent)
+        let moved = self.view.back() > 0;
+        self.view.to_screen();
+        self.session.send(&sent)?;
+        Ok(moved)
+    }
+
+    /// How many rows above the screen the view is.
+    pub fn back(&self) -> usize {
+        self.view.back()
+    }
+
+    /// The wheel turned `notches`, up when positive, with the pointer on the
+    /// cell `at`. `true` if the view moved.
+    pub fn wheel(&mut self, notches: f32, at: (u16, u16)) -> Result<bool, String> {
+        let terminal = &self.session.terminal;
+        let alternate = terminal.on_alternate_screen();
+        match self.wheel.turn(notches, terminal.modes, alternate, at) {
+            Turned::Nothing => Ok(false),
+            Turned::Scroll(rows) => Ok(self.scroll(rows)),
+            Turned::Send(sent) => self.session.send(&sent).map(|()| false),
+        }
+    }
+
+    /// Moves the view a screen back, or forward, keeping one row of the last.
+    /// `true` if it moved.
+    pub fn page(&mut self, back: bool) -> bool {
+        let rows = self.session.terminal.screen().rows();
+        let step = i32::try_from(rows.saturating_sub(1).max(1)).unwrap_or(i32::MAX);
+        self.scroll(if back { step } else { -step })
+    }
+
+    fn scroll(&mut self, rows: i32) -> bool {
+        let before = self.view.back();
+        self.view.scroll(rows, self.session.terminal.screen());
+        self.view.back() != before
     }
 
     /// There is now room for `size`, columns and rows.
@@ -147,6 +189,8 @@ impl ShellTab {
             return false;
         };
         let resized = self.session.resize(columns, rows);
+        // Its lines are cut again: where the view was is not that text now.
+        self.view.to_screen();
         if let Err(error) = &resized {
             log_warn!("the console did not take {columns}x{rows}: {error}");
         }

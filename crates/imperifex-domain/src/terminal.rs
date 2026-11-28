@@ -14,6 +14,10 @@ pub struct Modes {
     pub application_cursor_keys: bool,
     /// Pasted text goes between marks.
     pub bracketed_paste: bool,
+    /// The program is to be told what the mouse does. So far only its wheel is.
+    pub mouse_reports: bool,
+    /// It is told in digits (SGR) and not in the old way.
+    pub mouse_digits: bool,
 }
 
 impl Default for Modes {
@@ -22,6 +26,8 @@ impl Default for Modes {
             cursor_visible: true,
             application_cursor_keys: false,
             bracketed_paste: false,
+            mouse_reports: false,
+            mouse_digits: false,
         }
     }
 }

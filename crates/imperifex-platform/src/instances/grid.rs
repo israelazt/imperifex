@@ -22,6 +22,7 @@ struct MadeFor {
     line: u32,
     columns: usize,
     rows: usize,
+    back: usize,
     /// Of the atlas, where the glyphs of the rows are.
     atlas: u64,
 }
@@ -186,10 +187,10 @@ fn make_row(
 ) -> Result<(), Full> {
     into.backgrounds.clear();
     into.fronts.clear();
-    let screen = picture.terminal.screen();
+    let cells = picture.terminal.screen().seen_row(picture.back, row);
     let mut result = Ok(());
     for column in 0..columns {
-        let Some(cell) = screen.cell(row, column) else {
+        let Some(cell) = cells.get(column) else {
             break;
         };
         let (ink, back) = cell_colors(cell.style(), picture.palette, picture.adjust_contrast);
@@ -211,9 +212,9 @@ fn make_row(
     result
 }
 
-/// The cell the cursor is on, if it is shown and seen: on the second column of
-/// a wide character, that of its first.
-fn under_cursor(screen: &Grid, seen: Seen) -> Option<(usize, usize, &Cell)> {
+/// The cell of the screen the cursor is on: on the second column of a wide
+/// character, that of its first.
+fn under_cursor(screen: &Grid) -> Option<(usize, usize, &Cell)> {
     let at = screen.cursor();
     let on = screen.cell(at.row, at.column)?;
     let column = if on.span() == Span::Continuation {
@@ -221,10 +222,8 @@ fn under_cursor(screen: &Grid, seen: Seen) -> Option<(usize, usize, &Cell)> {
     } else {
         at.column
     };
-    let visible = at.row < seen.rows && column < seen.columns;
-    visible
-        .then(|| screen.cell(at.row, column))
-        .flatten()
+    screen
+        .cell(at.row, column)
         .map(|cell| (at.row, column, cell))
 }
 
@@ -239,9 +238,14 @@ fn cursor(
     if !picture.terminal.modes.cursor_visible {
         return Ok(());
     }
-    let Some((row, column, cell)) = under_cursor(picture.terminal.screen(), seen) else {
+    let Some((row, column, cell)) = under_cursor(picture.terminal.screen()) else {
         return Ok(());
     };
+    // Looking back, the screen's rows are that much lower, or out of sight.
+    let row = row.saturating_add(picture.back);
+    if row >= seen.rows || column >= seen.columns {
+        return Ok(());
+    }
     let area = place(picture, row, column, width_in_cells(cell));
     let accent = picture.palette.accent;
     if picture.focused {
@@ -297,9 +301,12 @@ impl Rows {
             line: picture.line,
             columns: seen.columns,
             rows: seen.rows,
+            back: picture.back,
             atlas: letters.atlas.generation(),
         };
-        let all = self.made_for != Some(wanted);
+        // Looking back, what each row shows moves with the history, which the
+        // damage of the screen does not tell.
+        let all = self.made_for != Some(wanted) || picture.back > 0;
         self.made_for = Some(wanted);
         self.rows.resize_with(seen.rows, Row::default);
         let mut result = Ok(());

@@ -177,3 +177,54 @@ fn a_program_that_left_has_its_console_closed_and_then_ends() {
     assert!(tab.read(&FakeClock::ticking(1)).ended);
     assert_eq!(tab.terminal().screen().row_text(0), "bye");
 }
+
+/// A tab of 10 by 3 whose output has pushed rows into the history.
+fn with_history(launcher: &FakeLauncher) -> ShellTab {
+    let mut tab = open(launcher);
+    tab.read(&FakeClock::ticking(1));
+    tab
+}
+
+fn lines_of_output() -> FakeLauncher {
+    FakeLauncher::running(Script {
+        output: vec![data("a\r\n\r\n\r\n\r\n\r\n\r\n\r\n")],
+        ..Script::default()
+    })
+}
+
+#[test]
+fn the_wheel_looks_back_and_typing_returns_to_the_screen() {
+    let launcher = lines_of_output();
+    let mut tab = with_history(&launcher);
+    assert_eq!(tab.wheel(1.0, (0, 0)), Ok(true));
+    assert_eq!(tab.back(), 3);
+    let silent = tab.typed(&KeyInput::default());
+    assert_eq!((silent, tab.back()), (Ok(false), 3));
+    let key = KeyInput {
+        text: Some("x".into()),
+        key: None,
+    };
+    assert_eq!((tab.typed(&key), tab.back()), (Ok(true), 0));
+    assert_eq!(launcher.asked.borrow().written, b"x");
+}
+
+#[test]
+fn a_page_is_the_screen_but_one_row_and_stops_at_the_ends() {
+    let launcher = lines_of_output();
+    let mut tab = with_history(&launcher);
+    assert!(tab.page(true));
+    assert_eq!(tab.back(), 2);
+    assert!(tab.page(false));
+    assert!(!tab.page(false));
+}
+
+#[test]
+fn a_program_that_asked_for_the_mouse_gets_the_wheel_and_the_view_stays() {
+    let launcher = lines_of_output();
+    let mut tab = with_history(&launcher);
+    tab.terminal_mut().modes.mouse_reports = true;
+    tab.terminal_mut().modes.mouse_digits = true;
+    assert_eq!(tab.wheel(1.0, (2, 1)), Ok(false));
+    assert_eq!(tab.back(), 0);
+    assert_eq!(launcher.asked.borrow().written, b"\x1b[<64;3;2M");
+}

@@ -46,6 +46,15 @@ fn running(script: Script) -> (Core, FakeLauncher) {
     (core, launcher)
 }
 
+impl Core {
+    /// As if the program had asked to be told of the mouse, in digits.
+    fn ask_for_the_mouse(&mut self) {
+        let tab = self.output.tab_mut().expect("a shell");
+        tab.terminal_mut().modes.mouse_reports = true;
+        tab.terminal_mut().modes.mouse_digits = true;
+    }
+}
+
 fn says(text: &str) -> Script {
     Script {
         output: vec![data(text)],
@@ -196,4 +205,38 @@ fn the_picture_is_the_terminal_where_it_was_fitted_with_the_windows_looks() {
     // 12 points at 150 % are 24 pixels.
     assert!((picture.letters - 24.0).abs() < 0.001);
     assert!(!core.take_damage().any());
+}
+
+#[test]
+fn the_wheel_moves_what_is_drawn_and_asks_for_a_frame() {
+    let (mut core, _) = running(says(
+        "\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n",
+    ));
+    read(&mut core);
+    draw(&mut core);
+    assert_eq!(core.wheel(1.0, (100, 100)), [WindowCommand::Redraw]);
+    let damage = core.take_damage();
+    assert_eq!(core.picture(&damage).expect("a picture").back, 3);
+    assert_eq!(core.page(false), [WindowCommand::Redraw]);
+    assert_eq!(core.wheel(-1.0, (100, 100)), []);
+}
+
+#[test]
+fn the_wheel_tells_the_program_the_cell_under_the_mouse_or_the_closest() {
+    // What the program writes to ask for the mouse is read by the real parser
+    // in the platform crate; here the screen is told directly.
+    let (mut core, launcher) = running(Script::default());
+    // The area starts at (16, 56), with 40 by 10 cells of 10 by 20.
+    for (at, cell) in [
+        ((16, 56), "1;1"),
+        ((45, 99), "3;3"),
+        ((0, 0), "1;1"),
+        ((9000, 9000), "40;10"),
+    ] {
+        launcher.asked.borrow_mut().written.clear();
+        core.ask_for_the_mouse();
+        core.wheel(1.0, at);
+        let sent = launcher.asked.borrow().written.clone();
+        assert_eq!(sent, format!("\x1b[<64;{cell}M").into_bytes(), "{at:?}");
+    }
 }

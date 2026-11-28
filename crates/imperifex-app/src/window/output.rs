@@ -11,6 +11,7 @@ use imperifex_domain::log_warn;
 use imperifex_domain::picture::TerminalPicture;
 use imperifex_domain::ports::{Clock, PtyLauncher, SequenceParser, Wake};
 use imperifex_domain::theme::palette;
+use imperifex_domain::view::Point;
 
 use super::{Core, WindowCommand};
 use crate::shell_tab::{Opening, ShellTab};
@@ -54,7 +55,7 @@ impl Output {
         }
     }
 
-    fn tab_mut(&mut self) -> Option<&mut ShellTab> {
+    pub(super) fn tab_mut(&mut self) -> Option<&mut ShellTab> {
         match &mut self.shell {
             Shell::Open(tab) => Some(tab),
             _ => None,
@@ -72,10 +73,33 @@ impl Output {
         self.awaiting_frame = false;
     }
 
+    /// The cell of the grid at a place of the window, or the closest one.
+    fn cell_at(&self, (x, y): Point) -> Option<(u16, u16)> {
+        let (area, cell) = self.place?;
+        let (columns, rows) = self.size()?;
+        let along = |at: i32, start: i32, side: u32, count: u16| {
+            let from = i64::from(at) - i64::from(start);
+            let whole = from / i64::from(side.max(1));
+            u16::try_from(whole.clamp(0, i64::from(count) - 1)).unwrap_or(0)
+        };
+        Some((
+            along(x, area.x, cell.width, columns),
+            along(y, area.y, cell.height, rows),
+        ))
+    }
+
     /// Columns and rows that fit where the grid goes.
     fn size(&self) -> Option<(u16, u16)> {
         let (area, cell) = self.place?;
         Some(cell.fit(area.width, area.height))
+    }
+}
+
+fn redraw_if(changed: bool) -> Vec<WindowCommand> {
+    if changed {
+        vec![WindowCommand::Redraw]
+    } else {
+        Vec::new()
     }
 }
 
@@ -167,11 +191,7 @@ impl Core {
             .output
             .tab_mut()
             .is_some_and(|tab| tab.resize_if_settled(now));
-        if changed {
-            vec![WindowCommand::Redraw]
-        } else {
-            Vec::new()
-        }
+        redraw_if(changed)
     }
 
     /// How long from `now` until [`Core::settle_size`] has work.
@@ -179,13 +199,36 @@ impl Core {
         self.output.tab()?.resize_in(now)
     }
 
-    pub fn typed(&mut self, input: &KeyInput) {
+    pub fn typed(&mut self, input: &KeyInput) -> Vec<WindowCommand> {
         let Some(tab) = self.output.tab_mut() else {
-            return;
+            return Vec::new();
         };
-        if let Err(error) = tab.typed(input) {
+        let moved = tab.typed(input).unwrap_or_else(|error| {
             log_warn!("the key did not reach the shell: {error}");
-        }
+            false
+        });
+        redraw_if(moved)
+    }
+
+    /// The wheel turned `notches`, up when positive, with the mouse at `at`.
+    pub fn wheel(&mut self, notches: f32, at: Point) -> Vec<WindowCommand> {
+        let Some(cell) = self.output.cell_at(at) else {
+            return Vec::new();
+        };
+        let Some(tab) = self.output.tab_mut() else {
+            return Vec::new();
+        };
+        let moved = tab.wheel(notches, cell).unwrap_or_else(|error| {
+            log_warn!("the wheel did not reach the shell: {error}");
+            false
+        });
+        redraw_if(moved)
+    }
+
+    /// Moves the view a screen back in the history, or forward.
+    pub fn page(&mut self, back: bool) -> Vec<WindowCommand> {
+        let moved = self.output.tab_mut().is_some_and(|tab| tab.page(back));
+        redraw_if(moved)
     }
 
     /// The rows that changed since the last call, to draw them: it forgets
@@ -203,6 +246,7 @@ impl Core {
         Some(TerminalPicture {
             terminal: self.output.tab()?.terminal(),
             damage,
+            back: self.output.tab()?.back(),
             area,
             palette: palette(self.theme),
             adjust_contrast: self.settings.adjust_contrast,

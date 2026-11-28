@@ -459,3 +459,13 @@ fn what_is_not_known_changes_nothing() {
     apply(&mut terminal, Sequence::Osc(&[b"0", b"titulo"]));
     assert_eq!((text(&terminal), cursor(&terminal), terminal.modes), before);
 }
+
+#[test]
+fn asking_for_the_mouse_and_for_digits_is_kept_until_taken_back() {
+    for mode in ["1000", "1002", "1003"] {
+        let mut terminal = terminal(10, 2, &format!("\x1b[?{mode};1006h"));
+        assert!(terminal.modes.mouse_reports && terminal.modes.mouse_digits);
+        send(&mut terminal, &format!("\x1b[?{mode};1006l"));
+        assert!(!terminal.modes.mouse_reports && !terminal.modes.mouse_digits);
+    }
+}

@@ -1,5 +1,5 @@
-//! Modes a program turns on (`h`) and off (`l`). The mouse and focus modes are
-//! not here yet: nothing reads them.
+//! Modes a program turns on (`h`) and off (`l`). The focus modes are not here
+//! yet: nothing reads them.
 
 use crate::grid::Grid;
 use crate::sequence::Params;
@@ -32,6 +32,10 @@ fn set(terminal: &mut Terminal, mode: u16, on: bool) {
         6 => terminal.screen_mut().set_origin(on),
         7 => terminal.screen_mut().autowrap = on,
         25 => terminal.modes.cursor_visible = on,
+        // Clicks; also what is dragged; also every move. Any of them asks for
+        // the wheel.
+        1000 | 1002 | 1003 => terminal.modes.mouse_reports = on,
+        1006 => terminal.modes.mouse_digits = on,
         2004 => terminal.modes.bracketed_paste = on,
         47 | 1047 => alternate(terminal, on),
         1048 => save_or_restore(terminal.screen_mut(), on),

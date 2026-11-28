@@ -19,6 +19,7 @@ pub mod picture;
 pub mod ports;
 pub mod prompt_icon;
 pub mod resize_wait;
+pub mod scrollback;
 pub mod sequence;
 pub mod settings;
 pub mod shell;

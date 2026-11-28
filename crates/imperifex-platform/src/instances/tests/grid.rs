@@ -22,6 +22,7 @@ struct Window {
     area: Rect,
     palette: &'static Palette,
     focused: bool,
+    back: usize,
     batch: Batch,
     atlas: Atlas,
 }
@@ -41,6 +42,7 @@ impl Window {
             },
             palette: palette(Theme::Dark),
             focused: true,
+            back: 0,
             batch: Batch::default(),
             atlas: Atlas::new(256),
         }
@@ -68,6 +70,7 @@ impl Window {
             letters: 16.0,
             line: 1,
             focused: self.focused,
+            back: self.back,
         };
         let source = SquareLetters::default();
         let list = DrawList::default();
@@ -270,6 +273,29 @@ fn a_mark_is_drawn_over_its_letter_whichever_side_of_the_pen_it_is_made_for() {
 }
 
 #[test]
+fn looking_back_draws_the_history_over_the_screen_and_the_cursor_goes_down() {
+    let mut window = Window::new();
+    // Three lines written in three rows: the first leaves for the history.
+    for line in ["a", "bb", "ccc"] {
+        window.write(line);
+        window.terminal.screen_mut().carriage_return();
+        window.terminal.screen_mut().line_feed();
+    }
+    window.terminal.modes.cursor_visible = true;
+    assert_eq!(glyphs(&window.frame()).len(), 5);
+    window.back = 1;
+    let found = window.frame_with(&untouched());
+    // One letter, two and three: the cursor's row is out of sight.
+    assert_eq!(glyphs(&found).len(), 6);
+    assert!(solids(&found).is_empty(), "no cursor");
+    assert_eq!(glyphs(&found)[0], [101.0, 60.0, 4.0, 6.0]);
+    window.terminal.screen_mut().move_to(0, 0);
+    let found = window.frame_with(&untouched());
+    // The cursor is on the screen's first row, now the second one seen.
+    assert_eq!(solids(&found)[0].0, [100.0, 70.0, 10.0, 20.0]);
+}
+
+#[test]
 fn what_floats_is_drawn_over_the_grid() {
     let mut window = Window::new();
     window.write("a");
@@ -284,6 +310,7 @@ fn what_floats_is_drawn_over_the_grid() {
         letters: 16.0,
         line: 1,
         focused: true,
+        back: 0,
     };
     let list = DrawList {
         floating_rects: vec![(window.area, Rgb::WHITE)],

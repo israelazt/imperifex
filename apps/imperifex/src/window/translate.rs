@@ -3,7 +3,7 @@
 use imperifex_domain::input::{KeyInput, NamedKey};
 use imperifex_domain::view::{CursorIcon, Edge, Point};
 use winit::dpi::{LogicalSize, PhysicalPosition};
-use winit::event::KeyEvent;
+use winit::event::{KeyEvent, MouseScrollDelta};
 use winit::keyboard::{Key, NamedKey as Named};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -64,6 +64,25 @@ pub fn key(event: &KeyEvent) -> KeyInput {
     KeyInput {
         text: event.text.as_ref().map(ToString::to_string),
         key: named,
+    }
+}
+
+/// `Shift` with `Page Up` or `Page Down` looks back or forward: `true` is
+/// back. Any other key is `None`.
+pub fn page(event: &KeyEvent, shift: bool) -> Option<bool> {
+    match event.logical_key {
+        Key::Named(Named::PageUp) if shift => Some(true),
+        Key::Named(Named::PageDown) if shift => Some(false),
+        _ => None,
+    }
+}
+
+/// How far the wheel turned, in notches, up when positive.
+pub fn notches(delta: MouseScrollDelta) -> f32 {
+    match delta {
+        MouseScrollDelta::LineDelta(_, up) => up,
+        // As much as Windows counts for one notch.
+        MouseScrollDelta::PixelDelta(pixels) => (pixels.y / 120.0) as f32,
     }
 }
 
