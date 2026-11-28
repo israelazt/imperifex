@@ -1,6 +1,7 @@
 //! The shells Imperifex knows how to open, as data.
 
 use crate::command_line::{command_line, push_argument};
+use crate::i18n::{text, Language, Text};
 
 /// How a shell wants the command it is given.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,6 +76,30 @@ pub fn opening_lines(chosen: Option<&str>) -> Vec<String> {
     }
 }
 
+/// What a tab calls the shell that `line` opened, one of [`opening_lines`]: a
+/// short name for those of the profiles, and for another program that of its
+/// file.
+pub fn tab_name(line: &str, language: Language) -> String {
+    let known = PROFILES.into_iter().find(|profile| profile.program == line);
+    match known.map(|profile| profile.id) {
+        Some("pwsh") => "PowerShell".into(),
+        Some("powershell") => "Windows PowerShell".into(),
+        Some("cmd") => text(language, Text::CommandPrompt).into(),
+        Some("wsl") => "WSL".into(),
+        _ => file_stem(line).into(),
+    }
+}
+
+/// The name of the file of a program's path, quoted or not, with no extension.
+fn file_stem(line: &str) -> &str {
+    let path = line.trim_matches('"');
+    let file = path.rsplit(['\\', '/']).next().unwrap_or(path);
+    match file.rsplit_once('.') {
+        Some((stem, _)) if !stem.is_empty() => stem,
+        _ => file,
+    }
+}
+
 /// The names the user can give, for messages.
 pub fn ids() -> String {
     PROFILES.map(|profile| profile.id).join(", ")
@@ -136,6 +161,22 @@ mod tests {
         assert_eq!(opening_lines(Some("nu.exe")), ["nu.exe"]);
         let spaced = opening_lines(Some(r"C:\My Tools\nu.exe"));
         assert_eq!(spaced, [r#""C:\My Tools\nu.exe""#]);
+    }
+
+    #[test]
+    fn a_tab_is_named_by_its_profile_or_by_the_file_of_its_program() {
+        let name = |line| tab_name(line, Language::English);
+        assert_eq!(name("pwsh.exe"), "PowerShell");
+        assert_eq!(name("powershell.exe"), "Windows PowerShell");
+        assert_eq!(name("cmd.exe"), "Command Prompt");
+        assert_eq!(
+            tab_name("cmd.exe", Language::Spanish),
+            "Símbolo del sistema"
+        );
+        assert_eq!(name("wsl.exe"), "WSL");
+        assert_eq!(name("nu.exe"), "nu");
+        assert_eq!(name(r#""C:\My Tools\nu.v2.exe""#), "nu.v2");
+        assert_eq!(name(".profile"), ".profile");
     }
 
     #[test]

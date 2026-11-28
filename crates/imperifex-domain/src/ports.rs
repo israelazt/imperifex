@@ -27,11 +27,11 @@ pub trait SequenceParser {
     fn parse(&mut self, bytes: &[u8], receive: &mut dyn FnMut(Sequence<'_>));
 }
 
-/// How much room the texts of the interface take, in physical pixels at the
-/// system's `scale`.
+/// How much room the texts of the interface take, in physical pixels, with
+/// letters of `size` of them.
 pub trait TextMeasure {
-    fn width(&self, text: &str, font: UiFont, scale: f32) -> u32;
-    fn line_height(&self, font: UiFont, scale: f32) -> u32;
+    fn width(&self, text: &str, font: UiFont, size: u32) -> u32;
+    fn line_height(&self, font: UiFont, size: u32) -> u32;
 }
 
 /// Putting on the window what the interface asks to have drawn.

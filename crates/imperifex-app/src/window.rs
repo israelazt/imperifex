@@ -8,6 +8,7 @@ use imperifex_domain::i18n::{text, Language, Text};
 use imperifex_domain::log_warn;
 use imperifex_domain::ports::{SystemAppearance, Wake};
 use imperifex_domain::settings::Settings;
+use imperifex_domain::shell::tab_name;
 use imperifex_domain::theme::{palette, resolve_theme, Theme};
 use imperifex_domain::view::{Action, Edge, Model};
 
@@ -76,6 +77,10 @@ impl Core {
     pub fn model(&self) -> Model {
         Model {
             title: text(self.language, Text::AppName).into(),
+            tab: self
+                .output
+                .tab()
+                .map(|tab| tab_name(tab.line(), self.language)),
             language: self.language,
             palette: palette(self.theme),
             scale: self.scale,

@@ -3,7 +3,7 @@
 
 use std::rc::Rc;
 
-use imperifex_domain::draw::{DrawList, Rect, TextRun, UiFont};
+use imperifex_domain::draw::{DrawList, Rect, Rounded, TextRun, UiFont};
 use imperifex_domain::theme::Rgb;
 use windows::Win32::Graphics::Direct3D11::{
     ID3D11Device, ID3D11Texture2D, D3D11_BIND_RENDER_TARGET, D3D11_CPU_ACCESS_READ,
@@ -114,4 +114,42 @@ fn rectangles_and_letters_reach_the_pixels_in_their_colours() {
     assert_eq!(pixels(&mut painter, &list), found);
     painter.forget_glyphs();
     assert_eq!(pixels(&mut painter, &list), found);
+}
+
+#[test]
+fn rounded_corners_leave_what_is_under_them_and_are_smoothed() {
+    if std::env::var_os("IMPERIFEX_NO_HARDWARE").is_some() {
+        return;
+    }
+    let text = Rc::new(DirectWriteText::new("Consolas").expect("DirectWrite"));
+    let mut painter = Painter::new(text).expect("a graphics card");
+    let whole = Rect {
+        x: 0,
+        y: 0,
+        width: 64,
+        height: 32,
+    };
+    let (under, over) = (Rgb(10, 20, 200), Rgb(200, 10, 20));
+    let list = DrawList {
+        rects: vec![(whole, under)],
+        rounded: vec![Rounded {
+            area: whole,
+            radius: 8,
+            color: over,
+        }],
+        ..DrawList::default()
+    };
+    let found = pixels(&mut painter, &list);
+    let at = |x: usize, y: usize| found[y * SIZE.0 as usize + x];
+    for corner in [(0, 0), (63, 0), (0, 31), (63, 31)] {
+        assert_eq!(at(corner.0, corner.1), under, "{corner:?}");
+    }
+    // The middle and the middle of each side are the colour, to their edge.
+    for inside in [(32, 16), (32, 0), (32, 31), (0, 16), (63, 16)] {
+        assert_eq!(at(inside.0, inside.1), over, "{inside:?}");
+    }
+    let between = (0..8)
+        .flat_map(|y| (0..8).map(move |x| (x, y)))
+        .filter(|&(x, y)| ![under, over].contains(&at(x, y)));
+    assert!(between.count() > 0);
 }

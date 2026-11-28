@@ -17,6 +17,7 @@ pub mod log;
 pub mod mouse;
 pub mod picture;
 pub mod ports;
+pub mod prompt_icon;
 pub mod resize_wait;
 pub mod sequence;
 pub mod settings;

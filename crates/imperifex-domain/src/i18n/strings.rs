@@ -61,6 +61,10 @@ crate::strings! {
         es: "No se encontró la fuente elegida; se usa Consolas.",
         en: "The chosen font was not found; Consolas is used.",
     },
+    CommandPrompt {
+        es: "Símbolo del sistema",
+        en: "Command Prompt",
+    },
     ShellNotStarted {
         es: "No se pudo abrir la shell.",
         en: "The shell could not be opened.",

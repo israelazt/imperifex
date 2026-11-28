@@ -1,4 +1,4 @@
-use imperifex_domain::draw::{Icon, TextRun, UiFont};
+use imperifex_domain::draw::{Icon, Rounded, TextRun, UiFont};
 use imperifex_domain::i18n::Language;
 use imperifex_domain::theme::{palette, Theme};
 
@@ -8,6 +8,7 @@ use crate::testing::FixedWidth;
 fn model(scale: f32, maximized: bool) -> Model {
     Model {
         title: "Imperifex".into(),
+        tab: Some("PowerShell".into()),
         language: Language::Spanish,
         palette: palette(Theme::Dark),
         scale,
@@ -142,7 +143,7 @@ fn only_the_button_under_the_mouse_is_lit_and_close_turns_red() {
     let model = model(1.0, false);
     let area = |button| button_area(button, 1000, 1.0);
     let over_close = drawn(&model, &at(970, 20));
-    let red = Some(model.palette.error);
+    let red = Some(model.palette.close_hover);
     assert_eq!(background_of(&over_close, area(Button::Close)), red);
     assert_eq!(background_of(&over_close, area(Button::Minimize)), None);
     let over_minimize = drawn(&model, &at(880, 20));
@@ -162,10 +163,11 @@ fn moving_over_the_strip_does_not_change_what_is_drawn() {
     assert_eq!(drawn(&model, &at(500, 300)), away);
 }
 
+/// Those of the window's buttons.
 fn icons(list: &DrawList) -> Vec<&TextRun> {
     list.texts
         .iter()
-        .filter(|run| run.font == UiFont::Icons)
+        .filter(|run| run.font == UiFont::Icons && run.size == 10)
         .collect()
 }
 
@@ -182,22 +184,82 @@ fn each_button_has_its_icon_in_its_middle_and_maximized_offers_to_restore() {
     let maximized = drawn(&model(1.0, true), &Pointer::default());
     let expected = of([Icon::Minimize, Icon::Restore, Icon::Close]);
     assert_eq!(characters(&maximized), expected);
-    // The fake font is 10 wide and 16 high, in a button of 46 by 40.
+    // The fake font's icon is 10 wide and 14 high, in a button of 46 by 40.
     let found: Vec<_> = icons(&normal).iter().map(|run| (run.x, run.y)).collect();
-    assert_eq!(found, [(880, 12), (926, 12), (972, 12)]);
-    assert!(icons(&normal).iter().all(|run| run.size == 10));
+    assert_eq!(found, [(880, 13), (926, 13), (972, 13)]);
 }
 
 #[test]
-fn the_name_of_the_app_is_at_the_left_of_the_strip_at_the_windows_scale() {
+fn the_tab_of_the_shell_has_its_icon_and_name_on_a_raised_rounded_box() {
+    let model = model(1.0, false);
+    let found = drawn(&model, &Pointer::default());
+    let area = Rect {
+        x: 8,
+        y: 4,
+        width: 178,
+        height: 32,
+    };
+    let expected = Rounded {
+        area,
+        radius: 6,
+        color: model.palette.raised,
+    };
+    assert_eq!(found.rounded, [expected]);
+    let said: Vec<_> = found.texts[..2]
+        .iter()
+        .map(|run| (run.text.clone(), run.x, run.y, run.size))
+        .collect();
+    let icon = Icon::Shell.character().to_string();
+    assert_eq!(
+        said,
+        [(icon, 20, 10, 16), ("PowerShell".into(), 44, 11, 13)]
+    );
+}
+
+#[test]
+fn the_tab_grows_with_the_windows_scale() {
     let found = drawn(&model(1.25, false), &Pointer::default());
-    let name = &found.texts[0];
-    assert_eq!(name.text, "Imperifex");
-    assert_eq!((name.x, name.y, name.size), (15, 15, 15));
+    let name = &found.texts[1];
+    assert_eq!((name.x, name.y, name.size), (55, 15, 16));
+    assert_eq!(
+        (found.rounded[0].area.height, found.rounded[0].radius),
+        (40, 8)
+    );
 }
 
 #[test]
-fn without_focus_the_name_and_the_icons_dim() {
+fn there_is_no_tab_without_a_shell_or_where_it_does_not_fit() {
+    let none = Model {
+        tab: None,
+        ..model(1.0, false)
+    };
+    let narrow = Model {
+        window: (300, 600),
+        ..model(1.0, false)
+    };
+    for model in [none, narrow] {
+        let found = drawn(&model, &Pointer::default());
+        assert!(found.rounded.is_empty());
+        assert_eq!(found.texts.len(), 3, "only the buttons' icons");
+    }
+}
+
+#[test]
+fn a_press_on_the_tab_moves_the_window_as_on_the_rest_of_the_strip() {
+    let model = model(1.0, false);
+    assert_eq!(asked(&model, &pressed(60, 20)), Some(Action::Drag));
+}
+
+#[test]
+fn the_icon_that_closes_turns_white_on_its_red() {
+    let model = model(1.0, false);
+    let found = drawn(&model, &at(970, 20));
+    let close = icons(&found)[2];
+    assert_eq!(close.color, model.palette.on_close_hover);
+}
+
+#[test]
+fn without_focus_the_tab_and_the_icons_dim() {
     let unfocused = Model {
         focused: false,
         ..model(1.0, false)
@@ -249,17 +311,17 @@ fn the_help_waits_for_the_rest_and_is_only_for_buttons() {
 
 #[test]
 fn the_help_stays_inside_the_window_under_the_bar() {
-    let model = model(1.0, false);
-    // "Close" is 50 wide and its box 66: centred under the last button.
+    let spanish = model(1.0, false);
     let english = Model {
         language: Language::English,
-        ..model.clone()
+        ..spanish.clone()
     };
-    let found = drawn(&english, &resting(970, 20));
-    assert_eq!(help_in(&found).map(|run| (run.x, run.y)), Some((938, 52)));
-    // "Cerrar" is 60: centred it would reach 1000, so it is pushed 4 left.
-    let found = drawn(&model, &resting(970, 20));
-    let framed = found.floating_rects.iter().map(|&(area, _)| area);
-    let help = framed.filter(|area| area.y >= 40).collect::<Vec<_>>();
-    assert_eq!((help[0].x, help[0].width, help[0].y), (920, 76, 44));
+    // "Minimize" is 96 wide and its box 112: centred under its button.
+    let found = drawn(&english, &resting(880, 20));
+    assert_eq!(help_in(&found).map(|run| (run.x, run.y)), Some((837, 52)));
+    // "Cerrar" is 72 and its box 88: centred it would stick out, so it is
+    // pushed in to leave 4.
+    let found = drawn(&spanish, &resting(970, 20));
+    let help = found.floating_rects[0].0;
+    assert_eq!((help.x, help.width, help.y), (908, 88, 44));
 }

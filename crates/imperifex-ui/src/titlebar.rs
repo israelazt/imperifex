@@ -1,26 +1,17 @@
-//! The title bar of our own: the strip that moves the window, its three
-//! buttons and the edges that resize it. The tabs will go in the strip.
+//! The title bar of our own: the strip that moves the window, with the tab of
+//! the shell, its three buttons and the edges that resize it.
 
 use imperifex_domain::draw::{DrawList, Rect};
 use imperifex_domain::ports::TextMeasure;
 use imperifex_domain::theme::{Palette, Rgb};
 use imperifex_domain::view::{Action, CursorIcon, Edge, Model, Point, Pointer};
 
+use crate::metrics;
+
 mod labels;
 
-/// In logical pixels: sizes of their own, not steps of the spacing scale.
-const HEIGHT: f32 = 40.0;
-const BUTTON_WIDTH: f32 = 46.0;
-const EDGE: f32 = 8.0;
-
-/// A logical measure in whole physical pixels at the window's `scale`.
-pub(crate) fn physical(logical: f32, scale: f32) -> u32 {
-    // Rounded and never negative before the cast, which then cannot wrap.
-    (logical * scale).round().max(0.0) as u32
-}
-
 pub fn height(scale: f32) -> u32 {
-    physical(HEIGHT, scale)
+    metrics::px(metrics::TITLE_BAR_HEIGHT, scale)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,7 +36,7 @@ impl Button {
 
 /// Where a button is: side by side against the right of the window.
 pub fn button_area(button: Button, window_width: u32, scale: f32) -> Rect {
-    let width = physical(BUTTON_WIDTH, scale);
+    let width = metrics::px(metrics::BUTTON_WIDTH, scale);
     let from_the_right: u32 = match button {
         Button::Close => 1,
         Button::Maximize => 2,
@@ -84,7 +75,7 @@ fn zone(model: &Model, at: Point) -> Zone {
 }
 
 fn edge(model: &Model, at: Point) -> Option<Edge> {
-    let size = i64::from(physical(EDGE, model.scale));
+    let size = i64::from(metrics::px(metrics::RESIZE_EDGE, model.scale));
     let (x, y) = (i64::from(at.0), i64::from(at.1));
     let (west, east) = (x < size, x >= i64::from(model.window.0) - size);
     let (north, south) = (y < size, y >= i64::from(model.window.1) - size);
@@ -139,7 +130,7 @@ fn action(model: &Model, pointer: &Pointer, zone: Zone) -> Option<Action> {
     }
 }
 
-/// The strip, its name and its buttons, the one under the mouse lit.
+/// The strip, its tab and its buttons, the one under the mouse lit.
 pub fn draw(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure, into: &mut DrawList) {
     let strip = Rect {
         x: 0,
@@ -153,7 +144,7 @@ pub fn draw(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure, into: &
     } else {
         model.palette.muted
     };
-    labels::title(model, name, measure, into);
+    labels::tab(model, name, measure, into);
     let hovered = hovered(model, pointer);
     for button in Button::ALL {
         let area = button_area(button, model.window.0, model.scale);
@@ -184,7 +175,7 @@ fn hovered(model: &Model, pointer: &Pointer) -> Option<Button> {
 /// The background of a button, when it has one, and the colour of its icon.
 fn colours(button: Button, lit: bool, focused: bool, palette: &Palette) -> (Option<Rgb>, Rgb) {
     match (lit, button) {
-        (true, Button::Close) => (Some(palette.error), palette.surface),
+        (true, Button::Close) => (Some(palette.close_hover), palette.on_close_hover),
         (true, _) => (Some(palette.raised), palette.text),
         (false, _) if focused => (None, palette.text),
         (false, _) => (None, palette.muted),

@@ -164,6 +164,14 @@ fn the_shell_takes_the_windows_new_size_once_it_settles() {
 }
 
 #[test]
+fn the_tab_is_named_after_the_shell_that_opened_and_there_is_none_without_it() {
+    let (core, _) = running(Script::default());
+    assert_eq!(core.model().tab.as_deref(), Some("PowerShell"));
+    let none = core_with(ThemeChoice::Dark, &FakeAppearance::dark(true));
+    assert_eq!(none.model().tab, None);
+}
+
+#[test]
 fn what_is_typed_reaches_the_shell() {
     let (mut core, launcher) = running(Script::default());
     core.typed(&KeyInput {

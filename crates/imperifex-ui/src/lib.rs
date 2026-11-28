@@ -6,9 +6,12 @@
 #![forbid(unsafe_code)]
 
 pub mod layout;
+pub mod metrics;
 mod notice;
+pub mod statusbar;
 #[cfg(test)]
 mod testing;
+mod text;
 pub mod titlebar;
 
 use imperifex_domain::draw::{DrawList, Rect};
@@ -26,8 +29,9 @@ pub struct Frame {
     pub cursor: CursorIcon,
 }
 
-/// The window: its title bar, and under it the output, with the base space
-/// around its grid unless a program uses the whole screen.
+/// The window: its title bar, the status bar at the bottom and between them the
+/// output, with the base space around its grid unless a program uses the whole
+/// screen.
 pub fn frame(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure) -> Frame {
     let (width, height) = model.window;
     let window = Rect {
@@ -37,9 +41,15 @@ pub fn frame(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure) -> Fra
         height,
     };
     let bar = titlebar::height(model.scale).min(height);
+    let status = statusbar::height(model.scale).min(height - bar);
     let below = Rect {
         y: i32::try_from(bar).unwrap_or(0),
-        height: height - bar,
+        height: height - bar - status,
+        ..window
+    };
+    let bottom = Rect {
+        y: i32::try_from(height - status).unwrap_or(0),
+        height: status,
         ..window
     };
     let terminal_area = if model.full_screen {
@@ -52,6 +62,7 @@ pub fn frame(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure) -> Fra
     draw.rects.push((below, model.palette.surface));
     titlebar::draw(model, pointer, measure, &mut draw);
     notice::draw(model, terminal_area, measure, &mut draw);
+    statusbar::draw(model, bottom, measure, &mut draw);
     titlebar::draw_help(model, pointer, measure, &mut draw);
     let (action, cursor) = titlebar::input(model, pointer);
     Frame {

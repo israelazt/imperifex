@@ -8,6 +8,8 @@ use crate::theme::Palette;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Model {
     pub title: String,
+    /// The name of the profile of the shell that is open, if one is.
+    pub tab: Option<String>,
     pub language: Language,
     pub palette: &'static Palette,
     /// The system's scale: 1.0 is 100 %.

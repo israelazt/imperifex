@@ -1,44 +1,66 @@
-//! What the bar writes: the name of the app, the icons of the buttons and the
+//! What the bar writes: the tab of the shell, the icons of the buttons and the
 //! help of the button the mouse rests on.
 
-use imperifex_domain::draw::{DrawList, Icon, Rect, TextRun, UiFont};
+use imperifex_domain::draw::{DrawList, Icon, Rect, Rounded, UiFont};
 use imperifex_domain::i18n::{text, Text};
 use imperifex_domain::ports::TextMeasure;
 use imperifex_domain::space::Space;
 use imperifex_domain::theme::Rgb;
 use imperifex_domain::view::Model;
 
-use super::{button_area, height, physical, Button};
-use crate::layout;
+use super::{button_area, height, Button};
+use crate::text::{half_of_the_rest, Ink};
+use crate::{layout, metrics};
 
-/// In logical pixels: the line around the help.
-const BORDER: f32 = 1.0;
+fn signed(pixels: u32) -> i32 {
+    i32::try_from(pixels).unwrap_or(i32::MAX)
+}
 
-/// A text in the font `font`, whose line starts at `at`.
-fn run(model: &Model, at: (i32, i32), text: String, (font, color): (UiFont, Rgb)) -> TextRun {
-    TextRun {
-        x: at.0,
-        y: at.1,
-        text,
-        color,
-        font,
-        size: font.size(model.scale),
+/// The tab of the shell that is open, at the left of the strip: its icon and
+/// the name of its profile. One that does not fit before the buttons is not
+/// drawn. A press on it moves the window, as on the rest of the strip: with one
+/// tab there is nothing to choose.
+pub fn tab(model: &Model, color: Rgb, measure: &dyn TextMeasure, into: &mut DrawList) {
+    let Some(name) = &model.tab else { return };
+    let scale = model.scale;
+    let (padding, gap) = (Space::M.px(scale), Space::S.px(scale));
+    let icon = metrics::px(metrics::TAB_ICON, scale);
+    let size = metrics::px(metrics::TEXT, scale);
+    let words = measure.width(name, UiFont::Text, size);
+    let tall = metrics::px(metrics::TAB_HEIGHT, scale);
+    let area = Rect {
+        x: signed(Space::S.px(scale)),
+        y: half_of_the_rest(height(scale), tall),
+        width: padding * 2 + icon + gap + words,
+        height: tall,
+    };
+    let room = button_area(Button::Minimize, model.window.0, scale).x;
+    if area.x.saturating_add(signed(area.width)) > room {
+        return;
     }
-}
-
-/// How far to move something `inner` long to centre it in `outer`.
-fn half_of_the_rest(outer: u32, inner: u32) -> i32 {
-    i32::try_from(outer.saturating_sub(inner) / 2).unwrap_or(0)
-}
-
-/// The name of the app, at the left of the strip and halfway down it.
-pub fn title(model: &Model, ink: Rgb, measure: &dyn TextMeasure, into: &mut DrawList) {
-    let line = measure.line_height(UiFont::Text, model.scale);
-    let x = i32::try_from(Space::M.px(model.scale)).unwrap_or(0);
-    let y = half_of_the_rest(height(model.scale), line);
-    let style = (UiFont::Text, ink);
-    into.texts
-        .push(run(model, (x, y), model.title.clone(), style));
+    into.rounded.push(Rounded {
+        area,
+        radius: metrics::px(metrics::TAB_RADIUS, scale),
+        color: model.palette.raised,
+    });
+    let icon_area = Rect {
+        x: area.x + signed(padding),
+        width: icon,
+        ..area
+    };
+    let glyph = Ink {
+        font: UiFont::Icons,
+        size: icon,
+        color,
+    };
+    glyph.centred(Icon::Shell, icon_area, measure, into);
+    let at = icon_area.x + signed(icon + gap);
+    let letters = Ink {
+        font: UiFont::Text,
+        size,
+        color,
+    };
+    letters.beside(at, area, name.clone(), measure, into);
 }
 
 fn icon_of(button: Button, maximized: bool) -> Icon {
@@ -55,17 +77,16 @@ pub fn icon(
     button: Button,
     model: &Model,
     area: Rect,
-    ink: Rgb,
+    color: Rgb,
     measure: &dyn TextMeasure,
     into: &mut DrawList,
 ) {
-    let drawn = icon_of(button, model.maximized).character().to_string();
-    let width = measure.width(&drawn, UiFont::Icons, model.scale);
-    let line = measure.line_height(UiFont::Icons, model.scale);
-    let x = area.x.saturating_add(half_of_the_rest(area.width, width));
-    let y = area.y.saturating_add(half_of_the_rest(area.height, line));
-    into.texts
-        .push(run(model, (x, y), drawn, (UiFont::Icons, ink)));
+    let glyph = Ink {
+        font: UiFont::Icons,
+        size: metrics::px(metrics::BUTTON_ICON, model.scale),
+        color,
+    };
+    glyph.centred(icon_of(button, model.maximized), area, measure, into);
 }
 
 fn help_of(button: Button, maximized: bool) -> Text {
@@ -82,29 +103,33 @@ pub fn help(button: Button, model: &Model, measure: &dyn TextMeasure, into: &mut
     let said = text(model.language, help_of(button, model.maximized));
     let padding = Space::S.px(model.scale);
     let margin = Space::Xs.px(model.scale);
-    let width = measure.width(said, UiFont::Text, model.scale) + padding * 2;
-    let line = measure.line_height(UiFont::Text, model.scale);
+    let letters = Ink {
+        font: UiFont::Text,
+        size: metrics::px(metrics::SECONDARY_TEXT, model.scale),
+        color: model.palette.text,
+    };
+    let width = measure.width(said, letters.font, letters.size) + padding * 2;
+    let line = measure.line_height(letters.font, letters.size);
     let under = button_area(button, model.window.0, model.scale);
     // Centred under the button, and pushed left if it would stick out.
     let centred = i64::from(under.x) + (i64::from(under.width) - i64::from(width)) / 2;
     let furthest = i64::from(model.window.0) - i64::from(width) - i64::from(margin);
     let area = Rect {
         x: i32::try_from(centred.min(furthest).max(0)).unwrap_or(0),
-        y: i32::try_from(height(model.scale) + margin).unwrap_or(0),
+        y: signed(height(model.scale) + margin),
         width,
         height: line + padding * 2,
     };
     into.floating_rects.push((area, model.palette.muted));
-    let border = physical(BORDER, model.scale).max(1);
+    let border = metrics::px(metrics::BORDER, model.scale).max(1);
     let inside = Rect {
-        x: area.x + i32::try_from(border).unwrap_or(0),
-        y: area.y + i32::try_from(border).unwrap_or(0),
+        x: area.x + signed(border),
+        y: area.y + signed(border),
         width: area.width.saturating_sub(border * 2),
         height: area.height.saturating_sub(border * 2),
     };
     into.floating_rects.push((inside, model.palette.raised));
     let place = layout::inset(area, Space::S, model.scale);
-    let style = (UiFont::Text, model.palette.text);
     into.floating_texts
-        .push(run(model, (place.x, place.y), said.into(), style));
+        .push(letters.run((place.x, place.y), said.into()));
 }

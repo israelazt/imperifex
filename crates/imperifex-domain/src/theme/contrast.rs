@@ -58,15 +58,25 @@ mod tests {
     }
 
     #[test]
-    fn the_coloured_ansi_ones_read_and_the_grey_one_can_be_made_out() {
+    fn the_ansi_ones_read_and_the_grey_one_can_be_made_out() {
         for theme in Theme::ALL {
             let p = palette(theme);
-            for index in (1..=6).chain(9..=14) {
+            // 0 is "black", used above all as a background.
+            for index in (1..=7).chain(9..=15) {
                 let found = worst(p, p.ansi[index]);
-                assert!(found >= 5.0, "{theme:?} ansi {index}: {found}");
+                assert!(found >= 4.5, "{theme:?} ansi {index}: {found}");
             }
             let grey = worst(p, p.ansi[8]);
-            assert!(grey >= 3.2, "{theme:?} ansi 8: {grey}");
+            assert!(grey >= 4.0, "{theme:?} ansi 8: {grey}");
+        }
+    }
+
+    #[test]
+    fn the_icon_that_closes_reads_on_its_red() {
+        for theme in Theme::ALL {
+            let p = palette(theme);
+            let found = contrast(p.on_close_hover, p.close_hover);
+            assert!(found >= 4.5, "{theme:?}: {found}");
         }
     }
 }

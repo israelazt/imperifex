@@ -9,10 +9,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use imperifex_domain::atlas::GlyphKey;
-use imperifex_domain::draw::UiFont;
+use imperifex_domain::draw::{Icon, UiFont};
 use imperifex_domain::font::{cell_size, CellSize};
 use imperifex_domain::log_warn;
 use imperifex_domain::ports::TextMeasure;
+use imperifex_domain::prompt_icon;
 use windows::Win32::Graphics::DirectWrite::{
     DWriteCreateFactory, IDWriteFactory2, IDWriteFontCollection, DWRITE_FACTORY_TYPE_SHARED,
 };
@@ -20,8 +21,9 @@ use windows::Win32::Graphics::DirectWrite::{
 use crate::instances::{GlyphSource, GridLook, Picture, Shaped};
 use face::{Face, Look};
 
-/// The font of the interface's words.
-const WORDS: &str = "Segoe UI";
+/// The font of the interface's words: the one of Windows 11, or else the one of
+/// Windows 10.
+const WORDS: [&str; 2] = ["Segoe UI Variable Text", "Segoe UI"];
 /// That of its icons: the one of Windows 11, or else the one of Windows 10.
 const ICONS: [&str; 2] = ["Segoe Fluent Icons", "Segoe MDL2 Assets"];
 /// What the grid uses when the chosen font is not installed.
@@ -30,6 +32,8 @@ const SPARE: &str = "Consolas";
 /// Where each face is in the list: its number in a [`GlyphKey`].
 const WORDS_FACE: u32 = 0;
 const ICONS_FACE: u32 = 1;
+/// Not a face of Windows: what is drawn by the program itself.
+const DRAWN_FACE: u32 = u32::MAX;
 /// The first of the grid's four, in the order of [`Look::ALL`].
 const GRID_FACES: u32 = 2;
 
@@ -60,7 +64,7 @@ impl DirectWriteText {
             Some(family) => family,
             None => face::installed(&collection, &[SPARE])?,
         };
-        let words = face::installed(&collection, &[WORDS])?;
+        let words = face::installed(&collection, &WORDS)?;
         let icons = face::installed(&collection, &ICONS)?;
         let mut faces = vec![
             Face::of(&words, Look::REGULAR)?,
@@ -171,8 +175,23 @@ fn face_at(faces: &[Face], number: u32) -> Result<&Face, String> {
         .ok_or_else(|| format!("there is no face {number}"))
 }
 
+/// The icon of a shell: as wide as its size, like those of the icon font.
+fn drawn_prompt(size: u32) -> Shaped {
+    Shaped {
+        key: GlyphKey {
+            face: DRAWN_FACE,
+            glyph: 0,
+            size: size.saturating_mul(64),
+        },
+        advance: size as f32,
+    }
+}
+
 impl GlyphSource for DirectWriteText {
     fn shape(&self, font: UiFont, character: char, size: u32) -> Option<Shaped> {
+        if font == UiFont::Icons && character == Icon::Shell.character() {
+            return Some(drawn_prompt(size));
+        }
         self.shape_in(number_of(font), character, size as f32)
             .map_err(|error| log_warn!("{character:?} cannot be drawn: {error}"))
             .ok()
@@ -187,6 +206,18 @@ impl GlyphSource for DirectWriteText {
     }
 
     fn picture(&self, key: GlyphKey) -> Result<Picture, String> {
+        if key.face == DRAWN_FACE {
+            let side = key.size / 64;
+            let coverage = prompt_icon::coverage(side);
+            return Ok(Picture {
+                left: 0,
+                // Its top where that of the icon font's line is.
+                top: -self.ascent(UiFont::Icons, side),
+                width: side,
+                height: side,
+                coverage,
+            });
+        }
         let faces = self.faces.borrow();
         let face = face_at(&faces, key.face)?;
         raster::picture(&self.factory, face, key.glyph, key.size as f32 / 64.0)
@@ -201,8 +232,7 @@ impl GlyphSource for DirectWriteText {
 }
 
 impl TextMeasure for DirectWriteText {
-    fn width(&self, text: &str, font: UiFont, scale: f32) -> u32 {
-        let size = font.size(scale);
+    fn width(&self, text: &str, font: UiFont, size: u32) -> u32 {
         let advances: f32 = text
             .chars()
             .filter_map(|character| self.shape(font, character, size))
@@ -212,9 +242,9 @@ impl TextMeasure for DirectWriteText {
         advances.ceil() as u32
     }
 
-    fn line_height(&self, font: UiFont, scale: f32) -> u32 {
+    fn line_height(&self, font: UiFont, size: u32) -> u32 {
         self.of_ui(font).map_or(0, |metrics| {
-            let line = metrics.pixels(metrics.line_units(), font.size(scale) as f32);
+            let line = metrics.pixels(metrics.line_units(), size as f32);
             line.ceil().max(0.0) as u32
         })
     }

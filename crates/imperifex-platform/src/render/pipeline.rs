@@ -149,6 +149,11 @@ fn layout(device: &ID3D11Device, vertex_code: &[u8]) -> Result<ID3D11InputLayout
             DXGI_FORMAT_R32_FLOAT,
             offset_of!(Instance, glyph),
         ),
+        element(
+            s!("RADIUS"),
+            DXGI_FORMAT_R32_FLOAT,
+            offset_of!(Instance, radius),
+        ),
     ];
     let mut layout = None;
     // SAFETY: the elements, their constant names, the code and the output live

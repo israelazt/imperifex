@@ -49,21 +49,21 @@ fn a_letter_has_a_picture_above_the_baseline_and_a_space_has_none() {
 #[test]
 fn words_measure_the_sum_of_their_letters_and_grow_with_the_scale() {
     let text = text_with("Consolas");
-    let width = |words, scale| text.width(words, UiFont::Text, scale);
-    assert_eq!(width("", 1.0), 0);
-    assert!(width("W", 1.0) > width("i", 1.0));
-    assert!(width("Minimizar", 1.0) > width("Cerrar", 1.0));
-    assert!(width("Cerrar", 2.0) > width("Cerrar", 1.0));
-    let line = text.line_height(UiFont::Text, 1.0);
+    let width = |words, size| text.width(words, UiFont::Text, size);
+    assert_eq!(width("", 13), 0);
+    assert!(width("W", 13) > width("i", 13));
+    assert!(width("Minimizar", 13) > width("Cerrar", 13));
+    assert!(width("Cerrar", 26) > width("Cerrar", 13));
+    let line = text.line_height(UiFont::Text, 12);
     assert!((12..=24).contains(&line), "{line}");
     let ascent = text.ascent(UiFont::Text, 12);
     assert!(ascent > 0 && ascent < line as i32, "{ascent}");
 }
 
 #[test]
-fn every_icon_is_in_the_icon_font() {
+fn every_icon_is_in_the_icon_font_but_the_one_we_draw() {
     let text = text_with("Consolas");
-    for icon in Icon::ALL {
+    for icon in Icon::ALL.into_iter().filter(|&icon| icon != Icon::Shell) {
         let shaped = text
             .shape(UiFont::Icons, icon.character(), 10)
             .expect("a glyph");
@@ -72,6 +72,24 @@ fn every_icon_is_in_the_icon_font() {
         let picture = text.picture(shaped.key).expect("its picture");
         assert!(picture.width > 0, "{icon:?}");
     }
+}
+
+#[test]
+fn the_icon_of_a_shell_is_drawn_to_fill_the_line_of_the_icons() {
+    let text = text_with("Consolas");
+    let shaped = text
+        .shape(UiFont::Icons, Icon::Shell.character(), 20)
+        .expect("a glyph");
+    let picture = text.picture(shaped.key).expect("its picture");
+    assert_eq!((picture.width, picture.height), (20, 20));
+    assert_eq!(picture.coverage.len(), 400);
+    assert_eq!(
+        text.width(&Icon::Shell.character().to_string(), UiFont::Icons, 20),
+        20
+    );
+    // As the glyphs of the icon font, it ends on the baseline.
+    assert_eq!(text.line_height(UiFont::Icons, 20), 20);
+    assert_eq!(picture.top, -20);
 }
 
 #[test]

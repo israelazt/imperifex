@@ -33,6 +33,8 @@ type Cursor = Option<Position>;
 
 pub struct ShellTab {
     session: Session,
+    /// The line that opened it.
+    line: String,
     wait: ResizeWait,
     cursor: Cursor,
 }
@@ -60,6 +62,7 @@ impl ShellTab {
                 Ok(pty) => {
                     let terminal = Terminal::new(columns, rows);
                     return Ok(Self {
+                        line,
                         session: Session::new(pty, (opening.new_parser)(), terminal),
                         wait: ResizeWait::new(opening.size),
                         cursor: None,
@@ -72,6 +75,10 @@ impl ShellTab {
             }
         }
         Err(error)
+    }
+
+    pub fn line(&self) -> &str {
+        &self.line
     }
 
     pub fn terminal(&self) -> &Terminal {

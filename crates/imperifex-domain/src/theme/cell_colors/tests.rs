@@ -70,16 +70,29 @@ fn hidden_text_stays_hidden_even_with_the_minimum_contrast() {
 }
 
 #[test]
-fn the_suggestion_of_psreadline_is_seen_on_the_light_theme() {
-    // `ESC[97;2;3m`: bright white, dim and italic.
-    let suggestion = style(Color::Indexed(15), Color::Default, Attributes::DIM);
+fn white_text_that_would_not_be_seen_on_the_light_theme_is_made_visible() {
+    // Dim white in 24 bits, which no theme changes.
+    let faint = style(Color::Rgb(255, 255, 255), Color::Default, Attributes::DIM);
     let light = palette(Theme::Light);
-    let (unadjusted, _) = cell_colors(suggestion, light, false);
+    let (unadjusted, _) = cell_colors(faint, light, false);
     assert_eq!(unadjusted, Rgb::WHITE);
-    let (text, background) = cell_colors(suggestion, light, true);
+    let (text, background) = cell_colors(faint, light, true);
     assert!(contrast(text, background) >= ENOUGH);
     // Only as far as needed: it is still a faint grey, not black.
     assert!(contrast(text, background) < ENOUGH + 0.1);
+}
+
+#[test]
+fn what_is_written_in_white_reads_on_the_light_theme_with_nothing_adjusted() {
+    let light = palette(Theme::Light);
+    let white = style(Color::Indexed(7), Color::Default, Attributes::default());
+    // `ESC[97;2;3m`, the suggestion of PSReadLine: bright white, dim.
+    let suggestion = style(Color::Indexed(15), Color::Default, Attributes::DIM);
+    for (cell, at_least) in [(white, 4.5), (suggestion, TOO_LOW)] {
+        let (text, background) = cell_colors(cell, light, false);
+        assert!(contrast(text, background) >= at_least, "{cell:?}");
+        assert_eq!(cell_colors(cell, light, true), (text, background));
+    }
 }
 
 #[test]

@@ -5,7 +5,7 @@
 mod grid;
 
 use imperifex_domain::atlas::{Atlas, GlyphKey, Slot};
-use imperifex_domain::draw::{DrawList, Rect, TextRun, UiFont};
+use imperifex_domain::draw::{DrawList, Rect, Rounded, TextRun, UiFont};
 use imperifex_domain::log_info;
 use imperifex_domain::picture::TerminalPicture;
 use imperifex_domain::theme::Rgb;
@@ -22,6 +22,8 @@ pub struct Instance {
     pub atlas: [f32; 4],
     /// 1 for a glyph, whose shape comes from the atlas; 0 for a rectangle.
     pub glyph: f32,
+    /// How round the corners of a rectangle are, in pixels; 0 for square ones.
+    pub radius: f32,
 }
 
 /// The glyph a character is drawn with, and how far it moves the pen.
@@ -116,6 +118,7 @@ impl Batch {
         self.instances.clear();
         self.uploads.clear();
         self.solids(&list.rects);
+        self.instances.extend(list.rounded.iter().map(round));
         let mut letters = Letters {
             source,
             atlas,
@@ -231,6 +234,15 @@ impl Letters<'_> {
             });
         }
         Ok(slot)
+    }
+}
+
+fn round(shape: &Rounded) -> Instance {
+    // No rounder than half its shorter side.
+    let most = shape.area.width.min(shape.area.height) / 2;
+    Instance {
+        radius: shape.radius.min(most) as f32,
+        ..solid(shape.area, shape.color)
     }
 }
 

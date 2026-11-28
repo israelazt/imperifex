@@ -3,16 +3,17 @@
 use imperifex_domain::draw::UiFont;
 use imperifex_domain::ports::TextMeasure;
 
-/// Every character is 10 logical pixels wide and every line 16 high.
+/// Every character is as wide as the size of the letters, and a line is 4 more
+/// than it.
 pub struct FixedWidth;
 
 impl TextMeasure for FixedWidth {
-    fn width(&self, text: &str, _font: UiFont, scale: f32) -> u32 {
+    fn width(&self, text: &str, _font: UiFont, size: u32) -> u32 {
         let characters = u32::try_from(text.chars().count()).unwrap_or(u32::MAX);
-        (characters as f32 * 10.0 * scale).round() as u32
+        characters.saturating_mul(size)
     }
 
-    fn line_height(&self, _font: UiFont, scale: f32) -> u32 {
-        (16.0 * scale).round() as u32
+    fn line_height(&self, _font: UiFont, size: u32) -> u32 {
+        size + 4
     }
 }

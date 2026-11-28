@@ -1,3 +1,4 @@
+use imperifex_domain::draw::Icon;
 use imperifex_domain::i18n::{text, Language, Text};
 use imperifex_domain::theme::{palette, Theme};
 
@@ -7,6 +8,7 @@ use crate::testing::FixedWidth;
 fn model(theme: Theme) -> Model {
     Model {
         title: text(Language::Spanish, Text::AppName).into(),
+        tab: Some("PowerShell".into()),
         language: Language::Spanish,
         palette: palette(theme),
         scale: 1.25,
@@ -26,13 +28,13 @@ fn without_the_mouse_nothing_is_asked() {
 }
 
 #[test]
-fn the_output_goes_under_the_bar_with_the_base_space_around_it() {
+fn the_output_goes_between_the_two_bars_with_the_base_space_around_it() {
     let found = frame(&model(Theme::Dark), &Pointer::default(), &FixedWidth);
     let expected = Rect {
         x: 20,
         y: 70,
         width: 760,
-        height: 510,
+        height: 475,
     };
     assert_eq!(found.terminal_area, expected);
 }
@@ -69,7 +71,7 @@ fn a_program_that_uses_the_whole_screen_gets_no_margins() {
         x: 0,
         y: 50,
         width: 800,
-        height: 550,
+        height: 515,
     };
     assert_eq!(found.terminal_area, under_the_bar);
 }
@@ -85,10 +87,40 @@ fn each_line_of_a_notice_is_written_where_the_output_goes() {
         .draw
         .texts
         .iter()
-        .filter(|run| run.y >= found.terminal_area.y)
+        .filter(|run| run.color == model.palette.error)
         .map(|run| (run.x, run.y, run.text.as_str(), run.color))
         .collect();
     let error = model.palette.error;
     // At 125 % the lines of the fake font are 20 high.
     assert_eq!(said, [(20, 70, "first", error), (20, 90, "second", error)]);
+}
+
+#[test]
+fn the_bar_at_the_bottom_says_the_profile_of_the_shell() {
+    let model = model(Theme::Dark);
+    let found = frame(&model, &Pointer::default(), &FixedWidth);
+    let bar = Rect {
+        x: 0,
+        y: 565,
+        width: 800,
+        height: 35,
+    };
+    assert!(found.draw.rects.contains(&(bar, model.palette.background)));
+    let said: Vec<_> = found
+        .draw
+        .texts
+        .iter()
+        .filter(|run| run.y >= bar.y)
+        .map(|run| (run.text.clone(), run.x, run.size, run.color))
+        .collect();
+    // At 125 %: 20 from the side, an icon of 15, 5 and the name.
+    let icon = Icon::Shell.character().to_string();
+    let muted = model.palette.muted;
+    assert_eq!(
+        said,
+        [
+            (icon, 20, 15, muted),
+            ("PowerShell".to_string(), 40, 15, muted)
+        ]
+    );
 }

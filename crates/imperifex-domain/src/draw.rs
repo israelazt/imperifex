@@ -18,30 +18,27 @@ pub enum UiFont {
     Icons,
 }
 
-impl UiFont {
-    /// The size of its letters in physical pixels at the window's `scale`.
-    /// In logical pixels they are what Windows uses in its title bars.
-    pub fn size(self, scale: f32) -> u32 {
-        let logical = match self {
-            Self::Text => 12.0,
-            Self::Icons => 10.0,
-        };
-        // Rounded and never negative before the cast, which then cannot wrap.
-        (logical * scale).round().max(0.0) as u32
-    }
-}
-
-/// The icons of the interface, as characters of its icon font.
+/// The icons of the interface, as characters of its icon font. The one of a
+/// shell is not in it: it is drawn by [`crate::prompt_icon`], and its
+/// character only names it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Icon {
     Minimize,
     Maximize,
     Restore,
     Close,
+    /// A tab with a shell.
+    Shell,
 }
 
 impl Icon {
-    pub const ALL: [Self; 4] = [Self::Minimize, Self::Maximize, Self::Restore, Self::Close];
+    pub const ALL: [Self; 5] = [
+        Self::Minimize,
+        Self::Maximize,
+        Self::Restore,
+        Self::Close,
+        Self::Shell,
+    ];
 
     /// The same in Segoe Fluent Icons and in Segoe MDL2 Assets.
     pub fn character(self) -> char {
@@ -50,6 +47,7 @@ impl Icon {
             Self::Maximize => '\u{E922}',
             Self::Restore => '\u{E923}',
             Self::Close => '\u{E8BB}',
+            Self::Shell => '\u{F8FF}',
         }
     }
 }
@@ -66,12 +64,22 @@ pub struct TextRun {
     pub size: u32,
 }
 
-/// Rectangles first, in order, and the texts over them. What floats is drawn
+/// A rectangle with its corners rounded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rounded {
+    pub area: Rect,
+    /// In physical pixels.
+    pub radius: u32,
+    pub color: Rgb,
+}
+
+/// Rectangles first, in order, then the rounded ones, and the texts over them. What floats is drawn
 /// last, the same way, over those and over the grid of the terminal, which goes
 /// between the rectangles and the texts.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct DrawList {
     pub rects: Vec<(Rect, Rgb)>,
+    pub rounded: Vec<Rounded>,
     pub texts: Vec<TextRun>,
     pub floating_rects: Vec<(Rect, Rgb)>,
     pub floating_texts: Vec<TextRun>,
