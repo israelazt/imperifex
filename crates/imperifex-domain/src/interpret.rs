@@ -27,7 +27,9 @@ pub fn apply(terminal: &mut Terminal, sequence: Sequence<'_>) {
             intermediates: [],
             action,
         } => esc(terminal, action),
-        Sequence::Osc([code, letter, ..]) if *code == b"133" => terminal.mark(letter),
+        Sequence::Osc([code, letter, more @ ..]) if *code == b"133" => {
+            terminal.mark(letter, more);
+        }
         Sequence::Osc([code, kind, path @ ..]) if *code == b"9" && *kind == b"9" => {
             terminal.folder = folder_named(path);
         }

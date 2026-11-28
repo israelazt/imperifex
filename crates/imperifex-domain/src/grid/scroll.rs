@@ -103,6 +103,7 @@ impl Grid {
         for row in &mut self.rows[from..to] {
             row.cells.fill(blank.clone());
             row.wrap = Wrap::End;
+            row.mark = None;
         }
         self.damage(from, to);
     }

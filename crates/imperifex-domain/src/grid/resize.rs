@@ -26,12 +26,13 @@ impl Grid {
         let used = written.max(self.cursor.row + 1);
         let mut rewrap = Rewrap::new(columns, rows, self.history.limit());
         while let Some(line) = self.history.pop_oldest() {
-            rewrap.row(line.cells(), line.wrap, None);
+            rewrap.row((line.cells(), line.wrap, line.mark), None);
         }
         let Position { row, column } = self.cursor;
         let cursor = column + usize::from(self.wrap_pending);
         for (index, old) in self.rows.drain(..used).enumerate() {
-            rewrap.row(old.cells, old.wrap, (index == row).then_some(cursor));
+            let at_cursor = (index == row).then_some(cursor);
+            rewrap.row((old.cells, old.wrap, old.mark), at_cursor);
         }
         let done = rewrap.finish();
         self.history = done.history;

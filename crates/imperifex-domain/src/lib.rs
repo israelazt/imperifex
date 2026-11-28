@@ -5,6 +5,7 @@
 #![forbid(unsafe_code)]
 
 pub mod atlas;
+pub mod blocks;
 pub mod command_history;
 pub mod command_line;
 pub mod completion;

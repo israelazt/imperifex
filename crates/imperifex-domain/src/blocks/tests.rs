@@ -105,7 +105,9 @@ fn a_change_of_width_keeps_the_blocks_and_joins_the_lines_of_their_output() {
 #[test]
 fn clearing_the_screen_forgets_the_blocks_on_it() {
     let mut terminal = two();
-    terminal.screen_mut().erase_in_display(crate::grid::Erase::All);
+    terminal
+        .screen_mut()
+        .erase_in_display(crate::grid::Erase::All);
     assert!(seen(&terminal, 0, 10).is_empty());
     assert_eq!(output(&terminal, 1), None);
 }
@@ -132,4 +134,19 @@ fn a_duration_is_seconds_with_a_tenth_or_minutes_and_seconds() {
     assert_eq!(spanish(41_270), "41,3 s");
     assert_eq!(spanish(125_999), "2 min 5 s");
     assert_eq!(duration(Language::English, 3_800), "3.8 s");
+}
+
+#[test]
+fn a_command_that_writes_nothing_still_says_how_it_ended_on_its_row() {
+    let mut terminal = Terminal::new(20, 10);
+    run(&mut terminal, "sleep 1", "", "0");
+    run(&mut terminal, "ls", "a\r\n", "0");
+    mark(&mut terminal, &["A"]);
+    let found = seen(&terminal, 0, 10);
+    assert_eq!(spans(&found)[..2], [(1, 0, 1, true), (2, 1, 3, true)]);
+    assert_eq!(found[0].command, Some((0, 9)));
+    assert!(found[0].ran.is_some());
+    assert_eq!(found[1].command, Some((1, 4)));
+    assert_eq!(output(&terminal, 1).as_deref(), Some(""));
+    assert_eq!(output(&terminal, 2).as_deref(), Some("a"));
 }

@@ -1,6 +1,7 @@
 //! A terminal as a program sees it: the screen it writes to, the other screen
 //! kept aside, and the modes it asked for.
 
+use crate::blocks::Blocks;
 use crate::grid::Grid;
 use crate::shell_state::ShellState;
 
@@ -41,6 +42,8 @@ pub struct Terminal {
     pub modes: Modes,
     /// What the shell says it is doing, if it has the integration.
     pub shell: ShellState,
+    /// The commands it ran, a block each.
+    pub blocks: Blocks,
     /// The folder it says it is in (OSC 9;9).
     pub folder: Option<String>,
     history_limit: usize,
@@ -59,6 +62,7 @@ impl Terminal {
             modes: Modes::default(),
             shell: ShellState::default(),
             folder: None,
+            blocks: Blocks::default(),
             history_limit: lines,
         }
     }

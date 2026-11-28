@@ -2,6 +2,7 @@
 //! OSC 133: `A` starts its prompt, `B` ends it and waits for a command, and
 //! `C` starts running one.
 
+use crate::blocks::Ran;
 use crate::grid::Grid;
 use crate::terminal::Terminal;
 
@@ -53,9 +54,9 @@ fn written_since(screen: &Grid, start: u64, column: usize) -> Vec<String> {
 }
 
 impl Terminal {
-    /// A mark of OSC 133, by its letter. Others, such as the `D` with how the
-    /// command ended, are not used yet.
-    pub(crate) fn mark(&mut self, letter: &[u8]) {
+    /// A mark of OSC 133, by its letter, with what comes after it: for `D`,
+    /// the exit code and how many milliseconds the command ran.
+    pub(crate) fn mark(&mut self, letter: &[u8], more: &[&[u8]]) {
         // A program on the whole screen is not the shell's prompt.
         if self.on_alternate_screen() {
             return;
@@ -65,6 +66,8 @@ impl Terminal {
                 let screen = self.screen();
                 let column = screen.cursor().column;
                 self.shell = ShellState::Prompting(cursor_row(screen), column);
+                let mark = self.blocks.prompt();
+                self.screen_mut().set_mark(mark);
             }
             b"B" => {
                 if let ShellState::Prompting(row, column) = self.shell {
@@ -72,7 +75,18 @@ impl Terminal {
                     self.shell = ShellState::Waiting(lines);
                 }
             }
-            b"C" => self.shell = ShellState::Running,
+            b"C" => {
+                self.shell = ShellState::Running;
+                let mark = self.blocks.output();
+                self.screen_mut().set_mark(mark);
+            }
+            b"D" => {
+                let number = |at: usize| std::str::from_utf8(more.get(at)?).ok();
+                if let Some(code) = number(0).and_then(|code| code.parse().ok()) {
+                    let millis = number(1).and_then(|millis| millis.parse().ok());
+                    self.blocks.ended(Ran { code, millis });
+                }
+            }
             _ => {}
         }
     }

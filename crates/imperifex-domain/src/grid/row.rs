@@ -1,6 +1,6 @@
 //! One row of the screen: its cells, and whether its text goes on below.
 
-use super::Cell;
+use super::{Cell, Mark};
 
 /// Whether a row's line goes on in the next row because it did not fit. A
 /// change of width joins and cuts those lines again.
@@ -20,6 +20,8 @@ pub(super) enum Wrap {
 pub(super) struct Row {
     pub cells: Vec<Cell>,
     pub wrap: Wrap,
+    /// What starts on it.
+    pub mark: Option<Mark>,
 }
 
 impl Row {
@@ -27,6 +29,7 @@ impl Row {
         Self {
             cells: vec![blank.clone(); columns],
             wrap: Wrap::End,
+            mark: None,
         }
     }
 

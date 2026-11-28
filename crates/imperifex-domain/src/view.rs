@@ -26,6 +26,41 @@ pub struct Model {
     pub editor: Option<EditorView>,
     /// A warning for the status bar.
     pub warning: Option<String>,
+    /// The blocks with rows in view, from the top down.
+    pub blocks: Vec<BlockView>,
+}
+
+/// A block of the output as it is to be drawn.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockView {
+    pub id: u32,
+    /// Its rows in view, in physical pixels.
+    pub top: i32,
+    pub height: u32,
+    /// Its first row is one of them.
+    pub starts_here: bool,
+    /// The row of its command, if it is in view.
+    pub command: Option<CommandRow>,
+    pub ran: Option<RanView>,
+    pub selected: bool,
+}
+
+/// The row of a command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommandRow {
+    pub y: i32,
+    pub height: u32,
+    /// How much of it is empty at its right, in physical pixels.
+    pub free: u32,
+}
+
+/// How a command ended.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RanView {
+    /// 0 when it went well.
+    pub code: i32,
+    /// How long it ran, as it is said.
+    pub took: Option<String>,
 }
 
 /// The command editor as it is to be drawn.
@@ -94,6 +129,10 @@ pub enum Action {
         line: usize,
         column: usize,
     },
+    /// Choose a block of the output, or let go of it.
+    SelectBlock(u32),
+    /// Copy what the command of a block wrote.
+    CopyBlock(u32),
 }
 
 /// The shape the mouse takes.

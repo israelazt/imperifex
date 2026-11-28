@@ -4,7 +4,8 @@
 use std::collections::BTreeMap;
 
 use crate::grid::{Cell, Grid, Mark};
-use crate::i18n::{decimal, Language};
+use crate::i18n::number::decimal;
+use crate::i18n::Language;
 use crate::terminal::Terminal;
 
 /// How many results are kept: as many as rows of history.
@@ -34,7 +35,10 @@ impl Blocks {
     /// A prompt starts: the mark for its row.
     pub fn prompt(&mut self) -> Mark {
         self.last = self.last.wrapping_add(1);
-        Mark::Prompt(self.last)
+        Mark::Prompt {
+            id: self.last,
+            silent: None,
+        }
     }
 
     /// Its command starts to write: the mark for that row.
@@ -79,7 +83,7 @@ fn prompt_above(screen: &Grid, line: usize) -> Option<(usize, u32)> {
     (line.saturating_sub(FAR)..line)
         .rev()
         .find_map(|at| match screen.mark_of(at) {
-            Some(Mark::Prompt(id)) => Some((at, id)),
+            Some(Mark::Prompt { id, .. }) => Some((at, id)),
             _ => None,
         })
 }
@@ -89,10 +93,14 @@ fn prompt_above(screen: &Grid, line: usize) -> Option<(usize, u32)> {
 fn command_line(screen: &Grid, id: u32, from: usize) -> Option<usize> {
     for line in from..screen.lines().min(from + FAR) {
         match screen.mark_of(line) {
-            Some(Mark::Output(found)) if found == id => {
+            Some(Mark::Output(found))
+            | Some(Mark::Prompt {
+                silent: Some(found),
+                ..
+            }) if found == id => {
                 return Some(line.saturating_sub(1).max(from));
             }
-            Some(Mark::Prompt(found)) if found != id => return None,
+            Some(Mark::Prompt { id: found, .. }) if found != id => return None,
             _ => {}
         }
     }
@@ -116,11 +124,11 @@ pub fn seen(terminal: &Terminal, first: isize, rows: usize) -> Vec<SeenBlock> {
     // Each start in view, and before them the block that reaches into it.
     let mut starts: Vec<(usize, u32)> = (top..end)
         .filter_map(|line| match screen.mark_of(line) {
-            Some(Mark::Prompt(id)) => Some((line, id)),
+            Some(Mark::Prompt { id, .. }) => Some((line, id)),
             _ => None,
         })
         .collect();
-    if starts.first().map_or(true, |&(line, _)| line > top) {
+    if starts.first().is_none_or(|&(line, _)| line > top) {
         if let Some(above) = prompt_above(screen, top) {
             starts.insert(0, above);
         }
@@ -151,13 +159,30 @@ pub fn seen(terminal: &Terminal, first: isize, rows: usize) -> Vec<SeenBlock> {
 /// What the command of the block `id` wrote, if it is still kept.
 pub fn output(terminal: &Terminal, id: u32) -> Option<String> {
     let screen = terminal.screen();
-    let from = (0..screen.lines())
-        .rev()
-        .find(|&line| screen.mark_of(line) == Some(Mark::Output(id)))?;
+    for line in (0..screen.lines()).rev() {
+        match screen.mark_of(line) {
+            Some(Mark::Output(found)) if found == id => {
+                return Some(output_from(terminal, id, line))
+            }
+            Some(Mark::Prompt {
+                silent: Some(found),
+                ..
+            }) if found == id => return Some(String::new()),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// What is from the line `from` to the next block's prompt.
+fn output_from(terminal: &Terminal, id: u32, from: usize) -> String {
+    let screen = terminal.screen();
     let to = (from..screen.lines())
-        .find(|&line| matches!(screen.mark_of(line), Some(Mark::Prompt(next)) if next != id))
+        .find(|&line| {
+            matches!(screen.mark_of(line), Some(Mark::Prompt { id: next, .. }) if next != id)
+        })
         .unwrap_or_else(|| screen.history_len() + screen.used_rows());
-    Some(screen.text_of_lines(from, to))
+    screen.text_of_lines(from, to)
 }
 
 /// How long something took, as it is shown: `0,1 s`, or `2 min 5 s`.

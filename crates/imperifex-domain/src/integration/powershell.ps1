@@ -11,7 +11,8 @@ function global:prompt {
     if ($global:__ImperifexRan) {
         $result = 0
         if (-not $ok) { $result = 1; if ($code) { $result = $code } }
-        $marks = "$e]133;D;$result$b"
+        $took = $global:__ImperifexTimer.ElapsedMilliseconds
+        $marks = "$e]133;D;$result;$took$b"
         $global:__ImperifexRan = $false
     }
     # The current folder, for Tab to complete paths (OSC 9;9).
@@ -29,6 +30,7 @@ if (Test-Path function:PSConsoleHostReadLine) {
         $line = & $global:__ImperifexReadLine
         if ($line.Trim()) {
             $global:__ImperifexRan = $true
+            $global:__ImperifexTimer = [System.Diagnostics.Stopwatch]::StartNew()
             [Console]::Write("$([char]27)]133;C$([char]7)")
         }
         $line

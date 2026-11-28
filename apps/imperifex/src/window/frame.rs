@@ -37,10 +37,10 @@ impl App {
             new_parser: &|| Box::new(VteParser::new()),
             wake: self.output_arrived.clone(),
         };
-        if self.core.open_shell(&start) {
-            return self.frame(&self.pointer());
-        }
-        frame
+        self.core.open_shell(&start);
+        // Again: a shell just opened changes what is shown, and the blocks go
+        // where the grid now goes.
+        self.frame(&self.pointer())
     }
 
     /// Draws what there is now and shows it.

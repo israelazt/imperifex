@@ -214,6 +214,7 @@ impl Core {
             return Vec::new();
         }
         self.typing.refused = false;
+        self.chosen_block = None;
         let kept = self.typing.remember(command);
         self.typing.editor.sent(kept);
         // An empty one only gets another prompt.

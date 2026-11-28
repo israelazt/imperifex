@@ -19,6 +19,7 @@ fn model(scale: f32, maximized: bool) -> Model {
         notice: Vec::new(),
         editor: None,
         warning: None,
+        blocks: Vec::new(),
     }
 }
 

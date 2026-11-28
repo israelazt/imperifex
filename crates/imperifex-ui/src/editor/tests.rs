@@ -21,6 +21,7 @@ fn model(view: EditorView) -> Model {
         notice: Vec::new(),
         editor: Some(view),
         warning: None,
+        blocks: Vec::new(),
     }
 }
 

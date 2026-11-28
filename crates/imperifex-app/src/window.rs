@@ -1,6 +1,7 @@
 //! The state of the window while it is open: what the interface is shown, and
 //! what the program is asked to do with the real window.
 
+mod blocks;
 mod clipboard;
 mod output;
 mod typing;
@@ -47,6 +48,8 @@ pub struct Core {
     output: output::Output,
     typing: typing::Typing,
     pasting: clipboard::Pasting,
+    /// The block of the output the user chose.
+    chosen_block: Option<u32>,
 }
 
 impl Core {
@@ -61,6 +64,7 @@ impl Core {
         let typing = typing::Typing::new(settings.command_editor);
         Self {
             pasting: clipboard::Pasting::default(),
+            chosen_block: None,
             typing,
             settings,
             appearance,
@@ -101,6 +105,7 @@ impl Core {
             notice: self.notice(),
             editor: self.editor_view(),
             warning: self.warning(),
+            blocks: self.block_views(),
         }
     }
 
@@ -128,9 +133,20 @@ impl Core {
 
     /// What the user asked through the interface, as orders for the window.
     pub fn apply(&mut self, action: Action) -> Vec<WindowCommand> {
-        if let Action::PlaceCursor { line, column } = action {
-            self.typing.place_cursor(line, column);
-            return redraw_if(true);
+        match action {
+            Action::PlaceCursor { line, column } => {
+                self.typing.place_cursor(line, column);
+                return redraw_if(true);
+            }
+            Action::SelectBlock(id) => {
+                self.choose_block(id);
+                return redraw_if(true);
+            }
+            Action::CopyBlock(id) => {
+                self.copy_block(id);
+                return Vec::new();
+            }
+            _ => {}
         }
         vec![match action {
             Action::Minimize => WindowCommand::Minimize,
@@ -139,7 +155,9 @@ impl Core {
             Action::Drag => WindowCommand::Drag,
             Action::Resize(edge) => WindowCommand::Resize(edge),
             Action::SystemMenu => WindowCommand::ShowSystemMenu,
-            Action::PlaceCursor { .. } => WindowCommand::Redraw,
+            Action::PlaceCursor { .. } | Action::SelectBlock(_) | Action::CopyBlock(_) => {
+                WindowCommand::Redraw
+            }
         }]
     }
 

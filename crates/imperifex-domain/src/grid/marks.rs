@@ -9,16 +9,26 @@ use super::{Cell, Grid, Wrap};
 /// What starts on a row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mark {
-    /// The prompt of the block with this number.
-    Prompt(u32),
-    /// What its command wrote.
+    /// The prompt of the block with this number. `silent` is that of the
+    /// block before it when its command wrote nothing: its output would have
+    /// started on this very row.
+    Prompt { id: u32, silent: Option<u32> },
+    /// What the command of the block with this number wrote.
     Output(u32),
 }
 
 impl Grid {
-    /// Marks the row of the cursor.
+    /// Marks the row of the cursor. A prompt does not forget that the output of
+    /// the block before started there.
     pub fn set_mark(&mut self, mark: Mark) {
         let row = self.cursor.row;
+        let mark = match (self.rows[row].mark, mark) {
+            (Some(Mark::Output(before)), Mark::Prompt { id, .. }) => Mark::Prompt {
+                id,
+                silent: Some(before),
+            },
+            _ => mark,
+        };
         self.rows[row].mark = Some(mark);
         self.damage(row, row + 1);
     }

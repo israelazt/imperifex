@@ -19,6 +19,7 @@ fn model(theme: Theme) -> Model {
         notice: Vec::new(),
         editor: None,
         warning: None,
+        blocks: Vec::new(),
     }
 }
 

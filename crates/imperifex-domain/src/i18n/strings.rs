@@ -101,6 +101,10 @@ crate::strings! {
         es: "Pegar {} líneas las ejecutaría: pega otra vez para enviarlas.",
         en: "Pasting {} lines would run them: paste again to send them.",
     },
+    CopyOutput {
+        es: "Copiar salida",
+        en: "Copy output",
+    },
     CommandPrompt {
         es: "Símbolo del sistema",
         en: "Command Prompt",

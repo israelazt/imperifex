@@ -2,6 +2,8 @@
 //! the real parser and the domain; here the terminal is told what it waits for.
 
 use imperifex_domain::input::{KeyInput, NamedKey};
+use imperifex_domain::interpret::apply;
+use imperifex_domain::sequence::Sequence;
 use imperifex_domain::shell_state::ShellState;
 
 use super::*;
@@ -255,4 +257,67 @@ fn tab_completes_the_paths_of_the_shells_folder_without_reaching_the_shell() {
     core.typed(&typed(" zz"));
     assert_eq!(core.typed(&press), [], "nothing starts so");
     assert_eq!(sent(&launcher), "");
+}
+
+/// A shell that ran `ls`, which wrote two lines, and waits again.
+fn ran_ls(history: &FakeHistory) -> Core {
+    let (mut core, _) = window(history, powershell());
+    let tab = core.output.tab_mut().expect("a shell");
+    let terminal = tab.terminal_mut();
+    for (marks, text) in [
+        (&["A"][..], "> ls"),
+        (&["C"][..], "one"),
+        (&[][..], "two"),
+        (&["D", "0", "100"][..], ""),
+        (&["A"][..], "> "),
+    ] {
+        if !marks.is_empty() {
+            let mut parts: Vec<&[u8]> = vec![b"133"];
+            parts.extend(marks.iter().map(|part| part.as_bytes()));
+            apply(terminal, Sequence::Osc(&parts));
+        }
+        for character in text.chars() {
+            apply(terminal, Sequence::Print(character));
+        }
+        if marks.first() != Some(&"A") || text != "> " {
+            let screen = terminal.screen_mut();
+            if !text.is_empty() {
+                screen.carriage_return();
+                screen.line_feed();
+            }
+        }
+    }
+    wait(&mut core);
+    core.take_damage();
+    core
+}
+
+#[test]
+fn each_command_in_view_is_a_block_that_can_be_chosen_and_copied() {
+    let mut core = ran_ls(&FakeHistory::default());
+    let clipboard = FakeClipboard::default();
+    core.use_clipboard(Box::new(clipboard.clone()));
+    let blocks = core.model().blocks;
+    assert_eq!(blocks.len(), 1, "the one waiting is in the editor");
+    let ran = blocks[0].ran.clone().expect("it ran");
+    assert_eq!((ran.code, ran.took.as_deref()), (0, Some("0.1 s")));
+    let command = blocks[0].command.expect("its command");
+    // Four columns of 40 are written.
+    assert_eq!((command.y, command.free), (blocks[0].top, 360));
+    let id = blocks[0].id;
+    assert_eq!(core.apply(Action::SelectBlock(id)), [WindowCommand::Redraw]);
+    assert!(core.model().blocks[0].selected);
+    assert_eq!(core.apply(Action::CopyBlock(id)), []);
+    let copied = clipboard.text.borrow().clone();
+    assert_eq!(copied.as_deref(), Some("one\r\ntwo"));
+    core.apply(Action::SelectBlock(id));
+    assert!(!core.model().blocks[0].selected);
+}
+
+#[test]
+fn there_are_no_blocks_with_a_program_on_the_whole_screen() {
+    let mut core = ran_ls(&FakeHistory::default());
+    let tab = core.output.tab_mut().expect("a shell");
+    tab.terminal_mut().enter_alternate_screen();
+    assert!(core.model().blocks.is_empty());
 }

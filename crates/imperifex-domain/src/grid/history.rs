@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 use unicode_width::UnicodeWidthChar;
 
 use super::row::{Row, Wrap};
-use super::{Cell, Span, Style};
+use super::{Cell, Mark, Span, Style};
 
 /// Cells in a row that look the same.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,6 +24,7 @@ pub(super) struct Line {
     /// Empty when no cell has any style.
     runs: Box<[Run]>,
     pub wrap: Wrap,
+    pub mark: Option<Mark>,
 }
 
 impl Line {
@@ -60,6 +61,7 @@ impl Line {
             text: text.into_boxed_str(),
             runs: runs.into_boxed_slice(),
             wrap,
+            mark: None,
         }
     }
 
@@ -145,7 +147,10 @@ impl History {
 
     pub fn push_row(&mut self, row: &Row) {
         if self.limit > 0 {
-            self.push(Line::pack(&row.cells, row.wrap));
+            self.push(Line {
+                mark: row.mark,
+                ..Line::pack(&row.cells, row.wrap)
+            });
         }
     }
 

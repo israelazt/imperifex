@@ -31,15 +31,22 @@ pub enum Icon {
     Close,
     /// A tab with a shell.
     Shell,
+    /// A command that went well, and one that did not.
+    Check,
+    Cross,
+    Copy,
 }
 
 impl Icon {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 8] = [
         Self::Minimize,
         Self::Maximize,
         Self::Restore,
         Self::Close,
         Self::Shell,
+        Self::Check,
+        Self::Cross,
+        Self::Copy,
     ];
 
     /// The same in Segoe Fluent Icons and in Segoe MDL2 Assets.
@@ -50,6 +57,9 @@ impl Icon {
             Self::Restore => '\u{E923}',
             Self::Close => '\u{E8BB}',
             Self::Shell => '\u{F8FF}',
+            Self::Check => '\u{E73E}',
+            Self::Cross => '\u{E711}',
+            Self::Copy => '\u{E8C8}',
         }
     }
 }

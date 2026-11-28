@@ -68,4 +68,14 @@ impl Core {
             }
         }
     }
+
+    /// Puts `text` on the clipboard.
+    pub(super) fn copy(&self, text: &str) {
+        let Some(clipboard) = &self.pasting.clipboard else {
+            return;
+        };
+        if let Err(error) = clipboard.write(text) {
+            log_warn!("nothing was copied: {error}");
+        }
+    }
 }

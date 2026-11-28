@@ -4,7 +4,7 @@
 
 use super::history::{History, Line};
 use super::row::{Row, Wrap};
-use super::{Cell, Position, Span};
+use super::{Cell, Mark, Position, Span};
 
 pub(super) struct Rewrap {
     columns: usize,
@@ -15,6 +15,8 @@ pub(super) struct Rewrap {
     made: usize,
     /// The cells of the line being joined.
     line: Vec<Cell>,
+    /// What starts on it: it goes to the first of its new rows.
+    mark: Option<Mark>,
     /// Where the cursor is in `line`, if it is on this line.
     pending: Option<usize>,
     /// The cursor's row, counted as `made`, and its column.
@@ -49,13 +51,19 @@ impl Rewrap {
             out: History::new(history_limit + rows),
             made: 0,
             line: Vec::new(),
+            mark: None,
             pending: None,
             cursor: None,
         }
     }
 
     /// Takes the next old row; `cursor` is its column if the cursor is there.
-    pub fn row(&mut self, cells: Vec<Cell>, wrap: Wrap, cursor: Option<usize>) {
+    pub fn row(
+        &mut self,
+        (cells, wrap, mark): (Vec<Cell>, Wrap, Option<Mark>),
+        cursor: Option<usize>,
+    ) {
+        self.mark = self.mark.or(mark);
         if let Some(column) = cursor {
             self.pending = Some(self.line.len() + column);
         }
@@ -88,7 +96,9 @@ impl Rewrap {
                 continue;
             }
             self.note_cursor(cursor, from, to, wrap == Wrap::End);
-            self.out.push(pack_cut(&line[from..to], wrap));
+            let mut cut = pack_cut(&line[from..to], wrap);
+            cut.mark = self.mark.take();
+            self.out.push(cut);
             self.made += 1;
             if wrap == Wrap::End {
                 return;
@@ -160,6 +170,7 @@ impl Rewrap {
         cells.resize(self.columns, blank);
         Row {
             cells,
+            mark: line.mark,
             wrap: line.wrap,
         }
     }

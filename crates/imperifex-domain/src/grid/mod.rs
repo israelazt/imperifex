@@ -6,6 +6,7 @@ mod cursor;
 mod damage;
 mod erase;
 mod history;
+mod marks;
 mod reflow;
 mod resize;
 mod row;
@@ -17,6 +18,7 @@ mod write;
 pub use cell::{Cell, Span};
 pub use damage::Damage;
 pub use erase::Erase;
+pub use marks::Mark;
 pub use style::{Attributes, Color, Style};
 
 use history::History;

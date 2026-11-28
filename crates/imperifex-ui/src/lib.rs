@@ -5,6 +5,7 @@
 
 #![forbid(unsafe_code)]
 
+mod blocks;
 mod editor;
 pub mod layout;
 pub mod metrics;
@@ -65,24 +66,40 @@ pub fn frame(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure) -> Fra
     draw.rects.push((window, model.palette.background));
     draw.rects.push((below, model.palette.surface));
     titlebar::draw(model, pointer, measure, &mut draw);
+    blocks::draw_behind(model, below.y, &mut draw);
+    blocks::draw_labels(model, pointer, measure, &mut draw);
     notice::draw(model, terminal_area, measure, &mut draw);
     statusbar::draw(model, bottom, measure, &mut draw);
-    let output_area = match &model.editor {
-        Some(view) => {
-            let top = editor::draw(model, view, bottom.y, measure, &mut draw);
-            over(terminal_area, top, model.scale)
-        }
-        None => terminal_area,
-    };
+    let output_area = with_editor(model, terminal_area, bottom.y, measure, &mut draw);
     titlebar::draw_help(model, pointer, measure, &mut draw);
     let (action, cursor) = titlebar::input(model, pointer);
-    let action = action.or_else(|| in_editor(model, pointer, bottom.y, measure));
+    let action = action
+        .or_else(|| in_editor(model, pointer, bottom.y, measure))
+        .or_else(|| blocks::input(model, pointer, measure));
     Frame {
         draw,
         actions: action.into_iter().collect(),
         terminal_area,
         output_area,
         cursor,
+    }
+}
+
+/// Draws the editor, when there is one, against `bottom`, and says what of the
+/// output's `area` is left for the grid.
+fn with_editor(
+    model: &Model,
+    area: Rect,
+    bottom: i32,
+    measure: &dyn TextMeasure,
+    draw: &mut DrawList,
+) -> Rect {
+    match &model.editor {
+        Some(view) => {
+            let top = editor::draw(model, view, bottom, measure, draw);
+            over(area, top, model.scale)
+        }
+        None => area,
     }
 }
 

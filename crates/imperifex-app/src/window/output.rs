@@ -45,10 +45,10 @@ struct Place {
 
 /// What of the terminal is drawn, and where.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Layout {
-    area: Rect,
+pub(super) struct Layout {
+    pub area: Rect,
     /// The row of the screen at the top of the area: negative, of the history.
-    first: isize,
+    pub first: isize,
     /// Rows at the top of the screen out of sight though the view is not back.
     hidden: usize,
 }
@@ -107,6 +107,11 @@ impl Output {
             along(x, area.x, cell.width, columns),
             along(y, area.y, cell.height, rows),
         ))
+    }
+
+    /// The size of the grid's cells, as last drawn.
+    pub fn cell(&self) -> Option<CellSize> {
+        Some(self.place?.cell)
     }
 
     /// Columns and rows that fit where the grid goes.
@@ -241,7 +246,7 @@ impl Core {
     /// What of the terminal is drawn. With the editor in use the output is
     /// anchored at the bottom (T-D22): what is over the prompt ends where the
     /// room does, and while a command runs, so does what it wrote.
-    fn layout(&self) -> Option<Layout> {
+    pub(super) fn layout(&self) -> Option<Layout> {
         let Place { full, seen, cell } = self.output.place?;
         let tab = self.output.tab()?;
         let terminal = tab.terminal();
