@@ -111,6 +111,53 @@ fn hangs_back(letters: &mut Letters<'_>, mark: GlyphKey) -> Result<bool, Full> {
     Ok(twice_the_middle <= 0)
 }
 
+/// The characters that draw lines and blocks. Their glyphs reach past the cell
+/// so that they meet those of the next ones, in any font; what reaches past
+/// would be painted twice, and brighter, where its edges are smoothed.
+fn fills_its_cell(character: char) -> bool {
+    matches!(character, '\u{2500}'..='\u{259F}')
+}
+
+/// The part of `instance` that is inside `bounds`, if any is. A glyph keeps the
+/// same pixels of its picture where they were.
+fn clipped(instance: Instance, bounds: Rect) -> Option<Instance> {
+    let [x, y, width, height] = instance.area;
+    // A place on a screen is far inside what an `f32` holds exactly.
+    let (left, top) = (bounds.x as f32, bounds.y as f32);
+    let inside = [
+        x.max(left),
+        y.max(top),
+        (x + width).min(left + bounds.width as f32),
+        (y + height).min(top + bounds.height as f32),
+    ];
+    let [new_x, new_y, right, bottom] = inside;
+    if right <= new_x || bottom <= new_y {
+        return None;
+    }
+    let size = [right - new_x, bottom - new_y];
+    let mut cut = Instance {
+        area: [new_x, new_y, size[0], size[1]],
+        ..instance
+    };
+    if instance.glyph > 0.5 {
+        let [from_x, from_y, ..] = instance.atlas;
+        cut.atlas = [from_x + new_x - x, from_y + new_y - y, size[0], size[1]];
+    }
+    Some(cut)
+}
+
+/// Cuts what was added to `into` from `start` on to what is inside `bounds`.
+fn clip_from(into: &mut Vec<Instance>, start: usize, bounds: Rect) {
+    let mut kept = start;
+    for at in start..into.len() {
+        if let Some(inside) = clipped(into[at], bounds) {
+            into[kept] = inside;
+            kept += 1;
+        }
+    }
+    into.truncate(kept);
+}
+
 /// The glyphs of a cell whose columns are `area`, in `ink`.
 fn write_cell(
     picture: &TerminalPicture<'_>,
@@ -140,9 +187,13 @@ fn write_cell(
         } else {
             area.x
         };
+        let start = into.len();
         result = letters
             .glyph(shaped.key, (pen, baseline), ink, into)
             .and(result);
+        if fills_its_cell(character) {
+            clip_from(into, start, area);
+        }
     }
     result
 }
@@ -316,8 +367,13 @@ impl Rows {
                 result = make_row(picture, at, seen.columns, letters, row).and(result);
             }
         }
+        let start = into.len();
         into.extend(self.rows.iter().flat_map(|row| &row.backgrounds));
         into.extend(self.rows.iter().flat_map(|row| &row.fronts));
-        cursor(picture, seen, letters, into).and(result)
+        let result = cursor(picture, seen, letters, into).and(result);
+        // Nothing of the grid goes over the bars: on the alternate screen there
+        // is no margin between them.
+        clip_from(into, start, picture.area);
+        result
     }
 }

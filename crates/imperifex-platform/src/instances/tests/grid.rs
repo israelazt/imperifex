@@ -296,6 +296,32 @@ fn looking_back_draws_the_history_over_the_screen_and_the_cursor_goes_down() {
 }
 
 #[test]
+fn a_line_of_a_box_is_cut_to_its_cell_and_meets_the_next_without_overlap() {
+    let mut window = Window::new();
+    window.write("\u{2502}");
+    window.terminal.screen_mut().move_to(1, 0);
+    window.write("\u{2502}");
+    let found = window.frame();
+    assert_eq!(
+        glyphs(&found),
+        [[101.0, 50.0, 4.0, 20.0], [101.0, 70.0, 4.0, 20.0]]
+    );
+    // The pixels kept are those that were inside: 4 down the picture.
+    let first = found[0].atlas;
+    let second = found[1].atlas;
+    assert_eq!((first[3], second[3]), (20.0, 20.0));
+    assert_eq!(first[1], second[1]);
+}
+
+#[test]
+fn what_reaches_past_the_grids_area_is_cut_and_the_rest_may_reach_the_next_cell() {
+    let mut window = Window::new();
+    window.write("\u{222B}");
+    // From 4 above the first row, which is the top of the area, to 3 below it.
+    assert_eq!(glyphs(&window.frame()), [[101.0, 50.0, 4.0, 23.0]]);
+}
+
+#[test]
 fn what_floats_is_drawn_over_the_grid() {
     let mut window = Window::new();
     window.write("a");

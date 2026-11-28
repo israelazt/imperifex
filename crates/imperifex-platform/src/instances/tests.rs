@@ -42,12 +42,20 @@ impl GlyphSource for SquareLetters {
         let side = |length| if key.glyph == 32 { 0 } else { length };
         // One mark is drawn behind the pen; the rest, ahead as the letters.
         let behind = key.glyph == 0x20D7;
+        // The vertical line of the boxes reaches past a cell of 20: 4 above it
+        // and 3 below, from a baseline at 15.
+        // An integral sign does the same without being of a box.
+        let (top, tall) = if [0x2502, 0x222B].contains(&key.glyph) {
+            (-19, 27)
+        } else {
+            (-5, 6)
+        };
         Ok(Picture {
             left: if behind { -5 } else { 1 },
-            top: -5,
+            top,
             width: side(4),
-            height: side(6),
-            coverage: vec![200; (side(4) * side(6)) as usize],
+            height: side(tall),
+            coverage: vec![200; (side(4) * side(tall)) as usize],
         })
     }
 
