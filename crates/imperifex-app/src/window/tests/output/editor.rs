@@ -5,7 +5,7 @@ use imperifex_domain::input::{KeyInput, NamedKey};
 use imperifex_domain::shell_state::ShellState;
 
 use super::*;
-use crate::testing::{FakeClipboard, FakeHistory};
+use crate::testing::{FakeClipboard, FakeFolders, FakeHistory};
 
 fn typed(text: &str) -> KeyInput {
     KeyInput {
@@ -237,4 +237,22 @@ fn a_click_in_the_editor_moves_its_cursor() {
     let place = Action::PlaceCursor { line: 0, column: 1 };
     assert_eq!(core.apply(place), [WindowCommand::Redraw]);
     assert_eq!(core.model().editor.expect("shown").cursor, (0, 1));
+}
+
+#[test]
+fn tab_completes_the_paths_of_the_shells_folder_without_reaching_the_shell() {
+    let (mut core, launcher) = waiting(&FakeHistory::default());
+    let there = vec![("src", true), ("setup.md", false)];
+    core.use_folders(Box::new(FakeFolders(vec![("C:\\app\\", there)])));
+    let tab = core.output.tab_mut().expect("a shell");
+    tab.terminal_mut().folder = Some("C:\\app".into());
+    core.typed(&typed("cat s"));
+    let press = key(NamedKey::Tab, false);
+    assert_eq!(core.typed(&press), [WindowCommand::Redraw]);
+    assert_eq!(core.model().editor.expect("shown").lines, ["cat setup.md"]);
+    core.typed(&press);
+    assert_eq!(core.model().editor.expect("shown").lines, ["cat src\\"]);
+    core.typed(&typed(" zz"));
+    assert_eq!(core.typed(&press), [], "nothing starts so");
+    assert_eq!(sent(&launcher), "");
 }

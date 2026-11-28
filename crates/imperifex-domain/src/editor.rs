@@ -1,9 +1,10 @@
 //! The command editor of Imperifex (T5.6): a text of one or several lines with
 //! a cursor, the history of the commands run and the suggestion taken from it.
 
+use crate::completion::{word_before, Word};
 use crate::input::{KeyInput, NamedKey};
 
-/// What `Tab` writes: there is no completion yet (T-D23).
+/// What `Tab` writes with no word to complete.
 const TAB: &str = "    ";
 
 /// What a key asks of the editor.
@@ -12,6 +13,11 @@ pub enum EditorKey {
     Insert(String),
     NewLine,
     Run,
+    /// `Tab`: complete what is before the cursor; with `Shift`, the one before
+    /// among those found.
+    Complete {
+        back: bool,
+    },
     Backspace,
     Delete,
     Left,
@@ -35,7 +41,7 @@ pub fn editor_key(input: &KeyInput) -> Option<EditorKey> {
     Some(match input.key {
         Some(NamedKey::Enter) if input.shift => EditorKey::NewLine,
         Some(NamedKey::Enter) => EditorKey::Run,
-        Some(NamedKey::Tab) => EditorKey::Insert(TAB.into()),
+        Some(NamedKey::Tab) => EditorKey::Complete { back: input.shift },
         Some(NamedKey::Backspace) => by_words(EditorKey::DeleteWordLeft, EditorKey::Backspace),
         Some(NamedKey::Delete) => by_words(EditorKey::DeleteWordRight, EditorKey::Delete),
         Some(NamedKey::Escape) => EditorKey::Clear,
@@ -65,6 +71,8 @@ pub enum Outcome {
     Run(String),
     /// `Ctrl`+`C` with nothing written: it is for the shell.
     Interrupt,
+    /// This word is to be completed: [`Editor::offer`] what it can be.
+    Complete(Word),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -76,6 +84,16 @@ pub struct Editor {
     history: Vec<String>,
     /// Which one is being looked at, and what was written before looking.
     looking: Option<(usize, String)>,
+    /// The completions being gone through, while no other key is pressed.
+    completing: Option<Completing>,
+}
+
+#[derive(Debug, Clone)]
+struct Completing {
+    /// Where the completed word starts.
+    start: usize,
+    options: Vec<String>,
+    at: usize,
 }
 
 impl Editor {
@@ -130,7 +148,11 @@ impl Editor {
 
     pub fn apply(&mut self, key: EditorKey) -> Outcome {
         let before = (self.text.clone(), self.cursor);
+        if !matches!(key, EditorKey::Complete { .. }) {
+            self.completing = None;
+        }
         match key {
+            EditorKey::Complete { back } => return self.tab(back),
             EditorKey::Run => return Outcome::Run(self.text.clone()),
             EditorKey::Interrupt if self.text.is_empty() => return Outcome::Interrupt,
             EditorKey::Interrupt | EditorKey::Clear => self.set(String::new()),
@@ -169,7 +191,54 @@ impl Editor {
 
     /// Writes `text` where the cursor is, as a paste does.
     pub fn paste(&mut self, text: &str) {
+        self.completing = None;
         self.insert(text);
+    }
+
+    /// Goes on to the next completion, or asks to complete the word before the
+    /// cursor; with no word there, it indents.
+    fn tab(&mut self, back: bool) -> Outcome {
+        if let Some(mut completing) = self.completing.take() {
+            let count = completing.options.len();
+            let step = if back { count - 1 } else { 1 };
+            let next = (completing.at + step) % count;
+            self.write_option(&completing, next);
+            completing.at = next;
+            self.completing = Some(completing);
+            return Outcome::Changed;
+        }
+        match word_before(&self.text, self.cursor) {
+            Some(word) => Outcome::Complete(word),
+            None => {
+                self.insert(TAB);
+                Outcome::Changed
+            }
+        }
+    }
+
+    /// What the word that starts at `start` can be, the first of which is
+    /// written; the next `Tab` writes the next. `false` if there is nothing.
+    pub fn offer(&mut self, start: usize, options: Vec<String>) -> bool {
+        if options.is_empty() || start > self.cursor {
+            return false;
+        }
+        let completing = Completing {
+            start,
+            options,
+            at: 0,
+        };
+        self.write_option(&completing, 0);
+        self.completing = Some(completing);
+        true
+    }
+
+    fn write_option(&mut self, completing: &Completing, at: usize) {
+        if let Some(option) = completing.options.get(at) {
+            let (start, end) = (completing.start, self.cursor);
+            self.text.replace_range(start..end, option);
+            self.cursor = start + option.len();
+            self.looking = None;
+        }
     }
 
     /// Puts the cursor on the line `line`, after `characters` of it, or as

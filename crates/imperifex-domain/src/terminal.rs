@@ -41,6 +41,8 @@ pub struct Terminal {
     pub modes: Modes,
     /// What the shell says it is doing, if it has the integration.
     pub shell: ShellState,
+    /// The folder it says it is in (OSC 9;9).
+    pub folder: Option<String>,
     history_limit: usize,
 }
 
@@ -56,6 +58,7 @@ impl Terminal {
             main: None,
             modes: Modes::default(),
             shell: ShellState::default(),
+            folder: None,
             history_limit: lines,
         }
     }

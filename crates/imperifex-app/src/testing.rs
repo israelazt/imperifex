@@ -7,8 +7,8 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use imperifex_domain::ports::{
-    Clipboard, Clock, CommandHistory, Pty, PtyLauncher, PtyRead, SequenceParser, SettingsStore,
-    SystemAppearance, Wake,
+    Clipboard, Clock, CommandHistory, Folders, Pty, PtyLauncher, PtyRead, SequenceParser,
+    SettingsStore, SystemAppearance, Wake,
 };
 use imperifex_domain::sequence::Sequence;
 
@@ -124,6 +124,19 @@ impl CommandHistory for FakeHistory {
 
     fn replace(&self, _profile: &str, _text: &str) -> Result<(), String> {
         Ok(())
+    }
+}
+
+/// Folders that hold what the test says, by their path.
+#[derive(Default)]
+pub struct FakeFolders(pub Vec<(&'static str, Vec<(&'static str, bool)>)>);
+
+impl Folders for FakeFolders {
+    fn entries(&self, path: &str) -> Result<Vec<(String, bool)>, String> {
+        let found = self.0.iter().find(|(folder, _)| *folder == path);
+        let (_, names) = found.ok_or_else(|| format!("{path} is not there"))?;
+        let owned = |&(name, is_folder): &(&str, bool)| (name.to_string(), is_folder);
+        Ok(names.iter().map(owned).collect())
     }
 }
 

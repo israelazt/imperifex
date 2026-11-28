@@ -2,12 +2,13 @@
 //! key, how a command reaches the shell and what is remembered of it.
 
 use imperifex_domain::command_history::{is_kept, line, read};
+use imperifex_domain::completion::{folder_of, options, Word};
 use imperifex_domain::editor::{editor_key, Editor, Outcome};
 use imperifex_domain::font::pixels_of_points;
 use imperifex_domain::input::KeyInput;
 use imperifex_domain::integration::submission;
 use imperifex_domain::log_warn;
-use imperifex_domain::ports::CommandHistory;
+use imperifex_domain::ports::{CommandHistory, Folders};
 use imperifex_domain::shell::profile_of;
 use imperifex_domain::shell_state::ShellState;
 use imperifex_domain::view::EditorView;
@@ -28,6 +29,8 @@ pub(super) struct Typing {
     profile: String,
     /// The last command could not be sent whole.
     refused: bool,
+    /// Where `Tab` looks for names.
+    folders: Option<Box<dyn Folders>>,
 }
 
 impl Typing {
@@ -62,6 +65,19 @@ impl Typing {
             }
         }
         commands
+    }
+
+    /// Offers the editor the paths that `word` can be, looking from the
+    /// shell's folder. `false` if there is none.
+    fn complete(&mut self, word: &Word, current: Option<&str>) -> bool {
+        let (Some(folders), Some(folder)) = (&self.folders, folder_of(word, current)) else {
+            return false;
+        };
+        let entries = folders.entries(&folder).unwrap_or_else(|error| {
+            log_warn!("nothing to complete: {error}");
+            Vec::new()
+        });
+        self.editor.offer(word.start, options(word, &entries))
     }
 
     /// Writes a paste in the editor; `false` if there was nothing to write.
@@ -105,6 +121,11 @@ impl Core {
     /// shell is opened.
     pub fn keep_history(&mut self, store: Box<dyn CommandHistory>) {
         self.typing.store = Some(store);
+    }
+
+    /// Where `Tab` looks for names from now on.
+    pub fn use_folders(&mut self, folders: Box<dyn Folders>) {
+        self.typing.folders = Some(folders);
     }
 
     /// Turns the editor on, or off to write in the shell itself.
@@ -168,6 +189,11 @@ impl Core {
                 Vec::new()
             }
             Outcome::Run(command) => self.run(&command),
+            Outcome::Complete(word) => {
+                tab.to_screen();
+                let current = tab.terminal().folder.as_deref();
+                redraw_if(self.typing.complete(&word, current))
+            }
         }
     }
 

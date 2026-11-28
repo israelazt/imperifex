@@ -14,6 +14,11 @@ function global:prompt {
         $marks = "$e]133;D;$result$b"
         $global:__ImperifexRan = $false
     }
+    # The current folder, for Tab to complete paths (OSC 9;9).
+    $here = $executionContext.SessionState.Path.CurrentLocation
+    if ($here.Provider.Name -eq 'FileSystem') {
+        $marks += "$e]9;9;$($here.ProviderPath)$b"
+    }
     $global:LASTEXITCODE = $code
     $text = & $global:__ImperifexPrompt
     "$marks$e]133;A$b$text$e]133;B$b"

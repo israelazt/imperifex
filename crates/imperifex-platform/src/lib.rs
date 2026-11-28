@@ -8,6 +8,7 @@ mod appearance;
 #[cfg(windows)]
 mod clipboard;
 mod clock;
+mod folders;
 mod history_file;
 #[cfg(any(windows, test))]
 mod instances;
@@ -27,6 +28,7 @@ pub use appearance::WindowsAppearance;
 #[cfg(windows)]
 pub use clipboard::WindowsClipboard;
 pub use clock::SystemClock;
+pub use folders::DiskFolders;
 pub use history_file::FileCommandHistory;
 #[cfg(windows)]
 pub use language::WindowsLanguage;

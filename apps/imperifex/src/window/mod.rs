@@ -18,7 +18,7 @@ use imperifex_domain::settings::Settings;
 use imperifex_domain::view::Pointer;
 use imperifex_domain::{log_error, log_info, log_warn};
 use imperifex_platform::{
-    D3dRenderer, DirectWriteText, FileCommandHistory, SystemClock, WindowsAppearance,
+    D3dRenderer, DirectWriteText, DiskFolders, FileCommandHistory, SystemClock, WindowsAppearance,
     WindowsClipboard,
 };
 use winit::application::ApplicationHandler;
@@ -49,6 +49,7 @@ pub fn run(settings: Settings, language: Language) -> Result<(), String> {
     }
     let mut core = Core::new(settings, language, Box::new(WindowsAppearance));
     core.use_clipboard(Box::new(WindowsClipboard));
+    core.use_folders(Box::new(DiskFolders));
     match FileCommandHistory::in_app_data() {
         Ok(history) => core.keep_history(Box::new(history)),
         Err(error) => log_warn!("the commands run will not be remembered: {error}"),

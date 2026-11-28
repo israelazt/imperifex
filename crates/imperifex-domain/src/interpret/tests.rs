@@ -469,3 +469,15 @@ fn asking_for_the_mouse_and_for_digits_is_kept_until_taken_back() {
         assert!(!terminal.modes.mouse_reports && !terminal.modes.mouse_digits);
     }
 }
+
+#[test]
+fn the_folder_a_shell_says_it_is_in_is_kept_whole_even_with_a_semicolon_in_it() {
+    let mut terminal = terminal(10, 2, "");
+    let parts: [&[u8]; 4] = [b"9", b"9", b"\"C:\\a", b"b\""];
+    apply(&mut terminal, Sequence::Osc(&parts));
+    assert_eq!(terminal.folder.as_deref(), Some("C:\\a;b"));
+    // Other OSC 9, such as a notification, is not a folder.
+    let other: [&[u8]; 2] = [b"9", b"done"];
+    apply(&mut terminal, Sequence::Osc(&other));
+    assert_eq!(terminal.folder.as_deref(), Some("C:\\a;b"));
+}

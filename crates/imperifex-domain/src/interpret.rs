@@ -28,8 +28,19 @@ pub fn apply(terminal: &mut Terminal, sequence: Sequence<'_>) {
             action,
         } => esc(terminal, action),
         Sequence::Osc([code, letter, ..]) if *code == b"133" => terminal.mark(letter),
+        Sequence::Osc([code, kind, path @ ..]) if *code == b"9" && *kind == b"9" => {
+            terminal.folder = folder_named(path);
+        }
         Sequence::Esc { .. } | Sequence::Osc(_) => {}
     }
+}
+
+/// The path of an OSC 9;9, which was cut at each `;` it had. Some programs
+/// quote it.
+fn folder_named(parts: &[&[u8]]) -> Option<String> {
+    let path = String::from_utf8_lossy(&parts.join(&b';')).into_owned();
+    let path = path.trim_matches('"');
+    (!path.is_empty()).then(|| path.to_string())
 }
 
 fn control(screen: &mut Grid, byte: u8) {

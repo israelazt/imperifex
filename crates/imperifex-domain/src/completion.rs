@@ -139,7 +139,10 @@ mod tests {
         assert_eq!(of(r"cd ..\x", here).as_deref(), Some(r"C:\dev\app\..\"));
         assert_eq!(of(r"cd D:\a\b", here).as_deref(), Some(r"D:\a\"));
         assert_eq!(of(r"cd \Win", here).as_deref(), Some(r"C:\"));
-        assert_eq!(of(r"cd \\pc\share\x", None).as_deref(), Some(r"\\pc\share\"));
+        assert_eq!(
+            of(r"cd \\pc\share\x", None).as_deref(),
+            Some(r"\\pc\share\")
+        );
         assert_eq!(of("cd sr", None), None);
         let root = of("cd W", Some(r"C:\"));
         assert_eq!(root.as_deref(), Some(r"C:\"));

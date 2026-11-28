@@ -131,8 +131,8 @@ fn each_key_asks_the_editor_for_its_thing() {
     assert_eq!(named(NamedKey::Enter, false), Some(Run));
     assert_eq!(named(NamedKey::Enter, true), Some(NewLine));
     assert_eq!(
-        named(NamedKey::Tab, false),
-        Some(EditorKey::Insert("    ".into()))
+        named(NamedKey::Tab, true),
+        Some(EditorKey::Complete { back: true })
     );
     assert_eq!(named(NamedKey::Escape, false), Some(Clear));
     let typed = |text| editor_key(&input(Some(text), None, false));
@@ -179,4 +179,34 @@ fn the_cursor_can_be_put_anywhere_and_stays_inside_the_text() {
         e.move_to(place.0, place.1);
         assert_eq!(e.cursor(), found, "{place:?}");
     }
+}
+
+#[test]
+fn tab_asks_to_complete_a_word_then_goes_through_what_was_offered() {
+    let mut e = editor(&[]);
+    let tab = |back| EditorKey::Complete { back };
+    assert_eq!(
+        e.apply(tab(false)),
+        Outcome::Changed,
+        "with no word it indents"
+    );
+    assert_eq!(e.text(), "    ");
+    press(&mut e, &[Clear]);
+    write(&mut e, "cd s");
+    let Outcome::Complete(word) = e.apply(tab(false)) else {
+        panic!("a word to complete");
+    };
+    assert_eq!((word.start, word.prefix.as_str()), (3, "s"));
+    assert!(e.offer(word.start, vec!["src".into(), "sub dir".into()]));
+    assert_eq!(e.text(), "cd src");
+    e.apply(tab(false));
+    assert_eq!(e.text(), "cd sub dir");
+    e.apply(tab(false));
+    assert_eq!(e.text(), "cd src", "round again");
+    e.apply(tab(true));
+    assert_eq!(e.text(), "cd sub dir");
+    // Any other key keeps what is written and ends the round.
+    write(&mut e, "x");
+    assert!(matches!(e.apply(tab(false)), Outcome::Complete(_)));
+    assert!(!e.offer(0, Vec::new()));
 }

@@ -95,6 +95,12 @@ pub trait Clipboard {
     fn write(&self, text: &str) -> Result<(), String>;
 }
 
+/// What is in a folder.
+pub trait Folders {
+    /// The name of each thing in `path`, and whether it is a folder.
+    fn entries(&self, path: &str) -> Result<Vec<(String, bool)>, String>;
+}
+
 /// What reading from a pseudoconsole gave.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PtyRead {

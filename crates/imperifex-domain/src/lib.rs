@@ -7,6 +7,7 @@
 pub mod atlas;
 pub mod command_history;
 pub mod command_line;
+pub mod completion;
 pub mod draw;
 pub mod editor;
 pub mod example;
