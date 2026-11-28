@@ -7,7 +7,8 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use imperifex_domain::ports::{
-    Clock, Pty, PtyLauncher, PtyRead, SequenceParser, SettingsStore, SystemAppearance, Wake,
+    Clock, CommandHistory, Pty, PtyLauncher, PtyRead, SequenceParser, SettingsStore,
+    SystemAppearance, Wake,
 };
 use imperifex_domain::sequence::Sequence;
 
@@ -86,6 +87,43 @@ impl SettingsStore for FakeStore {
         }
         self.written.borrow_mut().copies.push(text.to_string());
         Ok("la-copia.json".into())
+    }
+}
+
+/// A history in memory that records what was added. Its clones share it.
+#[derive(Clone, Default)]
+pub struct FakeHistory {
+    file: Option<String>,
+    added: Rc<RefCell<Vec<(String, String)>>>,
+}
+
+impl FakeHistory {
+    pub fn holding(text: &str) -> Self {
+        Self {
+            file: Some(text.into()),
+            ..Self::default()
+        }
+    }
+
+    /// Each profile and line added.
+    pub fn added(&self) -> Vec<(String, String)> {
+        self.added.borrow().clone()
+    }
+}
+
+impl CommandHistory for FakeHistory {
+    fn load(&self, _profile: &str) -> Result<Option<String>, String> {
+        Ok(self.file.clone())
+    }
+
+    fn append(&self, profile: &str, line: &str) -> Result<(), String> {
+        let added = (profile.to_string(), line.to_string());
+        self.added.borrow_mut().push(added);
+        Ok(())
+    }
+
+    fn replace(&self, _profile: &str, _text: &str) -> Result<(), String> {
+        Ok(())
     }
 }
 
@@ -202,7 +240,8 @@ impl PtyLauncher for FakeLauncher {
     ) -> Result<Box<dyn Pty>, String> {
         let started = (command_line.to_string(), columns, rows);
         self.asked.borrow_mut().started.push(started);
-        if self.missing.contains(&command_line) {
+        let program = command_line.split(' ').next().unwrap_or_default();
+        if self.missing.contains(&command_line) || self.missing.contains(&program) {
             return Err(format!("{command_line} is not installed"));
         }
         Ok(Box::new(FakePty {

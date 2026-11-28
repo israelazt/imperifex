@@ -165,6 +165,7 @@ fn number_of(font: UiFont) -> u32 {
     match font {
         UiFont::Text => WORDS_FACE,
         UiFont::Icons => ICONS_FACE,
+        UiFont::Mono => GRID_FACES,
     }
 }
 

@@ -2,6 +2,7 @@
 //! what the program is asked to do with the real window.
 
 mod output;
+mod typing;
 
 use imperifex_domain::draw::DrawList;
 use imperifex_domain::i18n::{text, Language, Text};
@@ -43,6 +44,7 @@ pub struct Core {
     /// What was last drawn.
     shown: Option<DrawList>,
     output: output::Output,
+    typing: typing::Typing,
 }
 
 impl Core {
@@ -54,7 +56,9 @@ impl Core {
         appearance: Box<dyn SystemAppearance>,
     ) -> Self {
         let theme = current_theme(&settings, appearance.as_ref());
+        let typing = typing::Typing::new(settings.command_editor);
         Self {
+            typing,
             settings,
             appearance,
             theme,
@@ -92,6 +96,7 @@ impl Core {
                 .tab()
                 .is_some_and(|tab| tab.terminal().on_alternate_screen()),
             notice: self.notice(),
+            editor: self.editor_view(),
         }
     }
 
@@ -148,6 +153,14 @@ impl Core {
     pub fn was_shown(&mut self, list: DrawList) {
         self.output.was_shown();
         self.shown = Some(list);
+    }
+}
+
+fn redraw_if(changed: bool) -> Vec<WindowCommand> {
+    if changed {
+        vec![WindowCommand::Redraw]
+    } else {
+        Vec::new()
     }
 }
 

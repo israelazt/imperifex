@@ -8,6 +8,9 @@ mod output;
 fn core_with(choice: ThemeChoice, appearance: &FakeAppearance) -> Core {
     let settings = Settings {
         theme: choice,
+        // The lines asked of the launcher are those of the shells alone; the
+        // integration has its own tests.
+        shell_integration: false,
         ..Settings::default()
     };
     Core::new(settings, Language::English, Box::new(appearance.clone()))

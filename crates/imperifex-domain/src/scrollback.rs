@@ -18,6 +18,10 @@ const FURTHEST_OLD: u16 = 222;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct View {
     back: usize,
+    /// Rows at the top of the screen that are not seen either, when what is
+    /// seen of it is anchored at the bottom of less room: one can go back that
+    /// much further than the history.
+    hidden: usize,
     /// How many rows the history had been given when last looked at.
     seen: u64,
 }
@@ -35,7 +39,7 @@ impl View {
         self.back = self
             .back
             .saturating_add_signed(rows)
-            .min(screen.history_len());
+            .min(screen.history_len() + self.hidden);
     }
 
     /// After new output: a view that was back stays on the same text while the
@@ -47,8 +51,12 @@ impl View {
             let new = usize::try_from(new).unwrap_or(usize::MAX);
             self.back = self.back.saturating_add(new);
         }
-        self.back = self.back.min(screen.history_len());
+        self.back = self.back.min(screen.history_len() + self.hidden);
         self.seen = added;
+    }
+
+    pub fn hide(&mut self, rows: usize) {
+        self.hidden = rows;
     }
 
     pub fn to_screen(&mut self) {
@@ -125,8 +133,8 @@ fn report(button: u8, (column, row): (u16, u16), modes: Modes) -> Vec<u8> {
 fn arrow(up: bool, modes: Modes) -> Vec<u8> {
     let key = if up { NamedKey::Up } else { NamedKey::Down };
     let input = KeyInput {
-        text: None,
         key: Some(key),
+        ..KeyInput::default()
     };
     bytes(&input, modes)
 }

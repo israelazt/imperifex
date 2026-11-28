@@ -72,6 +72,15 @@ mod tests {
     }
 
     #[test]
+    fn what_the_editor_suggests_reads_in_its_box() {
+        for theme in Theme::ALL {
+            let p = palette(theme);
+            let found = contrast(p.suggestion, p.raised);
+            assert!(found >= 4.5, "{theme:?}: {found}");
+        }
+    }
+
+    #[test]
     fn the_icon_that_closes_reads_on_its_red() {
         for theme in Theme::ALL {
             let p = palette(theme);

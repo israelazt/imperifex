@@ -41,7 +41,7 @@ fn running(script: Script) -> (Core, FakeLauncher) {
     let launcher = FakeLauncher::running(script);
     let mut core = core_with(ThemeChoice::Dark, &FakeAppearance::dark(true));
     core.resized((800, 600), false);
-    core.fit(area(400, 200), CELL, ms(0));
+    core.fit(area(400, 200), area(400, 200), CELL, ms(0));
     assert!(open(&mut core, &launcher));
     (core, launcher)
 }
@@ -76,7 +76,7 @@ fn the_shell_opens_once_with_the_columns_and_rows_that_fit() {
     let mut core = core_with(ThemeChoice::Dark, &FakeAppearance::dark(true));
     let launcher = FakeLauncher::default();
     assert!(!open(&mut core, &launcher), "no room is known yet");
-    core.fit(area(409, 219), CELL, ms(0));
+    core.fit(area(409, 219), area(409, 219), CELL, ms(0));
     assert!(open(&mut core, &launcher));
     assert!(!open(&mut core, &launcher));
     let started = launcher.asked.borrow().started.clone();
@@ -90,7 +90,7 @@ fn with_no_shell_the_window_says_it_in_its_language_and_why() {
         ..FakeLauncher::default()
     };
     let mut core = core_with(ThemeChoice::Dark, &FakeAppearance::dark(true));
-    core.fit(area(400, 200), CELL, ms(0));
+    core.fit(area(400, 200), area(400, 200), CELL, ms(0));
     assert!(open(&mut core, &launcher));
     assert_eq!(
         core.model().notice,
@@ -163,9 +163,9 @@ fn a_shell_that_ends_closes_the_window() {
 #[test]
 fn the_shell_takes_the_windows_new_size_once_it_settles() {
     let (mut core, launcher) = running(Script::default());
-    core.fit(area(400, 200), CELL, ms(0));
+    core.fit(area(400, 200), area(400, 200), CELL, ms(0));
     assert_eq!(core.settles_in(ms(0)), None);
-    core.fit(area(500, 300), CELL, ms(10));
+    core.fit(area(500, 300), area(500, 300), CELL, ms(10));
     assert_eq!(core.settles_in(ms(60)), Some(ms(50)));
     assert_eq!(core.settle_size(ms(60)), []);
     assert_eq!(core.settle_size(ms(110)), [WindowCommand::Redraw]);
@@ -185,7 +185,7 @@ fn what_is_typed_reaches_the_shell() {
     let (mut core, launcher) = running(Script::default());
     core.typed(&KeyInput {
         text: Some("ls".into()),
-        key: None,
+        ..KeyInput::default()
     });
     assert_eq!(launcher.asked.borrow().written, b"ls");
 }
@@ -216,7 +216,7 @@ fn the_wheel_moves_what_is_drawn_and_asks_for_a_frame() {
     draw(&mut core);
     assert_eq!(core.wheel(1.0, (100, 100)), [WindowCommand::Redraw]);
     let damage = core.take_damage();
-    assert_eq!(core.picture(&damage).expect("a picture").back, 3);
+    assert_eq!(core.picture(&damage).expect("a picture").first, -3);
     assert_eq!(core.page(false), [WindowCommand::Redraw]);
     assert_eq!(core.wheel(-1.0, (100, 100)), []);
 }
@@ -240,3 +240,5 @@ fn the_wheel_tells_the_program_the_cell_under_the_mouse_or_the_closest() {
         assert_eq!(sent, format!("\x1b[<64;{cell}M").into_bytes(), "{at:?}");
     }
 }
+
+mod editor;

@@ -16,6 +16,9 @@ pub enum NamedKey {
     Down,
     Right,
     Left,
+    Home,
+    End,
+    Delete,
 }
 
 /// One key going down.
@@ -25,6 +28,8 @@ pub struct KeyInput {
     pub text: Option<String>,
     /// Which one it is, if it is one of those above.
     pub key: Option<NamedKey>,
+    /// A Shift key is down. The shell is not told; the editor is.
+    pub shift: bool,
 }
 
 /// What to send to the shell, with the `modes` its program asked for. Empty
@@ -60,6 +65,9 @@ fn of_key(key: NamedKey, modes: Modes) -> Vec<u8> {
         NamedKey::Down => arrow(b'B'),
         NamedKey::Right => arrow(b'C'),
         NamedKey::Left => arrow(b'D'),
+        NamedKey::Home => arrow(b'H'),
+        NamedKey::End => arrow(b'F'),
+        NamedKey::Delete => b"\x1b[3~".to_vec(),
     }
 }
 
@@ -70,14 +78,14 @@ mod tests {
     fn text(text: &str) -> KeyInput {
         KeyInput {
             text: Some(text.into()),
-            key: None,
+            ..KeyInput::default()
         }
     }
 
     fn key(key: NamedKey) -> KeyInput {
         KeyInput {
-            text: None,
             key: Some(key),
+            ..KeyInput::default()
         }
     }
 
@@ -101,10 +109,13 @@ mod tests {
             (NamedKey::Down, b"\x1b[B"),
             (NamedKey::Right, b"\x1b[C"),
             (NamedKey::Left, b"\x1b[D"),
+            (NamedKey::Home, b"\x1b[H"),
+            (NamedKey::End, b"\x1b[F"),
+            (NamedKey::Delete, b"\x1b[3~"),
         ] {
             let with_text = KeyInput {
                 text: Some("\u{8}".into()),
-                key: Some(named),
+                ..key(named)
             };
             for input in [key(named), with_text] {
                 assert_eq!(bytes(&input, Modes::default()), expected, "{named:?}");

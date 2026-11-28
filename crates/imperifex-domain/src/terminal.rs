@@ -2,6 +2,7 @@
 //! kept aside, and the modes it asked for.
 
 use crate::grid::Grid;
+use crate::shell_state::ShellState;
 
 /// How many rows of history are kept when nobody says another number.
 pub const DEFAULT_HISTORY: usize = 10_000;
@@ -38,6 +39,8 @@ pub struct Terminal {
     /// The main screen, kept while the alternate one is in use.
     main: Option<Grid>,
     pub modes: Modes,
+    /// What the shell says it is doing, if it has the integration.
+    pub shell: ShellState,
     history_limit: usize,
 }
 
@@ -52,6 +55,7 @@ impl Terminal {
             screen: Grid::with_history(columns, rows, lines),
             main: None,
             modes: Modes::default(),
+            shell: ShellState::default(),
             history_limit: lines,
         }
     }

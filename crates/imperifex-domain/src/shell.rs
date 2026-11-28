@@ -100,6 +100,13 @@ fn file_stem(line: &str) -> &str {
     }
 }
 
+/// The profile whose shell `line`, one of [`opening_lines`], opens; for
+/// another program, the name of its file.
+pub fn profile_of(line: &str) -> &str {
+    let known = PROFILES.into_iter().find(|profile| profile.program == line);
+    known.map_or_else(|| file_stem(line), |profile| profile.id)
+}
+
 /// The names the user can give, for messages.
 pub fn ids() -> String {
     PROFILES.map(|profile| profile.id).join(", ")
@@ -177,6 +184,13 @@ mod tests {
         assert_eq!(name("nu.exe"), "nu");
         assert_eq!(name(r#""C:\My Tools\nu.v2.exe""#), "nu.v2");
         assert_eq!(name(".profile"), ".profile");
+    }
+
+    #[test]
+    fn the_profile_of_a_line_is_its_id_or_the_name_of_its_file() {
+        assert_eq!(profile_of("powershell.exe"), "powershell");
+        assert_eq!(profile_of("wsl.exe"), "wsl");
+        assert_eq!(profile_of("nu.exe"), "nu");
     }
 
     #[test]

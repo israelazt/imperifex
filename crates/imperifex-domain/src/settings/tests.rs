@@ -10,6 +10,8 @@ fn chosen() -> Settings {
         },
         shell: Some("cmd".into()),
         adjust_contrast: false,
+        shell_integration: false,
+        command_editor: false,
         ..Settings::default()
     }
 }
@@ -50,6 +52,8 @@ fn the_names_in_the_file_are_a_contract() {
         "font": { "family": "Consolas", "size": 11.5 },
         "shell": "cmd",
         "adjust_contrast": false,
+        "shell_integration": false,
+        "command_editor": false,
     });
     assert_eq!(value, expected);
 }

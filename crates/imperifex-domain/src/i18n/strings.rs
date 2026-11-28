@@ -61,6 +61,42 @@ crate::strings! {
         es: "No se encontró la fuente elegida; se usa Consolas.",
         en: "The chosen font was not found; Consolas is used.",
     },
+    KeyEnter {
+        es: "Enter",
+        en: "Enter",
+    },
+    EditorRun {
+        es: "ejecutar",
+        en: "run",
+    },
+    KeyShiftEnter {
+        es: "Mayús+Enter",
+        en: "Shift+Enter",
+    },
+    EditorNewLine {
+        es: "línea nueva",
+        en: "new line",
+    },
+    KeyRight {
+        es: "→",
+        en: "→",
+    },
+    EditorAccept {
+        es: "aceptar sugerencia",
+        en: "accept suggestion",
+    },
+    KeyUp {
+        es: "↑",
+        en: "↑",
+    },
+    EditorHistory {
+        es: "historial",
+        en: "history",
+    },
+    EditorRefused {
+        es: "Esta shell no admite órdenes de varias líneas.",
+        en: "This shell does not take commands of several lines.",
+    },
     CommandPrompt {
         es: "Símbolo del sistema",
         en: "Command Prompt",

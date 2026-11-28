@@ -27,6 +27,7 @@ pub fn apply(terminal: &mut Terminal, sequence: Sequence<'_>) {
             intermediates: [],
             action,
         } => esc(terminal, action),
+        Sequence::Osc([code, letter, ..]) if *code == b"133" => terminal.mark(letter),
         Sequence::Esc { .. } | Sequence::Osc(_) => {}
     }
 }

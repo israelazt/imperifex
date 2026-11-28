@@ -22,7 +22,7 @@ struct Window {
     area: Rect,
     palette: &'static Palette,
     focused: bool,
-    back: usize,
+    first: isize,
     batch: Batch,
     atlas: Atlas,
 }
@@ -42,7 +42,7 @@ impl Window {
             },
             palette: palette(Theme::Dark),
             focused: true,
-            back: 0,
+            first: 0,
             batch: Batch::default(),
             atlas: Atlas::new(256),
         }
@@ -70,7 +70,7 @@ impl Window {
             letters: 16.0,
             line: 1,
             focused: self.focused,
-            back: self.back,
+            first: self.first,
         };
         let source = SquareLetters::default();
         let list = DrawList::default();
@@ -283,7 +283,7 @@ fn looking_back_draws_the_history_over_the_screen_and_the_cursor_goes_down() {
     }
     window.terminal.modes.cursor_visible = true;
     assert_eq!(glyphs(&window.frame()).len(), 5);
-    window.back = 1;
+    window.first = -1;
     let found = window.frame_with(&untouched());
     // One letter, two and three: the cursor's row is out of sight.
     assert_eq!(glyphs(&found).len(), 6);
@@ -336,7 +336,7 @@ fn what_floats_is_drawn_over_the_grid() {
         letters: 16.0,
         line: 1,
         focused: true,
-        back: 0,
+        first: 0,
     };
     let list = DrawList {
         floating_rects: vec![(window.area, Rgb::WHITE)],

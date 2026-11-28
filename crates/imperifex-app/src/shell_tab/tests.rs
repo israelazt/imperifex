@@ -11,6 +11,7 @@ fn open_with(launcher: &FakeLauncher, chosen: Option<&str>) -> Result<ShellTab, 
         chosen,
         size: (10, 3),
         wake: no_wake(),
+        integrate: false,
     })
 }
 
@@ -125,6 +126,7 @@ fn what_is_typed_reaches_the_shell_and_a_silent_key_sends_nothing() {
     let typed = |text: Option<&str>, key| KeyInput {
         text: text.map(str::to_string),
         key,
+        shift: false,
     };
     tab.typed(&typed(Some("a"), None)).expect("sent");
     tab.typed(&typed(None, Some(NamedKey::Enter)))
@@ -202,7 +204,7 @@ fn the_wheel_looks_back_and_typing_returns_to_the_screen() {
     assert_eq!((silent, tab.back()), (Ok(false), 3));
     let key = KeyInput {
         text: Some("x".into()),
-        key: None,
+        ..KeyInput::default()
     };
     assert_eq!((tab.typed(&key), tab.back()), (Ok(true), 0));
     assert_eq!(launcher.asked.borrow().written, b"x");
@@ -227,4 +229,45 @@ fn a_program_that_asked_for_the_mouse_gets_the_wheel_and_the_view_stays() {
     assert_eq!(tab.wheel(1.0, (2, 1)), Ok(false));
     assert_eq!(tab.back(), 0);
     assert_eq!(launcher.asked.borrow().written, b"\x1b[<64;3;2M");
+}
+
+#[test]
+fn asked_to_integrate_a_powershell_opens_with_the_integration_and_keeps_its_name() {
+    let launcher = FakeLauncher::default();
+    for (chosen, integrated) in [("powershell", true), ("cmd", false)] {
+        let tab = ShellTab::open(&Opening {
+            launcher: &launcher,
+            new_parser: &fake_parser,
+            chosen: Some(chosen),
+            size: (10, 3),
+            wake: no_wake(),
+            integrate: true,
+        })
+        .expect("a shell");
+        assert_eq!(tab.integrated(), integrated, "{chosen}");
+        assert_eq!(tab.line(), format!("{chosen}.exe"));
+        let started = launcher.asked.borrow().started.last().cloned();
+        let run = started.expect("started").0;
+        assert_eq!(run.contains("-NoExit -Command"), integrated, "{run}");
+    }
+}
+
+#[test]
+fn the_error_of_an_integrated_shell_that_does_not_start_leaves_its_script_out() {
+    let launcher = FakeLauncher {
+        missing: vec!["powershell.exe"],
+        ..FakeLauncher::default()
+    };
+    let found = ShellTab::open(&Opening {
+        launcher: &launcher,
+        new_parser: &fake_parser,
+        chosen: Some("powershell"),
+        size: (10, 3),
+        wake: no_wake(),
+        integrate: true,
+    });
+    assert_eq!(
+        found.err().as_deref(),
+        Some("powershell.exe is not installed")
+    );
 }

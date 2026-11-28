@@ -27,7 +27,8 @@ impl App {
         match self.letters.cell(self.core.font_points(), scale) {
             Ok(cell) => {
                 let now = self.clock.monotonic();
-                self.core.fit(frame.terminal_area, cell, now);
+                let (full, seen) = (frame.terminal_area, frame.output_area);
+                self.core.fit(full, seen, cell, now);
             }
             Err(error) => log_error!("the grid could not be measured: {error}"),
         }

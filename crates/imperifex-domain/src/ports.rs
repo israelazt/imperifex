@@ -78,6 +78,16 @@ pub trait SettingsStore {
     fn keep_damaged(&self, text: &str) -> Result<String, String>;
 }
 
+/// Where the commands run in the editor are kept, a file per profile.
+pub trait CommandHistory {
+    /// The text of a profile's file; `None` if there is none yet.
+    fn load(&self, profile: &str) -> Result<Option<String>, String>;
+    /// Adds `line`, which ends in a line break, at the end.
+    fn append(&self, profile: &str, line: &str) -> Result<(), String>;
+    /// Writes the whole file again, to cut it when it grew too long.
+    fn replace(&self, profile: &str, text: &str) -> Result<(), String>;
+}
+
 /// What reading from a pseudoconsole gave.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PtyRead {

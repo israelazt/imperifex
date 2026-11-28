@@ -40,6 +40,12 @@ pub struct Settings {
     pub shell: Option<String>,
     /// Whether text that would not be seen is made visible (T-D17).
     pub adjust_contrast: bool,
+    /// Whether the shells that can say what they are doing are opened so that
+    /// they do. Their profile is not edited.
+    pub shell_integration: bool,
+    /// Whether commands are written in Imperifex's own editor (T-D22) while
+    /// such a shell waits for one.
+    pub command_editor: bool,
 }
 
 impl Default for Settings {
@@ -51,6 +57,8 @@ impl Default for Settings {
             font: FontSettings::default(),
             shell: None,
             adjust_contrast: true,
+            shell_integration: true,
+            command_editor: true,
         }
     }
 }
@@ -97,6 +105,12 @@ impl Settings {
             other => filled_text(other).map(Some),
         });
         fields.read("adjust_contrast", &mut self.adjust_contrast, Value::as_bool);
+        fields.read(
+            "shell_integration",
+            &mut self.shell_integration,
+            Value::as_bool,
+        );
+        fields.read("command_editor", &mut self.command_editor, Value::as_bool);
         fields.read_object("font", |font| {
             font.read("family", &mut self.font.family, filled_text);
             font.read("size", &mut self.font.size, font_size);

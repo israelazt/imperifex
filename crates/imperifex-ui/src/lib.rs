@@ -5,6 +5,7 @@
 
 #![forbid(unsafe_code)]
 
+mod editor;
 pub mod layout;
 pub mod metrics;
 mod notice;
@@ -24,8 +25,11 @@ use imperifex_domain::view::{Action, CursorIcon, Model, Pointer};
 pub struct Frame {
     pub draw: DrawList,
     pub actions: Vec<Action>,
-    /// Where the renderer draws the grid.
+    /// All the room of the output: the console is as large as it.
     pub terminal_area: Rect,
+    /// Where the renderer draws the grid: less than that with the command
+    /// editor under it.
+    pub output_area: Rect,
     pub cursor: CursorIcon,
 }
 
@@ -63,13 +67,32 @@ pub fn frame(model: &Model, pointer: &Pointer, measure: &dyn TextMeasure) -> Fra
     titlebar::draw(model, pointer, measure, &mut draw);
     notice::draw(model, terminal_area, measure, &mut draw);
     statusbar::draw(model, bottom, measure, &mut draw);
+    let output_area = match &model.editor {
+        Some(view) => {
+            let top = editor::draw(model, view, bottom.y, measure, &mut draw);
+            over(terminal_area, top, model.scale)
+        }
+        None => terminal_area,
+    };
     titlebar::draw_help(model, pointer, measure, &mut draw);
     let (action, cursor) = titlebar::input(model, pointer);
     Frame {
         draw,
         actions: action.into_iter().collect(),
         terminal_area,
+        output_area,
         cursor,
+    }
+}
+
+/// What of `area` is over `top`, with (`M`) between them.
+fn over(area: Rect, top: i32, scale: f32) -> Rect {
+    let gap = i32::try_from(Space::M.px(scale)).unwrap_or(0);
+    let end = top.saturating_sub(gap);
+    let tall = u32::try_from(end.saturating_sub(area.y)).unwrap_or(0);
+    Rect {
+        height: tall.min(area.height),
+        ..area
     }
 }
 

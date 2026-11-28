@@ -43,6 +43,8 @@ pub struct Palette {
     /// and the colour of its icon then.
     pub close_hover: Rgb,
     pub on_close_hover: Rgb,
+    /// What the editor suggests after the text, on `raised`.
+    pub suggestion: Rgb,
     /// The 16 colours a program asks for by number.
     pub ansi: [Rgb; 16],
 }
@@ -61,6 +63,7 @@ const DARK: Palette = Palette {
     line: Rgb::hex(0x383838),
     close_hover: Rgb::hex(0xC42B1C),
     on_close_hover: Rgb::WHITE,
+    suggestion: Rgb::hex(0x949494),
     ansi: ansi([
         0x5C5C5C, 0xFF7B72, 0xA5D66F, 0xF5C451, 0x7AA7FF, 0xE08BF0, 0x4CD7F6, 0xCACACA, 0x8C8C8C,
         0xFFA198, 0xC2E89A, 0xFFD97A, 0xA5C3FF, 0xEDB1F7, 0x8BE6FA, 0xF4F4F5,
@@ -83,6 +86,7 @@ const LIGHT: Palette = Palette {
     line: Rgb::hex(0xDEDEE2),
     close_hover: Rgb::hex(0xC42B1C),
     on_close_hover: Rgb::WHITE,
+    suggestion: Rgb::hex(0x686870),
     ansi: ansi([
         0x18181B, 0xB3261E, 0x3D6B00, 0x7A5200, 0x1F4FBF, 0x8A2E9E, 0x006781, 0x55555E, 0x6B6B74,
         0xC2352A, 0x437600, 0x8A5D00, 0x2B5FD9, 0x9E3BB3, 0x00708C, 0x3F3F46,

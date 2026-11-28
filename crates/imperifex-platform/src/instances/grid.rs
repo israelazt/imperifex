@@ -22,7 +22,7 @@ struct MadeFor {
     line: u32,
     columns: usize,
     rows: usize,
-    back: usize,
+    first: isize,
     /// Of the atlas, where the glyphs of the rows are.
     atlas: u64,
 }
@@ -238,7 +238,7 @@ fn make_row(
 ) -> Result<(), Full> {
     into.backgrounds.clear();
     into.fronts.clear();
-    let cells = picture.terminal.screen().seen_row(picture.back, row);
+    let cells = picture.terminal.screen().seen_row(picture.first, row);
     let mut result = Ok(());
     for column in 0..columns {
         let Some(cell) = cells.get(column) else {
@@ -292,8 +292,11 @@ fn cursor(
     let Some((row, column, cell)) = under_cursor(picture.terminal.screen()) else {
         return Ok(());
     };
-    // Looking back, the screen's rows are that much lower, or out of sight.
-    let row = row.saturating_add(picture.back);
+    // From another top row, the screen's rows are that much higher or lower,
+    // or out of sight.
+    let Some(row) = row.checked_add_signed(-picture.first) else {
+        return Ok(());
+    };
     if row >= seen.rows || column >= seen.columns {
         return Ok(());
     }
@@ -352,12 +355,12 @@ impl Rows {
             line: picture.line,
             columns: seen.columns,
             rows: seen.rows,
-            back: picture.back,
+            first: picture.first,
             atlas: letters.atlas.generation(),
         };
-        // Looking back, what each row shows moves with the history, which the
-        // damage of the screen does not tell.
-        let all = self.made_for != Some(wanted) || picture.back > 0;
+        // From another top row, what each row shows moves with the history,
+        // which the damage of the screen does not tell.
+        let all = self.made_for != Some(wanted) || picture.first != 0;
         self.made_for = Some(wanted);
         self.rows.resize_with(seen.rows, Row::default);
         let mut result = Ok(());

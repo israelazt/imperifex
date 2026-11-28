@@ -22,6 +22,25 @@ pub struct Model {
     pub full_screen: bool,
     /// What went wrong, one line each, shown where the output goes.
     pub notice: Vec<String>,
+    /// The command editor, while a command is to be written in it.
+    pub editor: Option<EditorView>,
+}
+
+/// The command editor as it is to be drawn.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct EditorView {
+    /// The shell's prompt, one line per row.
+    pub prompt: Vec<String>,
+    pub lines: Vec<String>,
+    /// The line of the cursor and how many characters are before it.
+    pub cursor: (usize, usize),
+    /// What follows the text, in grey.
+    pub suggestion: String,
+    /// The command has several lines and this shell cannot take them.
+    pub refused: bool,
+    /// The size of the letters of the prompt and the command, in physical
+    /// pixels: that of the output.
+    pub letters: u32,
 }
 
 /// A place in physical pixels from the top left of the window.

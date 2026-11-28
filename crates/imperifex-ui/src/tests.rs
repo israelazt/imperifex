@@ -17,6 +17,7 @@ fn model(theme: Theme) -> Model {
         focused: true,
         full_screen: false,
         notice: Vec::new(),
+        editor: None,
     }
 }
 

@@ -9,6 +9,8 @@ pub const RESIZE_EDGE: f32 = 8.0;
 pub const TAB_HEIGHT: f32 = 32.0;
 pub const TAB_RADIUS: f32 = 6.0;
 pub const STATUS_BAR_HEIGHT: f32 = 28.0;
+pub const EDITOR_RADIUS: f32 = 8.0;
+pub const CURSOR_WIDTH: f32 = 2.0;
 /// The line around a box.
 pub const BORDER: f32 = 1.0;
 

@@ -1,19 +1,19 @@
 //! The shell of the window: when it is opened, when its output is read and what
-//! of it is drawn.
+//! of it is drawn, and where.
 
 use std::time::Duration;
 
 use imperifex_domain::draw::Rect;
 use imperifex_domain::font::{pixels_of_points, CellSize};
 use imperifex_domain::grid::Damage;
-use imperifex_domain::input::KeyInput;
 use imperifex_domain::log_warn;
 use imperifex_domain::picture::TerminalPicture;
 use imperifex_domain::ports::{Clock, PtyLauncher, SequenceParser, Wake};
+use imperifex_domain::shell_state::ShellState;
 use imperifex_domain::theme::palette;
 use imperifex_domain::view::Point;
 
-use super::{Core, WindowCommand};
+use super::{redraw_if, Core, WindowCommand};
 use crate::shell_tab::{Opening, ShellTab};
 
 /// What opening the window's shell needs from the program.
@@ -34,11 +34,30 @@ enum Shell {
     Failed(String),
 }
 
+#[derive(Debug, Clone, Copy)]
+struct Place {
+    /// All the room of the output: the console is as large as it.
+    full: Rect,
+    /// What of it is left for the grid, less with the editor under it.
+    seen: Rect,
+    cell: CellSize,
+}
+
+/// What of the terminal is drawn, and where.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Layout {
+    area: Rect,
+    /// The row of the screen at the top of the area: negative, of the history.
+    first: isize,
+    /// Rows at the top of the screen out of sight though the view is not back.
+    hidden: usize,
+}
+
 #[derive(Default)]
 pub(super) struct Output {
     shell: Shell,
     /// Where the grid goes and the size of its cells, as last drawn.
-    place: Option<(Rect, CellSize)>,
+    place: Option<Place>,
     /// Output asked for a frame that is not on the window yet. Until it is, no
     /// more is read: a program that does not stop writing would leave the
     /// window no turn to draw.
@@ -75,7 +94,9 @@ impl Output {
 
     /// The cell of the grid at a place of the window, or the closest one.
     fn cell_at(&self, (x, y): Point) -> Option<(u16, u16)> {
-        let (area, cell) = self.place?;
+        let Place {
+            full: area, cell, ..
+        } = self.place?;
         let (columns, rows) = self.size()?;
         let along = |at: i32, start: i32, side: u32, count: u16| {
             let from = i64::from(at) - i64::from(start);
@@ -90,16 +111,8 @@ impl Output {
 
     /// Columns and rows that fit where the grid goes.
     fn size(&self) -> Option<(u16, u16)> {
-        let (area, cell) = self.place?;
-        Some(cell.fit(area.width, area.height))
-    }
-}
-
-fn redraw_if(changed: bool) -> Vec<WindowCommand> {
-    if changed {
-        vec![WindowCommand::Redraw]
-    } else {
-        Vec::new()
+        let Place { full, cell, .. } = self.place?;
+        Some(cell.fit(full.width, full.height))
     }
 }
 
@@ -109,9 +122,10 @@ impl Core {
         self.settings.font.size
     }
 
-    /// The grid now goes in `area`, with cells of `cell`.
-    pub fn fit(&mut self, area: Rect, cell: CellSize, now: Duration) {
-        self.output.place = Some((area, cell));
+    /// The output has all of `full`, and of it the grid now goes in `seen`,
+    /// with cells of `cell`.
+    pub fn fit(&mut self, full: Rect, seen: Rect, cell: CellSize, now: Duration) {
+        self.output.place = Some(Place { full, seen, cell });
         let size = self.output.size();
         if let (Some(size), Some(tab)) = (size, self.output.tab_mut()) {
             tab.room_for(size, now);
@@ -133,9 +147,13 @@ impl Core {
             chosen: self.settings.shell.as_deref(),
             size,
             wake: start.wake.clone(),
+            integrate: self.settings.shell_integration,
         });
         self.output.shell = match opened {
-            Ok(tab) => Shell::Open(Box::new(tab)),
+            Ok(tab) => {
+                self.typing.start(tab.line());
+                Shell::Open(Box::new(tab))
+            }
             Err(why) => Shell::Failed(why),
         };
         true
@@ -199,17 +217,6 @@ impl Core {
         self.output.tab()?.resize_in(now)
     }
 
-    pub fn typed(&mut self, input: &KeyInput) -> Vec<WindowCommand> {
-        let Some(tab) = self.output.tab_mut() else {
-            return Vec::new();
-        };
-        let moved = tab.typed(input).unwrap_or_else(|error| {
-            log_warn!("the key did not reach the shell: {error}");
-            false
-        });
-        redraw_if(moved)
-    }
-
     /// The wheel turned `notches`, up when positive, with the mouse at `at`.
     pub fn wheel(&mut self, notches: f32, at: Point) -> Vec<WindowCommand> {
         let Some(cell) = self.output.cell_at(at) else {
@@ -231,22 +238,70 @@ impl Core {
         redraw_if(moved)
     }
 
+    /// What of the terminal is drawn. With the editor in use the output is
+    /// anchored at the bottom (T-D22): what is over the prompt ends where the
+    /// room does, and while a command runs, so does what it wrote.
+    fn layout(&self) -> Option<Layout> {
+        let Place { full, seen, cell } = self.output.place?;
+        let tab = self.output.tab()?;
+        let terminal = tab.terminal();
+        let back = isize::try_from(tab.back()).unwrap_or(isize::MAX);
+        let anchored = self.typing.on
+            && tab.integrated()
+            && terminal.shell != ShellState::Unknown
+            && !terminal.on_alternate_screen();
+        if !anchored {
+            return Some(Layout {
+                area: full,
+                first: -back,
+                hidden: 0,
+            });
+        }
+        let screen = terminal.screen();
+        // The prompt's rows are not drawn while the editor shows it.
+        let end = match self.typing.prompt(tab) {
+            Some(prompt) => (screen.cursor().row + 1).saturating_sub(prompt.len()),
+            None => screen.used_rows(),
+        };
+        let fit = usize::try_from(seen.height / cell.height.max(1)).unwrap_or(0);
+        let history = screen.history_len();
+        let shown = fit.min(history + end).min(screen.rows());
+        let base = end as isize - shown as isize;
+        let oldest = -isize::try_from(history).unwrap_or(isize::MAX);
+        let tall = u32::try_from(shown).unwrap_or(0) * cell.height;
+        let under = i32::try_from(seen.height.saturating_sub(tall)).unwrap_or(0);
+        Some(Layout {
+            area: Rect {
+                y: seen.y.saturating_add(under),
+                height: tall,
+                ..seen
+            },
+            first: base.saturating_sub(back).max(oldest),
+            hidden: usize::try_from(base).unwrap_or(0),
+        })
+    }
+
     /// The rows that changed since the last call, to draw them: it forgets
     /// them, so it is asked only right before drawing.
     pub fn take_damage(&mut self) -> Damage {
+        let hidden = self.layout().map_or(0, |layout| layout.hidden);
         match self.output.tab_mut() {
-            Some(tab) => tab.terminal_mut().screen_mut().take_damage(),
+            Some(tab) => {
+                tab.hide(hidden);
+                tab.terminal_mut().screen_mut().take_damage()
+            }
             None => Damage::default(),
         }
     }
 
     /// What the renderer draws of the terminal, if there is one.
     pub fn picture<'a>(&'a self, damage: &'a Damage) -> Option<TerminalPicture<'a>> {
-        let (area, cell) = self.output.place?;
+        let cell = self.output.place?.cell;
+        let Layout { area, first, .. } = self.layout()?;
         Some(TerminalPicture {
             terminal: self.output.tab()?.terminal(),
             damage,
-            back: self.output.tab()?.back(),
+            first,
             area,
             palette: palette(self.theme),
             adjust_contrast: self.settings.adjust_contrast,

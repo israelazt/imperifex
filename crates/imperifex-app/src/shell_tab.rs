@@ -6,11 +6,13 @@ use std::time::Duration;
 
 use imperifex_domain::grid::Position;
 use imperifex_domain::input::{bytes, KeyInput};
+use imperifex_domain::integration::integrated;
 use imperifex_domain::log_warn;
 use imperifex_domain::ports::{Clock, PtyLauncher, SequenceParser, Wake};
 use imperifex_domain::resize_wait::ResizeWait;
 use imperifex_domain::scrollback::{Turned, View, Wheel};
 use imperifex_domain::shell::opening_lines;
+use imperifex_domain::shell_state::ShellState;
 use imperifex_domain::terminal::Terminal;
 
 use crate::session::{Session, Step};
@@ -34,8 +36,12 @@ type Cursor = Option<Position>;
 
 pub struct ShellTab {
     session: Session,
-    /// The line that opened it.
+    /// The line of its shell, without what the integration adds.
     line: String,
+    /// It was opened with the integration.
+    integrated: bool,
+    /// What it said it was doing when last looked at.
+    state: ShellState,
     wait: ResizeWait,
     cursor: Cursor,
     view: View,
@@ -50,6 +56,8 @@ pub struct Opening<'a> {
     pub chosen: Option<&'a str>,
     /// Columns and rows.
     pub size: (u16, u16),
+    /// Open the shells that can say what they are doing so that they do.
+    pub integrate: bool,
     pub wake: Wake,
 }
 
@@ -61,10 +69,14 @@ impl ShellTab {
         let mut error = String::new();
         for line in opening_lines(opening.chosen) {
             let wake = opening.wake.clone();
-            match opening.launcher.start(&line, columns, rows, wake) {
+            let with_integration = integrated(&line).filter(|_| opening.integrate);
+            let run = with_integration.as_deref().unwrap_or(&line);
+            match opening.launcher.start(run, columns, rows, wake) {
                 Ok(pty) => {
                     let terminal = Terminal::new(columns, rows);
                     return Ok(Self {
+                        integrated: with_integration.is_some(),
+                        state: ShellState::default(),
                         line,
                         session: Session::new(pty, (opening.new_parser)(), terminal),
                         wait: ResizeWait::new(opening.size),
@@ -74,6 +86,9 @@ impl ShellTab {
                     });
                 }
                 Err(why) => {
+                    // The error names the line that was run: with the
+                    // integration, its whole script, which is of no use there.
+                    let why = why.replace(run, &line);
                     log_warn!("{line} did not start: {why}");
                     error = why;
                 }
@@ -84,6 +99,10 @@ impl ShellTab {
 
     pub fn line(&self) -> &str {
         &self.line
+    }
+
+    pub fn integrated(&self) -> bool {
+        self.integrated
     }
 
     pub fn terminal(&self) -> &Terminal {
@@ -122,14 +141,17 @@ impl ShellTab {
         read
     }
 
-    /// Whether a row changed, or the cursor that is seen.
+    /// Whether a row changed, the cursor that is seen, or what the shell says
+    /// it is doing, which changes what is shown around the output.
     fn looks_different(&mut self) -> bool {
         let terminal = &self.session.terminal;
         let seen = terminal.modes.cursor_visible;
         let cursor = seen.then(|| terminal.screen().cursor());
         let moved = cursor != self.cursor;
         self.cursor = cursor;
-        moved || terminal.screen().is_damaged()
+        let did = terminal.shell != self.state;
+        self.state = terminal.shell.clone();
+        moved || did || terminal.screen().is_damaged()
     }
 
     /// Sends what a key writes, and goes back to the screen, where what it
@@ -144,6 +166,27 @@ impl ShellTab {
         self.view.to_screen();
         self.session.send(&sent)?;
         Ok(moved)
+    }
+
+    /// Sends what was written outside the shell, and goes back to the screen.
+    pub fn send(&mut self, bytes: &[u8]) -> Result<(), String> {
+        self.view.to_screen();
+        self.session.send(bytes)
+    }
+
+    /// A command was sent to it: it runs it until it says otherwise.
+    pub fn running(&mut self) {
+        self.session.terminal.shell = ShellState::Running;
+    }
+
+    pub fn to_screen(&mut self) {
+        self.view.to_screen();
+    }
+
+    /// Rows at the top of the screen that are out of sight, which can be looked
+    /// back at too.
+    pub fn hide(&mut self, rows: usize) {
+        self.view.hide(rows);
     }
 
     /// How many rows above the screen the view is.

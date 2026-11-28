@@ -5,13 +5,16 @@
 #![forbid(unsafe_code)]
 
 pub mod atlas;
+pub mod command_history;
 pub mod command_line;
 pub mod draw;
+pub mod editor;
 pub mod example;
 pub mod font;
 pub mod grid;
 pub mod i18n;
 pub mod input;
+pub mod integration;
 pub mod interpret;
 pub mod log;
 pub mod mouse;
@@ -23,6 +26,7 @@ pub mod scrollback;
 pub mod sequence;
 pub mod settings;
 pub mod shell;
+pub mod shell_state;
 pub mod space;
 pub mod terminal;
 pub mod theme;

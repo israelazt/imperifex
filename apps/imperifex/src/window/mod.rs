@@ -4,6 +4,8 @@
 mod frame;
 mod translate;
 
+use translate::Shortcut;
+
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
@@ -15,11 +17,14 @@ use imperifex_domain::ports::{Clock, Renderer, Wake};
 use imperifex_domain::settings::Settings;
 use imperifex_domain::view::Pointer;
 use imperifex_domain::{log_error, log_info, log_warn};
-use imperifex_platform::{D3dRenderer, DirectWriteText, SystemClock, WindowsAppearance};
+use imperifex_platform::{
+    D3dRenderer, DirectWriteText, FileCommandHistory, SystemClock, WindowsAppearance,
+};
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::keyboard::ModifiersState;
 use winit::window::{Window, WindowId};
 
 /// What other threads tell the window.
@@ -41,7 +46,11 @@ pub fn run(settings: Settings, language: Language) -> Result<(), String> {
         let family = &settings.font.family;
         log_warn!("{} ({family})", text(language, Text::FontNotFound));
     }
-    let core = Core::new(settings, language, Box::new(WindowsAppearance));
+    let mut core = Core::new(settings, language, Box::new(WindowsAppearance));
+    match FileCommandHistory::in_app_data() {
+        Ok(history) => core.keep_history(Box::new(history)),
+        Err(error) => log_warn!("the commands run will not be remembered: {error}"),
+    }
     if let Err(error) = core.watch_system(telling(&events, Told::ThemeChanged)) {
         log_warn!("changes of the system theme will not be seen: {error}");
     }
@@ -52,7 +61,7 @@ pub fn run(settings: Settings, language: Language) -> Result<(), String> {
         clock: SystemClock::new(),
         letters,
         shown: None,
-        shift: false,
+        modifiers: ModifiersState::empty(),
         frames: 0,
     };
     let result = events
@@ -80,8 +89,8 @@ struct App {
     /// Measures the texts for the interface and pictures them for the renderer.
     letters: Rc<DirectWriteText>,
     shown: Option<Shown>,
-    /// Whether a Shift key is down.
-    shift: bool,
+    /// The keys such as Shift that are down.
+    modifiers: ModifiersState,
     /// How many frames were drawn, to see that an idle window draws none.
     frames: u64,
 }
@@ -189,9 +198,13 @@ impl App {
         } = event
         {
             if event.state == ElementState::Pressed {
-                let commands = match translate::page(event, self.shift) {
-                    Some(back) => self.core.page(back),
-                    None => self.core.typed(&translate::key(event)),
+                let commands = match translate::shortcut(event, self.modifiers) {
+                    Some(Shortcut::Page { back }) => self.core.page(back),
+                    Some(Shortcut::ToggleEditor) => self.core.toggle_editor(),
+                    None => {
+                        let shift = self.modifiers.shift_key();
+                        self.core.typed(&translate::key(event, shift))
+                    }
                 };
                 self.obey_all(event_loop, commands);
             }
@@ -311,7 +324,7 @@ impl ApplicationHandler<Told> for App {
             self.core.set_focused(focused);
         }
         if let WindowEvent::ModifiersChanged(modifiers) = &event {
-            self.shift = modifiers.state().shift_key();
+            self.modifiers = modifiers.state();
         }
         self.key_event(event_loop, &event);
         self.wheel_event(event_loop, &event);

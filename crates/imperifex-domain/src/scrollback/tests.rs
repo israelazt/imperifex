@@ -25,7 +25,8 @@ fn seen(terminal: &Terminal, view: View) -> String {
     let screen = terminal.screen();
     (0..screen.rows())
         .map(|row| {
-            let cells = screen.seen_row(view.back(), row);
+            let first = -isize::try_from(view.back()).unwrap_or(0);
+            let cells = screen.seen_row(first, row);
             cells.first().map_or(' ', Cell::base)
         })
         .collect()

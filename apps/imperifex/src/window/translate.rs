@@ -4,7 +4,7 @@ use imperifex_domain::input::{KeyInput, NamedKey};
 use imperifex_domain::view::{CursorIcon, Edge, Point};
 use winit::dpi::{LogicalSize, PhysicalPosition};
 use winit::event::{KeyEvent, MouseScrollDelta};
-use winit::keyboard::{Key, NamedKey as Named};
+use winit::keyboard::{Key, ModifiersState, NamedKey as Named};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{CursorIcon as Cursor, ResizeDirection, Window, WindowAttributes};
@@ -49,7 +49,7 @@ pub fn point(position: PhysicalPosition<f64>) -> Point {
     (whole.x, whole.y)
 }
 
-pub fn key(event: &KeyEvent) -> KeyInput {
+pub fn key(event: &KeyEvent, shift: bool) -> KeyInput {
     let named = match event.logical_key {
         Key::Named(Named::Enter) => Some(NamedKey::Enter),
         Key::Named(Named::Backspace) => Some(NamedKey::Backspace),
@@ -59,20 +59,34 @@ pub fn key(event: &KeyEvent) -> KeyInput {
         Key::Named(Named::ArrowDown) => Some(NamedKey::Down),
         Key::Named(Named::ArrowRight) => Some(NamedKey::Right),
         Key::Named(Named::ArrowLeft) => Some(NamedKey::Left),
+        Key::Named(Named::Home) => Some(NamedKey::Home),
+        Key::Named(Named::End) => Some(NamedKey::End),
+        Key::Named(Named::Delete) => Some(NamedKey::Delete),
         _ => None,
     };
     KeyInput {
         text: event.text.as_ref().map(ToString::to_string),
         key: named,
+        shift,
     }
 }
 
-/// `Shift` with `Page Up` or `Page Down` looks back or forward: `true` is
-/// back. Any other key is `None`.
-pub fn page(event: &KeyEvent, shift: bool) -> Option<bool> {
-    match event.logical_key {
-        Key::Named(Named::PageUp) if shift => Some(true),
-        Key::Named(Named::PageDown) if shift => Some(false),
+/// The keys that are for the window and not for what is written.
+pub enum Shortcut {
+    /// `Shift` with `Page Up` or `Page Down`: look back, or forward.
+    Page { back: bool },
+    /// `Ctrl`+`Shift`+`E` (T-D25).
+    ToggleEditor,
+}
+
+pub fn shortcut(event: &KeyEvent, modifiers: ModifiersState) -> Option<Shortcut> {
+    let shift = modifiers.shift_key();
+    match &event.logical_key {
+        Key::Named(Named::PageUp) if shift => Some(Shortcut::Page { back: true }),
+        Key::Named(Named::PageDown) if shift => Some(Shortcut::Page { back: false }),
+        Key::Character(letter) if shift && modifiers.control_key() => letter
+            .eq_ignore_ascii_case("e")
+            .then_some(Shortcut::ToggleEditor),
         _ => None,
     }
 }

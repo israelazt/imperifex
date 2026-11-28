@@ -13,9 +13,9 @@ pub struct TerminalPicture<'a> {
     /// The rows that changed since the last picture given to the same renderer.
     /// A new renderer draws them all, whatever this says.
     pub damage: &'a Damage,
-    /// How many rows above the screen the view is; with any, what is seen
-    /// starts in the history, and `damage` says nothing of it.
-    pub back: usize,
+    /// The row of the screen at the top of the area: negative ones are of the
+    /// history. With any but 0, `damage` says nothing of what is seen.
+    pub first: isize,
     /// Where the grid goes. Its top left cell is at the area's, and only whole
     /// cells are drawn.
     pub area: Rect,

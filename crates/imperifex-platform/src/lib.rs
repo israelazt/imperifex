@@ -6,6 +6,7 @@
 #[cfg(windows)]
 mod appearance;
 mod clock;
+mod history_file;
 #[cfg(any(windows, test))]
 mod instances;
 mod language;
@@ -22,6 +23,7 @@ mod text;
 #[cfg(windows)]
 pub use appearance::WindowsAppearance;
 pub use clock::SystemClock;
+pub use history_file::FileCommandHistory;
 #[cfg(windows)]
 pub use language::WindowsLanguage;
 pub use log_console::install_stderr_log;

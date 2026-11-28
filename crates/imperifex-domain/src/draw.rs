@@ -16,6 +16,8 @@ pub struct Rect {
 pub enum UiFont {
     Text,
     Icons,
+    /// That of the output, for what is written as in it.
+    Mono,
 }
 
 /// The icons of the interface, as characters of its icon font. The one of a
